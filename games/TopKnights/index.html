@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Top Knights</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <canvas id="game" aria-label="Top Knights"></canvas>
+    <div id="loading-overlay" class="loading-overlay hidden" aria-live="polite" aria-label="Loading screen">
+      <div class="loading-panel">
+        <p id="loading-title" class="controller-title">Loading Battlefield</p>
+        <p id="loading-copy" class="loading-copy">Preparing map art, unit sprites, and interface textures.</p>
+        <div class="loading-track" aria-hidden="true">
+          <div id="loading-progress-fill" class="loading-progress-fill"></div>
+        </div>
+        <p id="loading-status" class="loading-status">Loading assets...</p>
+      </div>
+    </div>
+    <div id="menu-overlay" class="overlay" data-menu-screen="root" data-menu-result="off">
+      <div class="menu-panel main-menu-shell">
+        <div class="menu-title-block">
+          <p class="eyebrow">Empire Strategy Sandbox</p>
+          <h1>Top Knights</h1>
+          <p class="intro">Build an empire, collect taxes, harvest the frontier, and crush rival nations across a rotating war map.</p>
+        </div>
+
+        <section id="menu-root-screen" class="menu-screen menu-art-screen active" aria-label="Main menu">
+          <div class="menu-artboard menu-artboard-root" data-menu-artboard="root">
+            <img class="menu-art-image" src="./Menu%20UI/Main_menu.png" alt="Top Knights main menu artwork" />
+            <div class="menu-assign-layer" data-menu-assign-layer="root" aria-hidden="true"></div>
+            <button id="menu-start-btn" type="button" class="menu-art-hitbox root-menu-btn root-menu-btn-single">
+              <span class="sr-only">Singleplayer</span>
+            </button>
+            <button id="multiplayer-btn" type="button" class="menu-art-hitbox root-menu-btn root-menu-btn-multiplayer">
+              <span class="sr-only">Multiplayer</span>
+            </button>
+            <button id="settings-btn" type="button" class="menu-art-hitbox root-menu-btn root-menu-btn-settings">
+              <span class="sr-only">Settings</span>
+            </button>
+            <button id="exit-btn" type="button" class="menu-art-hitbox root-menu-btn root-menu-btn-quit">
+              <span class="sr-only">Quit</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="menu-multiplayer-screen" class="menu-screen menu-art-screen hidden" aria-label="Multiplayer type selection">
+          <div class="menu-artboard menu-artboard-multiplayer" data-menu-artboard="multiplayer">
+            <img class="menu-art-image" src="./Menu%20UI/Multiplayer_selection.png" alt="Top Knights multiplayer selection artwork" />
+            <div class="menu-assign-layer" data-menu-assign-layer="multiplayer" aria-hidden="true"></div>
+            <button id="versus-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-versus-2">
+              <span class="sr-only">2P Split-Screen Versus</span>
+            </button>
+            <button id="versus-3-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-versus-3">
+              <span class="sr-only">3P Split-Screen Versus</span>
+            </button>
+            <button id="versus-4-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-versus-4">
+              <span class="sr-only">4P Split-Screen Versus</span>
+            </button>
+            <button id="coop-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-coop-2">
+              <span class="sr-only">2P Split-Screen Co-op</span>
+            </button>
+            <button id="coop-3-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-coop-3">
+              <span class="sr-only">3P Split-Screen Co-op</span>
+            </button>
+            <button id="coop-4-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-coop-4">
+              <span class="sr-only">4P Split-Screen Co-op</span>
+            </button>
+            <button id="menu-host-lan-versus-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-lan-host-versus">
+              <span class="sr-only">Host LAN Versus</span>
+            </button>
+            <button id="menu-join-lan-versus-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-lan-join-versus">
+              <span class="sr-only">Join LAN Versus</span>
+            </button>
+            <button id="menu-host-lan-coop-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-lan-host-coop">
+              <span class="sr-only">Host LAN Co-op</span>
+            </button>
+            <button id="menu-join-lan-coop-btn" type="button" class="menu-art-hitbox mp-btn mp-btn-lan-join-coop">
+              <span class="sr-only">Join LAN Co-op</span>
+            </button>
+          </div>
+          <div class="menu-art-footer">
+            <button id="multiplayer-back-btn" type="button" class="secondary-btn">Back</button>
+          </div>
+        </section>
+
+        <section id="menu-level-screen" class="menu-screen hidden" aria-label="Level selection">
+          <div class="menu-dialog-card">
+            <div class="menu-subhead">
+              <p id="level-menu-kicker" class="controller-title">Level Selection</p>
+              <p id="level-menu-copy" class="menu-flow-copy">Choose a battlefield to begin.</p>
+            </div>
+            <div class="map-panel compact-map-panel" aria-label="Map selection">
+              <div class="map-strip">
+                <button type="button" class="map-card active" data-map-preset="green">
+                  <img src="assets/environment/maps/green map.png" alt="Green map preview" />
+                  <span class="map-card-title">Green Map</span>
+                  <span class="map-card-copy">Lush rivers, forests, hills, and the broadest build space.</span>
+                </button>
+                <button type="button" class="map-card" data-map-preset="canyon">
+                  <img src="assets/environment/maps/Canyon.png" alt="Canyon map preview" />
+                  <span class="map-card-title">Canyon</span>
+                  <span class="map-card-copy">Layered ravines, choke points, and dangerous stone corridors.</span>
+                </button>
+                <button type="button" class="map-card" data-map-preset="desert">
+                  <img src="assets/environment/maps/Desert.png" alt="Desert map preview" />
+                  <span class="map-card-title">Desert</span>
+                  <span class="map-card-copy">Wide dunes, heat attrition, and oasis river fighting lanes.</span>
+                </button>
+                <button type="button" class="map-card" data-map-preset="ocean">
+                  <img src="assets/environment/maps/ocean.png" alt="Ocean map preview" />
+                  <span class="map-card-title">Ocean</span>
+                  <span class="map-card-copy">Coastal mainland with ocean borders, marsh coves, and shipping lanes.</span>
+                </button>
+              </div>
+            </div>
+            <button id="resume-btn" type="button" class="secondary-btn hidden menu-inline-btn">Resume Solo</button>
+            <div id="lan-panel" class="lan-panel hidden">
+              <div id="lan-inputs" class="lan-inputs">
+                <label class="lan-field">
+                  <span>Room Code</span>
+                  <input id="lan-code-input" type="text" maxlength="5" placeholder="ABCDE" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="lan-field">
+                  <span>Host IP (optional)</span>
+                  <input id="lan-host-ip-input" type="text" placeholder="192.168.x.x" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="lan-field lan-field-wide">
+                  <span>Share Link</span>
+                  <input id="lan-link-input" type="text" placeholder="Host a LAN room to generate a join link" autocomplete="off" spellcheck="false" readonly />
+                </label>
+              </div>
+              <div class="menu-lan-actions">
+                <button id="host-lan-btn" type="button" class="secondary-btn lan-action hidden">Host LAN Versus</button>
+                <button id="join-lan-btn" type="button" class="secondary-btn lan-action hidden">Join LAN Versus</button>
+                <button id="host-lan-coop-btn" type="button" class="secondary-btn lan-action hidden">Host LAN Co-op</button>
+                <button id="join-lan-coop-btn" type="button" class="secondary-btn lan-action hidden">Join LAN Co-op</button>
+              </div>
+              <div id="lan-player-indicator" class="lan-player-indicator hidden">
+                <div class="lan-player-dots">
+                  <div class="lan-player-dot host-player" title="Host"></div>
+                  <div class="lan-player-dot guest-player hidden" title="Guest"></div>
+                </div>
+              </div>
+              <button id="lan-start-btn" type="button" class="primary-btn lan-action hidden">Start Game</button>
+              <p id="lan-hint" class="lan-hint">Run <code>node server.js</code> on the host machine, open this page from that machine's LAN IP such as <code>http://192.168.1.10:4173</code>, then share the generated link or room code. GitHub Pages can host the single-player and local split-screen build, but LAN still requires the built-in HTTP server.</p>
+              <p id="lan-status" class="lan-status">Select a map, then host or join the room.</p>
+            </div>
+            <div class="menu-footer-row">
+              <button id="level-back-btn" type="button" class="secondary-btn">Back</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="menu-quit-screen" class="menu-screen hidden" aria-label="Quit confirmation">
+          <div class="menu-dialog-card menu-dialog-card-compact">
+            <div class="menu-subhead">
+              <p class="controller-title">Quit Game</p>
+              <p class="menu-flow-copy">Leave Top Knights and close the current session?</p>
+            </div>
+            <div class="menu-stack">
+              <button id="quit-confirm-btn" type="button" class="menu-action-btn">Yes, Quit</button>
+              <button id="quit-cancel-btn" type="button" class="secondary-btn">Back</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="live-controls" class="live-controls hidden" aria-label="Live game controls">
+      <button id="difficulty-btn" type="button" class="live-pill">Difficulty: Normal</button>
+      <button id="ceasefire-btn" type="button" class="live-pill secondary-live">Ceasefire (C / Esc)</button>
+      <button id="help-btn" type="button" class="live-pill secondary-live">Help / Tutorial (H)</button>
+      <button id="tech-tree-btn" type="button" class="live-pill secondary-live">Tech Tree (T)</button>
+      <button id="live-settings-btn" type="button" class="live-pill secondary-live">Settings</button>
+      <button id="save-match-btn" type="button" class="live-pill secondary-live">Save Solo</button>
+      <div class="speed-strip" role="group" aria-label="Game speed">
+        <button id="speed-slow-btn" type="button" class="live-pill secondary-live">0.5x (-)</button>
+        <button id="speed-normal-btn" type="button" class="live-pill">1x</button>
+        <button id="speed-fast-btn" type="button" class="live-pill secondary-live">2x</button>
+        <button id="speed-ultra-btn" type="button" class="live-pill secondary-live">5x</button>
+      </div>
+      <p id="assist-status" class="assist-status">Normal pressure. Enemy forces behave as usual.</p>
+    </div>
+
+    <div id="settings-overlay" class="settings-overlay hidden" aria-label="Settings">
+      <div class="settings-panel">
+        <div class="settings-panel-head">
+          <div>
+            <p class="controller-title">Settings</p>
+            <p class="settings-copy">Tune readability, graphics, audio, and your main keyboard shortcuts. These changes apply instantly during a live match and can be reopened with <code>O</code>.</p>
+          </div>
+          <button id="settings-close-btn" type="button" class="secondary-btn admin-close-btn">Close</button>
+        </div>
+        <div class="settings-grid">
+          <section class="settings-section">
+            <p class="settings-section-title">Accessibility</p>
+            <label class="settings-field">
+              <span>UI Font Size</span>
+              <div class="settings-range-row">
+                <input id="font-scale-input" type="range" min="90" max="135" step="5" value="100" />
+                <strong id="font-scale-value">100%</strong>
+              </div>
+            </label>
+            <label class="settings-field">
+              <span>Color Assist</span>
+              <select id="color-mode-select">
+                <option value="default">Default</option>
+                <option value="colorblind">Blue / Gold</option>
+                <option value="high-contrast">High Contrast</option>
+              </select>
+            </label>
+            <p id="color-mode-note" class="settings-note">Default faction colors with the standard battlefield palette.</p>
+          </section>
+          <section class="settings-section">
+            <p class="settings-section-title">Performance</p>
+            <label class="settings-field">
+              <span>Graphics Quality</span>
+              <select id="graphics-quality-select">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <p class="settings-note">Lower quality reduces shadows, particle density, and heavy HUD details when unit counts spike.</p>
+          </section>
+          <section class="settings-section">
+            <p class="settings-section-title">Audio</p>
+            <label class="settings-field">
+              <span>SFX Volume</span>
+              <div class="settings-range-row">
+                <input id="sfx-volume-input" type="range" min="0" max="100" step="5" value="68" />
+                <strong id="sfx-volume-value">68%</strong>
+              </div>
+            </label>
+            <label class="settings-field">
+              <span>Music Volume</span>
+              <div class="settings-range-row">
+                <input id="music-volume-input" type="range" min="0" max="100" step="5" value="100" />
+                <strong id="music-volume-value">100%</strong>
+              </div>
+            </label>
+          </section>
+          <section class="settings-section settings-section-wide">
+            <p class="settings-section-title">Key Remap</p>
+            <div id="keybind-grid" class="keybind-grid">
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="openAssets">Assets</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="openWeapons">Weapons</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="clearSelection">Clear</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="help">Help</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="openSettings">Settings</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="fullscreen">Fullscreen</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="toggleDifficulty">Difficulty</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="ceasefire">Ceasefire</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="openTechTree">Tech Tree</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="heroAbility">Hero Ability</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="rotatePlacement">Rotate Build</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="moveBuilding">Move Building</button>
+              <button type="button" class="secondary-btn keybind-btn" data-keybind-action="demolishBuilding">Demolish</button>
+            </div>
+            <p id="keybind-status" class="settings-note">Click an action, then press a key to rebind it. Press Escape to cancel.</p>
+          </section>
+        </div>
+        <div class="settings-panel-actions">
+          <button id="settings-main-menu-btn" type="button" class="secondary-btn danger-btn hidden">Return To Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="slash-overlay" class="slash-overlay hidden" aria-label="Slash command">
+      <div class="slash-panel">
+        <span class="slash-label">Command</span>
+        <input id="slash-command-input" type="text" autocomplete="off" spellcheck="false" placeholder="/admin or /assign" />
+      </div>
+    </div>
+    <div id="admin-overlay" class="admin-overlay hidden" aria-label="Admin panel">
+      <div class="admin-panel">
+        <div class="admin-panel-head">
+          <div>
+            <p class="controller-title">Admin Panel</p>
+            <p id="admin-status" class="admin-status">Type a command like <code>rock</code>, arm it, then click the map to place points.</p>
+          </div>
+          <button id="admin-close-btn" type="button" class="secondary-btn admin-close-btn">Close</button>
+        </div>
+        <div class="admin-toolbar">
+          <label class="admin-field admin-field-wide">
+            <span>Command</span>
+            <input id="admin-command-input" type="text" autocomplete="off" spellcheck="false" placeholder="rock, tree, desert, royal keep, militia squad, erase" />
+          </label>
+          <label class="admin-field">
+            <span>Owner</span>
+            <select id="admin-owner-select">
+              <option value="player">Player</option>
+              <option value="player1">Player 1</option>
+              <option value="player2">Player 2</option>
+              <option value="player3">Player 3</option>
+              <option value="player4">Player 4</option>
+              <option value="enemy1">Enemy 1</option>
+              <option value="enemy2">Enemy 2</option>
+              <option value="neutral" selected>Neutral</option>
+            </select>
+          </label>
+          <button id="admin-arm-btn" type="button" class="secondary-btn admin-action-btn">Arm Tool</button>
+          <button id="admin-clear-points-btn" type="button" class="secondary-btn admin-action-btn">Clear Points</button>
+          <button id="admin-clear-log-btn" type="button" class="secondary-btn admin-action-btn">Clear Log</button>
+          <button id="admin-copy-log-btn" type="button" class="secondary-btn admin-action-btn">Copy Log</button>
+        </div>
+        <p class="admin-help">Slash command: type <code>/admin</code> during a match or <code>/assign</code> in the menu. Admin tools place resources, units, buildings, and biome paint. Assign mode lets you drag menu rectangles and logs exact hitbox percentages below.</p>
+        <textarea id="admin-log" class="admin-log" readonly></textarea>
+      </div>
+    </div>
+
+    <script src="sprite-data.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>

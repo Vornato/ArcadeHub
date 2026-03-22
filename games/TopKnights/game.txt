@@ -1,0 +1,129 @@
+Game Name: Top Knights
+Game Description: A top-down strategy empire builder where you pan, rotate, and zoom across a gridded war map, deploy buildings and weapons from a live quick bar, collect taxes and resources, complete quests, and defeat rival nations.
+
+Features:
+- Rotating and zoomable top-down battlefield with right-drag panning, middle-drag rotation, and wheel zoom.
+- Bottom combat bar with 4 asset slots and 4 weapon slots.
+- `E` assets catalog and `Q` weapons catalog, each with 50 unlockable entries.
+- Drag items from the catalogs to replace quick-bar slots during combat.
+- Place buildings, vehicles, units, bombs, EMP strikes, and nukes directly onto the map.
+- Asset expansion now chains outward from your latest manually placed structure within about 10 tiles, while troop deployments are limited to the 8-tile frontier around your furthest placed building.
+- Economy from NPC taxes, hunting animals, chopping wood, quarrying stone, and defeating enemies.
+- Houses and military buildings that generate units such as villagers, warriors, archers, knights, and support troops.
+- Drag-box army selection, clickable building/unit selection, a left-bottom selection icon tray, icon-click deselect, enemy hover highlighting, left-click move/attack commands, and `X` to clear placement or selection.
+- Selected units now show a small eye button inside the left-bottom selection tray, letting you jump into a pseudo-3D first-person possession view from that unit's eyes with `WASD` movement, mouse look, left-click fire, right-click aim, `Shift` sprint, and `Esc` return.
+- First-person mode now renders trees, rocks, buildings, units, projectiles, target health bars, floating damage, hit markers, knockback reactions, and held-weapon overlays that change between bows, crossbows, firearms, launchers, and melee weapons.
+- Health, armor, projectile, splash-damage, repair, and auto-attack systems for more believable combat.
+- Quest system with coin rewards and a campaign goal of conquering enemy nations.
+- Enemy attacks arrive in timed waves instead of constant nonstop pressure.
+- Rare weapon drops such as axes, swords, and guns can be picked up for damage bonuses.
+- Locally generated PNG art for the banner, map preview, assets sheet, and weapons sheet.
+- Improved top-down terrain shading, house silhouettes, unit silhouettes, and combat VFX.
+- Sprite-backed rendering with locally generated top-down PNGs for 50 assets plus unit, vehicle, drop, and ability icons, all connected to world objects and quick-bar cards.
+- Refined sprite art pass with more advanced top-down roofing, castle/tower detail, industrial hardware, infantry gear, and vehicle paneling across the generated PNG set.
+- Added 20 new asset choices including guard barracks, ranger lodges, lancer stables, repair bays, signal beacons, tesla spires, flame towers, missile silos, supply depots, imperial mints, war foundries, observatories, storm generators, citadels, shield bastions, siege foundries, drone labs, airstrips, hover ports, and rail forts.
+- Added 20 new weapon choices including pikemen, crossbow volleys, paladin charges, war wagons, fire carts, sappers, sniper teams, medic teams, flame tanks, AA halftracks, railgun tanks, siege mechs, gunships, stealth drones, assault skiffs, shield carriers, carpet bombs, orbital lasers, nano swarms, and gravity bombs.
+- Catalog panels now support scrolling so the larger asset and weapon rosters stay usable during combat.
+- Visuals now use richer catalog gradients, glossy card treatments, scrollbars, stronger backdrop lighting, and newly generated sprites for the expanded buildings, vehicles, aircraft, infantry, and super-weapon icons.
+- The in-game UI now uses a stronger icon pass with framed item glyphs, category badges, richer catalog cards, polished quick-bar slots, and upgraded left-bottom selection cards so assets, weapons, and selections read more clearly at a glance.
+- Local PNG art from the `assets` folder now overrides the generated sprite set wherever matching files exist, with the imported building, weapon, resource, and HUD art rendered about 1.2x larger for stronger battlefield/UI presence while unmatched entries still fall back safely to the built-in sprites.
+- The main start menu now uses a more compact responsive layout with shorter cards/buttons and safe vertical scrolling so the lower LAN section stays reachable on shorter screens.
+- The main menu now includes four selectable battlefield presets: `Green Map`, `Canyon`, `Desert`, and `Ocean`, each with its own preview card and distinct terrain-generation profile.
+- Menu option for `2 Players Split Screen` with local versus mode on the same map.
+- Local split-screen now also supports `3P` and `4P` versus plus `3P` and `4P` co-op, with automatic 3-way and 4-way viewport layouts and controller assignment for up to four gamepads.
+- Local controller support now scales from solo pad play up to four controllers, with left-stick cursor control, right-stick camera movement, right-stick press rotation, `A` select/click, `B` weapons menu, `X` assets menu, and `Y` deselect.
+- Mouse input now converts browser pointer coordinates into true canvas-space positions so hover, selection, drag-boxes, clicks, and wheel-panel targeting stay aligned even if the page is offset, resized, or displayed under browser/fullscreen scaling.
+- The project now includes a GitHub Pages deployment workflow that publishes a static build of the game, while the menu automatically disables LAN room buttons on HTTPS-hosted builds and explains that LAN still requires opening the game from the built-in `http://HOST:4173` server.
+- Every current building PNG in `assets/buildings` is now wired into the live asset sprite override system; where duplicate art exists for the same building type, the game uses those extra images as alternate visual variants instead of leaving them unused.
+- Split-screen cameras, per-player HUDs, per-player quick bars and resources, and head-to-head win/lose states when one side loses every unit and structure.
+- Expanded biome system with deserts, canyons, deadlands, rivers, marshes, forests, hills, roads, and meadows.
+- Typing `/admin` during a match opens an in-game admin panel where you can arm typed commands like `rock`, `tree`, biome names, building names, weapon/unit names, animals, civilians, and `erase`, then click the map to place or paint them while the panel logs every action.
+- The admin panel now keeps persistent point markers on the battlefield, shows a detailed copyable text log with exact coordinates and tool names, and updates the live terrain cache so custom biome painting immediately changes the visible map.
+- Terrain now changes movement speed, tower/ranged advantage, structure productivity, build permissions, and environmental attrition for units and buildings depending on where they stand.
+- Clicking an already selected quick-bar item or single selected unit a second time now deselects it.
+- LAN versus support over the built-in Node server with room-code hosting and joining from localhost or a host machine's LAN IP.
+- The host now runs the authoritative battlefield simulation while the guest keeps a local camera/UI and sends deploy and command inputs back to the host over lightweight room APIs.
+- LAN rooms now generate a direct share link on the host's private IP, and any player opening that link can press `Start` to join the room and launch the same match for everyone already connected.
+- Shared LAN links now also embed the host API origin itself, so guests use the real host machine for join/start/poll requests instead of guessing from their own local page origin.
+- LAN host/join actions now also retry against the built-in `:4173` server automatically, so versus and co-op room creation still surfaces a share link even if the page was opened from a different local URL.
+- The built-in LAN server now answers cross-origin preflight requests and returns LAN API responses with CORS headers, so LAN hosting from alternate local URLs can still generate a usable share link.
+- The built-in LAN server now also allows private-network preflight requests, which keeps modern browsers from silently blocking LAN room creation when the page is opened from a different local origin.
+- Live assist controls now include `Difficulty: Normal/Easy`, an `Esc`-triggered ceasefire that lasts about 3 in-game minutes in solo campaign, and visible speed controls for `0.5x`, `1x`, `2x`, and `5x`.
+- Easy mode now softens single-player pressure by keeping enemy factions defensive, shrinking and slowing attack waves, and stopping enemy units/buildings from aggressively attacking the player.
+- Added allied co-op modes for both local split-screen and LAN play, with `player1` and `player2` sharing the same side against two large enemy strongholds.
+- Co-op now has PvE win/loss rules, co-op objective HUD panels, shared LAN difficulty syncing, and remote guest deployment support through the existing room-code server flow.
+- Controller support now includes `LB` / `RB` zoom in addition to left-stick cursor movement, right-stick camera movement, and `R3` rotation.
+- The map now carves a stronger canyon choke zone through the middle of the battlefield, with more canyon rock clutter and clearer central terrain pressure.
+- Co-op enemy strongholds now open with larger garrisons and keep producing additional hostile units over time, making allied co-op battles more intense.
+- Difficulty now also includes `Hard`, which adds extra hostile camps, larger/faster enemy pressure, and stronger enemy production in PvE matches.
+- Terrain visuals now have richer biome shading and detail, including denser forest silhouettes, stronger canyon depth, brighter river highlights, and more readable roads.
+- Environment rendering now includes stronger shoreline blending, broader biome lighting, animated water shimmer, heat-haze passes, and camera-aware atmosphere shaders layered into the battlefield.
+- Adaptive music now crossfades between persistent `Calm` and `Battle` tracks based on whether active combat is actually visible inside the local camera view, and local/LAN `player2` starts its music stream from the 20-minute mark.
+- Added a procedural sound-effects pass for UI clicks, panel toggles, selection, orders, deployments, harvesting, tax collection, projectile launches, impacts, explosions, pickups, quest completion, wave warnings, and victory/defeat cues.
+- Trees, rocks, walls, gates, and other solid structures now behave as real battlefield boundaries that units cannot walk through.
+- Combat VFX now use stronger layered explosions, smoke, impact flashes, sparks, debris shards, and death bursts for a more dramatic battlefield.
+- Selected units can now be ordered onto trees and rocks to harvest them manually, breaking each resource node chunk by chunk and only earning coins plus wood/stone when a chunk is actually destroyed.
+- Neutral village houses, markets, granaries, and wandering civilians can now be visited directly by selected units to collect taxes after the squad reaches them.
+- Economy buildings now contribute more visible treasury income, with markets, farms, granaries, command halls, docks, refineries, lumber camps, and quarries all feeding the empire's passive economy.
+- Neutral settlements now include store-like village markets and granaries, and the HUD shows live `Income` so the economic network is easier to read during play.
+- Added persistent fog of war so terrain stays revealed once your units or buildings clear it, while unreached land remains hidden under the shroud.
+- Added a small minimap directly below the top-left HUD that keeps the same persistent exploration reveal, plus unit/building markers and the current camera frame.
+- Added a Hero Commander system with one hero per side, multiple archetypes, XP leveling, passive command auras, active abilities, HUD status cards, and respawn-driven recovery so a fallen commander does not hard-lock the match.
+- Added a branching Tech Tree with Economy, Warfare, and Advanced paths, visible in-match research UI, mutual-exclusion choices, research progress, and catalog/quick-bar lock feedback for tech-gated units, buildings, and weapons.
+- Added faction doctrine personalities for `Fortress Kingdom`, `Raider Horde`, `Iron Legion`, and `Shadow Order`, each with different support building mixes, production bias, aggro timing, wave composition, capture priorities, and player-facing doctrine readouts.
+- Added map Capture Points including watchtowers, treasury posts, supply depots, shrine beacons, mine quarries, and radar points, with capture progress, minimap support, territory bonuses, and AI routing toward strategic objectives.
+- Added milestone Boss Wave encounters featuring the `Iron Behemoth`, `Necro Bell Tower`, `Storm Engine`, and `Sand Worm`, complete with top-center boss health UI, warning banners, unique ability behavior, boss rewards, and stronger battlefield emphasis.
+
+Change Log:
+- 2026-03-13: Created the project tracking file.
+- 2026-03-13: Built the first playable `Top Knights` web strategy game with economy, quests, enemy nations, deployable assets and weapons, unit control, and generated local PNG art.
+- 2026-03-13: Reworked combat and visuals with wave-based enemy attacks, stronger auto-attack logic, highlighted target selection, rare weapon drops, improved houses, and upgraded battlefield/VFX rendering.
+- 2026-03-13: Added a generated sprite pipeline that outputs top-down PNG assets and unit icons, embeds them through `sprite-data.js`, and uses them in the battlefield plus the bottom combat bar.
+- 2026-03-13: Added a menu-selectable split-screen versus mode with `player1` vs `player2`, opposite-corner starting empires, two-controller support, separate cameras and HUDs, and multiplayer win/loss resolution.
+- 2026-03-13: Added gameplay terrain biomes including desert, canyon, deadlands, and stronger river/marsh logic, with movement penalties, structure restrictions, productivity modifiers, and terrain attrition.
+- 2026-03-13: Upgraded the generated PNG art set with more detailed structures, units, and vehicles, then regenerated `sprite-data.js` so the improved visuals appear on the battlefield and quick bar.
+- 2026-03-13: Updated click handling so selecting the same quick-bar item or the same single unit again toggles that selection back off.
+- 2026-03-14: Added LAN room hosting and joining through `server.js`, new menu controls for `Host LAN Versus` and `Join LAN Versus`, and networked two-player battlefield sync where a remote guest can command Player 2 over localhost or a LAN IP.
+- 2026-03-14: Added solo assist controls for `Easy` difficulty, an `Esc` ceasefire window, and `0.5x` / `1x` / `2x` / `5x` game-speed control so the campaign can be slowed down or made less aggressive on demand.
+- 2026-03-14: Added `2P Split-Screen Co-op`, `Host LAN Co-op`, and `Join LAN Co-op`, with allied human empires, two enemy bases to destroy, co-op-specific HUD/objectives, co-op victory/defeat rules, and LAN difficulty synchronization for the host and guest.
+- 2026-03-14: Added `LB` / `RB` controller zoom, reinforced the center of the map with a stronger canyon corridor, and increased co-op enemy pressure with larger starting garrisons plus ongoing enemy production from both hostile strongholds.
+- 2026-03-14: Added `Hard` difficulty with extra enemy camps and heavier wave pressure, upgraded biome rendering, enforced tree/rock/wall collision boundaries for units, and improved explosion/combat VFX with layered blast and debris effects.
+- 2026-03-14: Reworked economy gathering so units must physically harvest trees/rocks chunk by chunk before getting paid, added manual village-house/civilian tax collection, expanded store/building treasury income, and surfaced the new economy flow in the HUD.
+- 2026-03-14: Added per-player fog of war with exploration-based map reveal and a new minimap panel under the resource HUD that shows explored land plus the active camera frame.
+- 2026-03-14: Upgraded LAN rooms to generate direct private-IP share links, added shared-link start so a joined player can launch the room for everyone, and fixed LAN menu polling so hosted lobbies stay synchronized before the match begins.
+- 2026-03-14: Reworked fog of war back to persistent exploration so once troops clear an area it stays uncovered, and the minimap now keeps that cleared territory visible instead of darkening it again.
+- 2026-03-14: Expanded the live catalogs to 50 assets and 50 weapons by adding 20 new buildings plus 20 new deployables, including advanced defenses, economy structures, aircraft, hover units, medics, and new super-weapon abilities.
+- 2026-03-14: Reworked the catalog presentation and overall visual pass with scrolling panels, richer gradient UI cards, stronger backdrop lighting, and regenerated top-down sprites for the expanded roster.
+- 2026-03-14: Upgraded the environment renderer with improved biome terrain art, shoreline blending, animated water shimmer, desert/deadlands heat haze, and atmosphere shader passes tied to the active camera view.
+- 2026-03-14: Added a first-person possession mode for selected units with selection-tray eye buttons, pseudo-3D battlefield rendering, direct `WASD` movement, mouse look/fire, right-click aiming, `Shift` sprinting, and `Esc` exit back to the strategy camera.
+- 2026-03-14: Polished first-person combat presentation with proper in-hand bow/crossbow/firearm/launcher silhouettes, pseudo-3D rendering for trees/rocks/buildings/units, and clearer visible damage through floating numbers, hit markers, impact flashes, and knockback reactions.
+- 2026-03-14: Added an adaptive in-game music system that keeps calm/battle tracks running continuously, crossfades only when visible combat enters the active camera view, offsets `player2` to the 20-minute mark, and layers in procedural sound effects across UI, economy, combat, and match-state events.
+- 2026-03-14: Added a left-bottom selection tray with live unit/building icons and click-to-deselect behavior, plus new build-frontier rules that keep structures near the latest placed building and troop deployment around the furthest placed frontier structure.
+- 2026-03-14: Hardened LAN room hosting/joining so `Host LAN Co-op` and the other LAN buttons retry against the built-in `:4173` server, immediately show progress text, and reliably populate the generated share link when the room is created.
+- 2026-03-14: Fixed the built-in LAN server to handle CORS preflight and cross-origin LAN API calls, and added fetch timeouts so stuck LAN host requests fall through to working `:4173` retries instead of hanging on `Creating Co-op LAN room...`.
+- 2026-03-14: Added private-network CORS allowance on the built-in LAN server so browsers that enforce local-network preflight can still create co-op/versus rooms and return a share link.
+- 2026-03-14: Added a clearer `EADDRINUSE` server startup message so if an old LAN server is still holding port `4173`, the console now tells you to stop that process and restart the updated server.
+- 2026-03-14: Reworked LAN API retries to prefer the currently loaded server first, remember the working LAN origin, and use longer host/join/start timeouts so remote guests on the shared link do not fail out early with aborted join requests.
+- 2026-03-14: Fixed shared-link LAN joining by embedding the host API origin directly into generated room links, teaching guests to prefer that host origin for join/start/poll calls, and translating browser abort errors into explicit LAN timeout messages.
+- 2026-03-14: Tightened the start-menu layout with smaller spacing, buttons, artwork tiles, and a scrollable/max-height panel so the bottom LAN controls no longer get clipped on shorter displays.
+- 2026-03-14: Expanded local split-screen to 3-player and 4-player versus/co-op, added three-way and four-way viewport layouts, generalized local player spawning/win logic beyond two humans, and extended controller join support up to four gamepads.
+- 2026-03-14: Polished the visual/UI presentation with deeper menu panel styling, stronger framed item icons, category/cost badges, richer catalog cards, upgraded quick-bar slots, and a cleaner selection tray treatment.
+- 2026-03-18: Renamed the local art files in `assets/buildings` and `assets/Weapons` to closer snake_case matches of the current in-game building and weapon catalog ids so the folder naming is more consistent with the live game content.
+- 2026-03-18: Wired the renamed `assets` PNGs into the live game so matching building and weapon art now appears on the battlefield, in the catalog, quick bar, and selection tray at a 1.2x render scale, while `Coin.png`, `HUD bar.png`, environment resource art, and environment map previews are also used in the HUD, world resources, and menu strip.
+- 2026-03-18: Finished the remaining imported art hookups by mapping the additional building PNG set in `assets/buildings` plus `pikemen.png`, `cannon nest.png`, and `mortar pit.png`, so the full current non-duplicate local building/weapon art pack is now routed through the live sprite override system.
+- 2026-03-18: Prepared the project for GitHub publishing by adding a repository `.gitignore` so dependency folders and generated verification output stay out of the initial source commit.
+- 2026-03-18: Added a GitHub Pages deployment workflow that ships only the static game files, and made the menu HTTPS-aware so Pages builds keep campaign/local split-screen available while disabling the HTTP-only LAN room controls with a clear explanation.
+- 2026-03-18: Finished the full `assets/buildings` photo pass by wiring every current building PNG into the game, including new advanced-structure art like `command hall`, `radar hub`, `capital wall`, and `steel bunker`, while duplicate keep/house photos now appear as alternate in-game building variants.
+- 2026-03-18: Fixed mouse-position drift by converting raw browser `clientX` / `clientY` input into canvas-space coordinates before viewport selection, hover tests, clicks, drag-box updates, panning, and wheel-panel hit checks.
+- 2026-03-18: Added four real map presets (`Green Map`, `Canyon`, `Desert`, and `Ocean`) with menu selection, preset-aware terrain generation, ocean biomes, safer settlement/base land overrides, and LAN snapshot syncing for the selected battlefield layout.
+- 2026-03-18: Added the `/admin` in-match editor with command-armed spawning/painting for resources, biomes, buildings, units, civilians, animals, and erase actions, plus on-map point markers and a detailed copyable admin log of every clicked placement.
+- 2026-03-18: Renamed the remaining `assets/Weapons` imports into cleaner snake_case names like `archer_volley.png`, `armored_car.png`, `field_cannon.png`, and `missile_carrier.png`, kept non-overwriting tank variants for the extra light/medium tank photos, and expanded the live unit sprite override map so more roles now use the matching imported weapon art.
+- 2026-03-18: Hardened local pointer control by giving recent mouse input priority over connected gamepads and filtering stick drift with stronger radial deadzones, so slight controller drift no longer makes the cursor or camera slowly slide upward while using the mouse.
+- 2026-03-18: Upgraded first-person presentation with a more cinematic pseudo-3D pass: camera bob/lean motion, layered skyline silhouettes, richer sky and cloud treatment, improved ground perspective with water shimmer and track lines, stronger atmospheric depth fade on world objects, viewmodel shadow/sway polish, post-processing vignette/grade, and a more professional combat HUD with dynamic reticle, heading, weapon readout, and target range panel.
+- 2026-03-18: Expanded support-station gameplay so `Radar Hub` reveals more fog, `Signal Beacon`, `Observatory`, `Power Plant`, `Refinery`, `Command Hall`, and `Storm Generator` now grant meaningful nearby sight/range/production/reload bonuses, and the bottom status strip shows live building/item descriptions while hovering cards, quick slots, selection icons, or world entities.
+- 2026-03-19: Added the Hero Commander system with archetype-based hero units, per-side hero state/save data, passive aura bonuses, active abilities, XP leveling, respawn timers, HUD status cards, and improved hero first-person handling.
+- 2026-03-19: Added a branching Tech Tree with an in-match research panel, mutually exclusive branch choices, research progress tracking, save/LAN support, and visible catalog/quick-bar locking for tech-gated content.
+- 2026-03-19: Added doctrine-driven enemy faction personalities for `Fortress Kingdom`, `Raider Horde`, `Iron Legion`, and `Shadow Order`, including faction summaries, distinct production/wave bias, capture preferences, and different battlefield pressure profiles.
+- 2026-03-19: Added neutral Capture Points with territory control logic, point-specific bonuses, fog/minimap/world rendering, and AI interaction so map control now matters for economy, vision, production, and hero growth.
+- 2026-03-19: Added milestone Boss Wave encounters with unique boss state machines, warning banners, boss HUD health bars, boss rewards, and reinforced VFX for major PvE escalation beats.
+- 2026-03-20: Delayed the `Iron Behemoth` and later boss encounters so they arrive deeper into the match, routed the new `assets/New` PNG pack into the live item sprite overrides, darkened locked item cards/quick-bar entries, and added unlock-art previews directly inside each tech-tree node.

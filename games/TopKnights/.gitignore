@@ -1,0 +1,8 @@
+node_modules/
+output/
+*.log
+server-lan.err
+server-lan.log
+assets/New Text Document.txt
+.DS_Store
+Thumbs.db
