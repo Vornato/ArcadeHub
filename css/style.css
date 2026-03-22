@@ -1,0 +1,152 @@
+:root {
+    --bg-dark: #0f0f13;
+    --bg-card: #1a1a20;
+    --accent: #ff0055;
+    --accent-glow: rgba(255, 0, 85, 0.4);
+    --text-primary: #ffffff;
+    --text-secondary: #8b8b95;
+    --radius: 12px;
+    --header-height: 70px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    overflow-x: hidden;
+}
+
+/* Header */
+.hub-header {
+    height: var(--header-height);
+    background: rgba(15, 15, 19, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    border-bottom: 1px solid #2a2a30;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(10px);
+}
+
+.logo { font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; }
+.logo span { color: var(--accent); }
+
+.search-box { position: relative; width: 300px; }
+.search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+.search-box input {
+    width: 100%;
+    background: #23232a;
+    border: 1px solid #333;
+    padding: 10px 10px 10px 38px;
+    border-radius: 20px;
+    color: white;
+    outline: none;
+    transition: 0.2s;
+}
+.search-box input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
+/* Main Layout */
+.hub-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: calc(100vh - var(--header-height));
+}
+
+/* Filters */
+.filter-bar { display: flex; gap: 10px; margin-bottom: 2rem; flex-wrap: wrap; }
+.filter-btn {
+    background: #23232a;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    padding: 6px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+.filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* Grid */
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2rem;
+}
+
+/* Card */
+.game-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    position: relative;
+    border: 1px solid transparent;
+}
+.game-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    border-color: var(--accent);
+    z-index: 2;
+}
+
+.thumb-container { width: 100%; height: 150px; background: #000; overflow: hidden; }
+.card-thumb { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
+.game-card:hover .card-thumb { transform: scale(1.1); }
+
+.card-body { padding: 1.2rem; }
+.card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; }
+.card-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem; }
+
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag { font-size: 0.7rem; background: #2a2a30; color: #aaa; padding: 2px 8px; border-radius: 4px; }
+
+/* Empty State */
+.empty-state { text-align: center; padding: 4rem; color: var(--text-secondary); }
+.empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+.hidden { display: none !important; }
+
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #000;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+
+.overlay-toolbar {
+    height: 50px;
+    background: #111;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+}
+
+.active-title { font-weight: 600; color: var(--text-secondary); }
+
+.tool-btn {
+    background: none; border: none; color: #ccc; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+    transition: 0.2s;
+}
+.tool-btn:hover { color: var(--accent); }
+
+.iframe-container { flex: 1; width: 100%; height: 100%; background: #000; }
+iframe { width: 100%; height: 100%; border: none; }

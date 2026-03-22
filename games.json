@@ -1,0 +1,29 @@
+[
+    {
+        "id": "top-knights",
+        "title": "Top Knights",
+        "folder": "TopKnights",
+        "thumbnail": "games/TopKnights/art/top-knights-banner.png",
+        "description": "Top-down strategy empire builder. Command armies, manage resources, and defeat rival nations in campaign or split-screen.",
+        "tags": ["strategy", "rts", "multiplayer"],
+        "featured": true
+    },
+    {
+        "id": "neon-snake",
+        "title": "Neon Snake",
+        "folder": "neon-snake",
+        "thumbnail": "https://placehold.co/400x250/1a1a20/ff0055?text=Neon+Snake",
+        "description": "A cyberpunk twist on the classic snake game.",
+        "tags": ["arcade", "retro"],
+        "featured": false
+    },
+    {
+        "id": "stone-shooter",
+        "title": "Stone Shooter",
+        "folder": "StoneShooter",
+        "thumbnail": "https://placehold.co/400x250/1a1a20/00e5ff?text=Stone+Shooter",
+        "description": "Match colored stones in this puzzle arcade game. Features solo puzzles and local versus mode.",
+        "tags": ["puzzle", "strategy", "versus"],
+        "featured": false
+    }
+]
