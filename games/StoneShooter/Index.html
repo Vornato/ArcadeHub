@@ -54,49 +54,82 @@
         }
 
         .screen {
-            background: rgba(0, 0, 0, 0.85);
-            padding: 40px;
-            border-radius: 12px;
+            background: rgba(15, 15, 25, 0.85); /* Slightly darker, cooler tint */
+            padding: 50px;
+            border-radius: 16px;
             text-align: center;
-            border: 2px solid var(--accent);
+            border: 2px solid transparent;
             pointer-events: auto;
             display: none;
-            min-width: 400px;
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.2);
+            min-width: 450px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            animation: screenPulse 4s infinite alternate;
         }
 
         .screen.active {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        h1 { margin: 0 0 10px 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 4px; color: #fff; text-shadow: 2px 2px #ff0055; }
+        @keyframes screenPulse {
+            0% { border-color: rgba(255, 0, 85, 0.3); box-shadow: 0 0 50px rgba(255, 0, 85, 0.1); }
+            50% { border-color: rgba(0, 229, 255, 0.3); box-shadow: 0 0 50px rgba(0, 229, 255, 0.1); }
+            100% { border-color: rgba(0, 255, 102, 0.3); box-shadow: 0 0 50px rgba(0, 255, 102, 0.1); }
+        }
+
+        @keyframes titleColor {
+            0% { color: #ff0055; text-shadow: 2px 2px #ffcc00, 0 0 20px rgba(255,0,85,0.5); }
+            33% { color: #00e5ff; text-shadow: 2px 2px #ff0055, 0 0 20px rgba(0,229,255,0.5); }
+            66% { color: #00ff66; text-shadow: 2px 2px #00e5ff, 0 0 20px rgba(0,255,102,0.5); }
+            100% { color: #ff0055; text-shadow: 2px 2px #ffcc00, 0 0 20px rgba(255,0,85,0.5); }
+        }
+
+        h1 { 
+            margin: 0 0 10px 0; font-size: 3.5rem; text-transform: uppercase; letter-spacing: 6px; 
+            animation: titleColor 5s infinite; transition: transform 0.2s; 
+        }
+        h1:hover { transform: scale(1.05) rotate(-1deg); }
         h2 { margin: 0; color: #ccc; font-weight: 300; }
         p { line-height: 1.5; color: #aaa; }
 
         button {
-            background: transparent;
-            border: 2px solid #555;
-            color: white;
-            padding: 12px 24px;
+            position: relative;
+            background: rgba(30, 30, 45, 0.9);
+            border: 2px solid transparent;
+            color: #ddd;
+            padding: 14px 28px;
             font-size: 1.2rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             font-family: var(--font-main);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border-radius: 4px;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+
+        button::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: all 0.4s ease; z-index: -1;
         }
 
         button:hover, button:focus {
-            background: var(--accent);
-            border-color: var(--accent);
-            transform: scale(1.05);
+            transform: scale(1.05) translateY(-2px);
             outline: none;
-            box-shadow: 0 0 15px var(--accent);
+            border-color: #00e5ff;
+            box-shadow: 0 10px 25px rgba(0, 229, 255, 0.4);
+            background: linear-gradient(45deg, #1a1a2e, #2a2a4a);
+            color: #fff;
+            text-shadow: 0 0 8px #00e5ff;
         }
+
+        button:hover::before, button:focus::before { left: 100%; }
 
         .key {
             display: inline-block;
@@ -1190,9 +1223,31 @@ class Game {
     }
 
     draw() {
-        // Clear
-        this.ctx.fillStyle = "#111";
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Clear Background based on Mode
+        if (this.mode === 'menu') {
+            const time = Date.now();
+            this.ctx.fillStyle = `hsl(${(time/50)%360}, 50%, 10%)`; // Slow color shift
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.ctx.globalCompositeOperation = 'screen';
+            for(let i=0; i<30; i++) {
+                const cx = (Math.sin(time/2000 + i) * 600) + this.canvas.width/2;
+                const cy = (Math.cos(time/1500 + i*1.5) * 400) + this.canvas.height/2;
+                const size = 100 + Math.sin(time/500 + i)*50;
+                
+                this.ctx.beginPath();
+                const grad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+                grad.addColorStop(0, `hsla(${(time/20 + i*10)%360}, 80%, 60%, 0.15)`);
+                grad.addColorStop(1, 'transparent');
+                this.ctx.fillStyle = grad;
+                this.ctx.arc(cx, cy, size, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+            this.ctx.globalCompositeOperation = 'source-over';
+        } else {
+            this.ctx.fillStyle = "#111"; // Standard bg
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
 
         // Draw Boards
         if (this.mode === 'menu') {
