@@ -870,9 +870,16 @@ class Board {
         // Draw Board Background
         ctx.fillStyle = "#1e1e2f";
         ctx.fillRect(-10, -10, BOARD_WIDTH+20, BOARD_HEIGHT+20);
-        ctx.strokeStyle = "#444";
-        ctx.lineWidth = 2;
+        
+        ctx.strokeStyle = this.playerIdx === 0 ? "rgba(255, 65, 54, 0.7)" :
+                          this.playerIdx === 1 ? "rgba(0, 116, 217, 0.7)" :
+                          this.playerIdx === 2 ? "rgba(46, 204, 64, 0.7)" :
+                                                 "rgba(255, 220, 0, 0.7)";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.lineWidth = 3 + Math.sin(Date.now()/200)*1;
         ctx.strokeRect(-10, -10, BOARD_WIDTH+20, BOARD_HEIGHT+20);
+        ctx.shadowBlur = 0;
 
         // Draw Slots
         for (let c = 0; c < COLS; c++) {
@@ -901,10 +908,29 @@ class Board {
                         ctx.fillStyle = "rgba(255,255,255,0.3)";
                         ctx.fillRect(tx+2 - halfPulse, yDraw+2 - halfPulse, drawSize, 5); // Shine
                     }
+
+                    // Dynamic Block Flare Sweep Effect
+                    const sweep = (Date.now()/5 + c*150 + r*200) % 800;
+                    if (sweep < drawSize * 2.5) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(tx+2 - halfPulse, yDraw+2 - halfPulse, drawSize, drawSize);
+                        ctx.clip(); // Restrict flare to block boundaries
+                        
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.translate(tx + sweep - drawSize, yDraw);
+                        ctx.rotate(Math.PI/4);
+                        ctx.fillRect(0, -drawSize*2, 8, drawSize*4);
+                        ctx.restore();
+                    }
                     
                     // Highlight if active chain color
                     if (this.chainColor && stone.name !== this.chainColor) {
                         ctx.fillStyle = "rgba(0,0,0,0.5)";
+                        ctx.fillRect(tx, yDraw, TILE_SIZE, TILE_SIZE);
+                    } else if (this.chainColor && stone.name === this.chainColor) {
+                        // Very subtle pulse on valid matching colors to draw the eye
+                        ctx.fillStyle = `rgba(255,255,255,${0.1 + Math.sin(Date.now()/150)*0.1})`;
                         ctx.fillRect(tx, yDraw, TILE_SIZE, TILE_SIZE);
                     }
                 }
@@ -943,12 +969,20 @@ class Board {
 
         // Draw Projectiles
         this.projectiles.forEach(p => {
-            ctx.fillStyle = "#fff";
             ctx.shadowBlur = 15;
             ctx.shadowColor = p.stone.hex;
+            
+            // Core
+            ctx.fillStyle = "#fff";
             ctx.beginPath();
             ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
             ctx.fill();
+            
+            // Flare Cross
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.fillRect(p.x - 2, p.y - 20, 4, 40);
+            ctx.fillRect(p.x - 20, p.y - 2, 40, 4);
+            
             ctx.shadowBlur = 0;
         });
 
@@ -1245,8 +1279,36 @@ class Game {
             }
             this.ctx.globalCompositeOperation = 'source-over';
         } else {
-            this.ctx.fillStyle = "#111"; // Standard bg
+            // Dynamic Deep Space Gameplay Background
+            const time = Date.now();
+            this.ctx.fillStyle = `hsl(${(time/100)%360}, 20%, 5%)`;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Subtle Parallax Grid/Stars
+            this.ctx.strokeStyle = "rgba(255,255,255,0.03)";
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            for(let i=0; i<this.canvas.width; i+=100) {
+                const shiftX = (i + (time/20)) % this.canvas.width;
+                this.ctx.moveTo(shiftX, 0); this.ctx.lineTo(shiftX, this.canvas.height);
+            }
+            for(let i=0; i<this.canvas.height; i+=100) {
+                const shiftY = (i + (time/20)) % this.canvas.height;
+                this.ctx.moveTo(0, shiftY); this.ctx.lineTo(this.canvas.width, shiftY);
+            }
+            this.ctx.stroke();
+
+            // Glowing dust passing up
+            this.ctx.globalCompositeOperation = 'screen';
+            for(let i=0; i<25; i++) {
+                const x = ((i*123 + Math.sin(time/1000 + i)*100) % this.canvas.width + this.canvas.width) % this.canvas.width;
+                const y = this.canvas.height - ((time/20 + i*50) % this.canvas.height);
+                this.ctx.fillStyle = `hsla(${(time/30 + i*20)%360}, 100%, 60%, 0.2)`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 4 + Math.sin(time/200+i)*3, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+            this.ctx.globalCompositeOperation = 'source-over';
         }
 
         // Draw Boards
