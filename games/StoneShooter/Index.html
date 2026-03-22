@@ -601,6 +601,14 @@ class Board {
         const stone = target.stone;
         const r = target.r;
 
+        // Check if color matches current chain BEFORE shooting
+        if (this.chainCount > 0 && stone.name !== this.chainColor) {
+            this.shake = 10;
+            this.sound.playError();
+            this.showMsg("WRONG COLOR!");
+            return; // Reject shot
+        }
+
         // Count remaining stones for slow motion
         let totalStones = 0;
         for(let c=0; c<COLS; c++) {
@@ -641,17 +649,10 @@ class Board {
 
         if (this.chainCount === 0) {
             this.chainColor = stone.name;
-            this.processPick(stone, r, c);
-        } else {
-            if (stone.name === this.chainColor) {
-                this.processPick(stone, r, c);
-            } else {
-                this.shake = 10;
-                this.sound.playError();
-                this.showMsg("WRONG COLOR!");
-                this.chainCount = 0; // reset chain penalty
-            }
         }
+        
+        // Shot is guaranteed to be valid because we checked in attemptPick
+        this.processPick(stone, r, c);
     }
 
     processPick(stone, r, c) {
