@@ -41,7 +41,7 @@ class StoryEventManager {
             {
                 id: "clear_skies",
                 name: "Clear Skies",
-                chance: (ch) => (progression.isRaining || progression.windForce !== 0) ? 1.5 : 0,
+                chance: (ch, progression) => (progression.isRaining || progression.windForce !== 0) ? 1.5 : 0,
                 run: (progression) => {
                     progression.windForce = 0;
                     progression.isDark = false;
@@ -115,7 +115,7 @@ class StoryEventManager {
 
         let pool = [];
         for (let ev of this.events) {
-            let weight = typeof ev.chance === 'function' ? ev.chance(chapterData.id) : ev.chance;
+            let weight = typeof ev.chance === 'function' ? ev.chance(chapterData.id, progression) : ev.chance;
             if (weight > 0) {
                 for (let i = 0; i < Math.ceil(weight * 10); i++) pool.push(ev);
             }

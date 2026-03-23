@@ -24,7 +24,12 @@ window.onload = () => {
     const allClasses = ClassManager.getAll();
 
     // Initial config
-    audioSystem.setVolumes(metaManager.audioConfig.master, metaManager.audioConfig.sfx, metaManager.audioConfig.music, metaManager.audioConfig.reducedIntensity);
+    audioSystem.setVolumes(
+        metaManager.audioConfig.master,
+        metaManager.audioConfig.sfx,
+        metaManager.audioConfig.music,
+        metaManager.audioConfig.reducedIntensity
+    );
     uiManager.setOptionsUI(metaManager.audioConfig);
 
     // UI Event Binds
@@ -35,6 +40,7 @@ window.onload = () => {
             uiManager.showScreen('setup');
             setupActive = true;
             assignedPlayers = 0;
+
             // Clear prior assignments
             for (let i = 0; i < 4; i++) {
                 inputManager.playerMappings[i] = null;
@@ -42,7 +48,9 @@ window.onload = () => {
                 uiManager.updateSetupSlot(i, false);
                 uiManager.updateClassSelector(i, allClasses[0]);
             }
+
             uiManager.btnStartGame.disabled = true;
+            inputManager.onAnyInputCallback = setupInputCallback;
         },
 
         onAddBotClicked: () => {
@@ -50,7 +58,11 @@ window.onload = () => {
                 inputManager.playerMappings[assignedPlayers] = { type: 'bot' };
                 uiManager.updateSetupSlot(assignedPlayers, true, 'BOT');
                 assignedPlayers++;
-                if (assignedPlayers >= 2) uiManager.enableStartGame();
+
+                if (assignedPlayers >= 1) {
+                    uiManager.enableStartGame();
+                }
+
                 audioSystem.play('creak');
             }
         },
@@ -62,7 +74,15 @@ window.onload = () => {
         },
         
         onStartGameClicked: () => {
-            if (assignedPlayers >= 2) {
+            if (assignedPlayers >= 1) {
+                // If only 1 player joined and no bots were manually added, auto-spawn AI for all 3 worker slots
+                if (assignedPlayers === 1) {
+                    for (let i = 1; i < 4; i++) {
+                        inputManager.playerMappings[i] = { type: 'bot' };
+                    }
+                    assignedPlayers = 4;
+                }
+
                 setupActive = false;
                 inputManager.onAnyInputCallback = null; // Stop listening during game
                 uiManager.showScreen('none');
@@ -73,31 +93,45 @@ window.onload = () => {
                 }
                 
                 // Map class indexes to actual class objects
-                let chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
-                let projectSelection = document.getElementById('project-selector') ? document.getElementById('project-selector').value : "random";
+                const chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
+                const projectSelection = document.getElementById('project-selector')
+                    ? document.getElementById('project-selector').value
+                    : "random";
+
                 game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection);
             }
         },
 
         onBackClicked: () => {
             setupActive = false;
+            inputManager.onAnyInputCallback = null;
             uiManager.showScreen('menu');
         },
 
         onRestartClicked: () => {
             inputManager.onAnyInputCallback = null;
             uiManager.showScreen('none');
+
             // Reset stale gamepad state
             for (let gpState of Object.values(gamepadManager.gamepads)) {
                 if (gpState) gpState.prevButtons = [];
             }
-            let chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
-            let projectSelection = document.getElementById('project-selector') ? document.getElementById('project-selector').value : "random";
+
+            const chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
+            const projectSelection = document.getElementById('project-selector')
+                ? document.getElementById('project-selector').value
+                : "random";
+
             game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection);
         },
 
         onQuitClicked: () => {
-            game.stop();
+            game.isRunning = false;
+            game.isPaused = false;
+            if (game.music) game.music.stop();
+            uiManager.hideHUD();
+            inputManager.onAnyInputCallback = null;
+            setupActive = false;
             uiManager.showScreen('menu');
         },
 
@@ -110,36 +144,47 @@ window.onload = () => {
         },
 
         onOptionsBackClicked: () => {
-            uiManager.showScreen('menu');
+            if (game.isPaused) uiManager.showScreen('pause');
+            else uiManager.showScreen('menu');
         },
 
         onVolumeChanged: (master, sfx, music, reduced, weather, shake) => {
             audioSystem.setVolumes(master, sfx, music, reduced);
-            metaManager.audioConfig = { master, sfx, music, reducedIntensity: reduced, weatherEffects: weather, cameraShake: shake };
+            metaManager.audioConfig = {
+                master,
+                sfx,
+                music,
+                reducedIntensity: reduced,
+                weatherEffects: weather,
+                cameraShake: shake
+            };
             metaManager.saveData();
             
             // Apply weather immediately if game is active
             if (game.isRunning) {
-                let showWeather = weather !== false;
-                uiManager.setWeather(showWeather && game.progression.isRaining, showWeather && game.progression.isDark);
+                const showWeather = weather !== false;
+                uiManager.setWeather(
+                    showWeather && game.progression.isRaining,
+                    showWeather && game.progression.isDark
+                );
             }
         }
     });
 
-    // Handle any input during setup for player assignment (named so it can be re-enabled)
+    // Handle any input during setup for player assignment
     function setupInputCallback(source) {
         if (setupActive && (Date.now() - lastJoinTime > 400)) {
             if (assignedPlayers < 4) {
                 // Check if device is already assigned to ANY slot
                 let alreadyAssigned = false;
-                for(let i = 0; i < 4; i++) {
+                for (let i = 0; i < 4; i++) {
                     const e = inputManager.playerMappings[i];
                     if (e && e.type === source.type && e.index === source.index) {
                         alreadyAssigned = true;
                     }
                 }
                 
-                // If device is already assigned, update the debounce shield to block ghost double-pad inputs
+                // If device is already assigned, update debounce shield
                 if (alreadyAssigned) {
                     lastJoinTime = Date.now();
                     return;
@@ -151,42 +196,67 @@ window.onload = () => {
                     assignedPlayers++;
                     lastJoinTime = Date.now();
                     
-                    if (assignedPlayers >= 2) {
+                    if (assignedPlayers >= 1) {
                         uiManager.enableStartGame();
                     }
                 }
             }
         }
     }
+
     inputManager.onAnyInputCallback = setupInputCallback;
 
     // Global loop for input handling outside of game
     function globalLoop() {
         inputManager.update();
+
         if (!game.isRunning || game.isPaused) {
-            
             if (setupActive) {
                 for (let i = 1; i < 4; i++) {
                     if (inputManager.isAssigned(i) && inputManager.playerMappings[i].type !== 'bot') {
-                        let state = inputManager.getPlayerState(i);
+                        const state = inputManager.getPlayerState(i);
+
                         if (state.bumperLJustPressed) {
                             playerClasses[i]--;
                             if (playerClasses[i] < 0) playerClasses[i] = allClasses.length - 1;
                             uiManager.updateClassSelector(i, allClasses[playerClasses[i]]);
-                            audioSystem.play('throw'); // ui blip
+                            audioSystem.play('throw');
                         }
+
                         if (state.bumperRJustPressed) {
                             playerClasses[i]++;
                             if (playerClasses[i] >= allClasses.length) playerClasses[i] = 0;
                             uiManager.updateClassSelector(i, allClasses[playerClasses[i]]);
-                            audioSystem.play('throw'); // ui blip
+                            audioSystem.play('throw');
                         }
                     }
                 }
             }
             
-            inputManager.postUpdate(); // allow clear of just pressed keys in UI screens
+            // Check for START / ESC to resume or go back in menus
+            let anyStart = false;
+            for (let i = 0; i < 4; i++) {
+                if (inputManager.isAssigned(i) && inputManager.playerMappings[i].type !== 'bot') {
+                    const state = inputManager.getPlayerState(i);
+                    if (state.startJustPressed) anyStart = true;
+                }
+            }
+            
+            if (anyStart) {
+                if (!uiManager.scrPause.classList.contains('hidden')) {
+                    uiManager.btnResume.click();
+                } else if (!uiManager.scrOptions.classList.contains('hidden')) {
+                    uiManager.btnOptionsBack.click();
+                } else if (!uiManager.scrGameover.classList.contains('hidden')) {
+                    uiManager.btnQuit.click();
+                } else if (!uiManager.scrSetup.classList.contains('hidden')) {
+                    uiManager.btnBackMenu.click();
+                }
+            }
+            
+            inputManager.postUpdate();
         }
+
         requestAnimationFrame(globalLoop);
     }
     

@@ -66,17 +66,17 @@
             <div id="screen-setup" class="screen hidden">
                 <div class="setup-content glass-panel">
                     <h2>Join the Game</h2>
-                    <p style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">P1 Crane: Arrow Keys or Gamepad | P2 Worker: A/D keys or Gamepad</p>
+                    <p style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Crane: Arrow Keys/Gamepad | Builder: A/D/Gamepad</p>
                     <div class="setup-grid">
                         <div class="player-slot p1" id="slot-1">
                             <div class="avatar-preview">🏗️</div>
-                            <h3>Player 1 (Crane)</h3>
+                            <h3>Crane</h3>
                             <p class="status">Arrow keys or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
                         <div class="player-slot p2" id="slot-2">
                             <div class="avatar-preview">🏃‍♂️</div>
-                            <h3>Player 2 (Inside)</h3>
+                            <h3>Builder 1</h3>
                             <div class="class-selector hidden">
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
@@ -86,7 +86,7 @@
                         </div>
                         <div class="player-slot p3" id="slot-3">
                             <div class="avatar-preview">🏃‍♀️</div>
-                            <h3>Player 3 (Inside)</h3>
+                            <h3>Builder 2</h3>
                             <div class="class-selector hidden">
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
@@ -96,7 +96,7 @@
                         </div>
                         <div class="player-slot p4" id="slot-4">
                             <div class="avatar-preview">🏃‍♂️</div>
-                            <h3>Player 4 (Inside)</h3>
+                            <h3>Builder 3</h3>
                             <div class="class-selector hidden">
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
@@ -142,8 +142,8 @@
                         </div>
                     </div>
                     <div class="gameover-controls">
-                        <button id="btn-restart" class="btn-success">Try Again</button>
-                        <button id="btn-quit" class="btn-secondary">Main Menu</button>
+                        <button id="btn-restart" class="btn-success">Restart Run</button>
+                        <button id="btn-quit" class="btn-secondary">Back to Menu</button>
                     </div>
                 </div>
             </div>
@@ -192,7 +192,7 @@
             </div>
         </div>
         
-        <div id="boss-banner" class="hidden" style="position: absolute; top: 30%; left: 0; right: 0; background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; text-align: center; border-top: 4px solid #f1c40f; border-bottom: 4px solid #f1c40f; transform: scaleY(0); transition: transform 0.3s ease-out; z-index: 100;">
+        <div id="boss-banner" class="hidden" style="position: absolute; top: 30%; left: 0; right: 0; background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; text-align: center; border-top: 4px solid #f1c40f; border-bottom: 4px solid #f1c40f; transform: scaleY(0); transition: transform 0.3s ease-out; z-index: 40;">
             <h1 id="boss-banner-title" class="logo-text" style="font-size: 3rem; margin: 0; text-shadow: 2px 2px 0px #e74c3c;">WARNING: BOSS FLOOR</h1>
             <p id="boss-banner-flavor" style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #dfe6e9; margin-top: 5px;">Prepare for the worst.</p>
         </div>

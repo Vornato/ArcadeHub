@@ -26,11 +26,11 @@ const KEYBOARD_MAPS = [
 class InputManager {
     constructor(gamepadManager) {
         this.gm = gamepadManager;
-        
+
         // Track logical players (max 4)
-        // Each has defined input source: { type: 'gamepad'|'keyboard', index: 0 }
+        // Each has defined input source: { type: 'gamepad'|'keyboard'|'bot', index: 0 }
         this.playerMappings = [null, null, null, null];
-        
+
         this.keys = {};
         this.prevKeys = {};
 
@@ -98,68 +98,116 @@ class InputManager {
         return this.playerMappings[playerSlot] !== null;
     }
 
-    getPlayerState(playerSlot) {
-        const source = this.playerMappings[playerSlot];
-        if (!source) return this.getEmptyState();
-
-        if (source.type === 'gamepad') {
-            return this.getGamepadState(source.index);
-        } else if (source.type === 'keyboard') {
-            return this.getKeyboardState(source.index);
-        }
-        return this.getEmptyState();
-    }
-
-    getEmptyState() {
-        return {
-            left: false, right: false,
-            jump: false, jumpJustPressed: false,
-            action1: false, action1JustPressed: false,
-            action2: false, action2JustPressed: false,
-            bumperLJustPressed: false, bumperRJustPressed: false,
-            startJustPressed: false
-        };
-    }
-
-    getGamepadState(gpIndex) {
-        const leftStick = this.gm.getAxis(gpIndex, 'LeftStickX');
-        return {
-            left: this.gm.isButtonPressed(gpIndex, 'LEFT') || leftStick < -0.5,
-            right: this.gm.isButtonPressed(gpIndex, 'RIGHT') || leftStick > 0.5,
-            jump: this.gm.isButtonPressed(gpIndex, 'A'),
-            jumpJustPressed: this.gm.isButtonJustPressed(gpIndex, 'A'),
-            action1: this.gm.isButtonPressed(gpIndex, 'X') || this.gm.isButtonPressed(gpIndex, 'A'), // X to grab, A to drop for floor planner
-            action1JustPressed: this.gm.isButtonJustPressed(gpIndex, 'X') || this.gm.isButtonJustPressed(gpIndex, 'A'),
-            action2: this.gm.isButtonPressed(gpIndex, 'B'),
-            action2JustPressed: this.gm.isButtonJustPressed(gpIndex, 'B'),
-            bumperLJustPressed: this.gm.isButtonJustPressed(gpIndex, 'LB'),
-            bumperRJustPressed: this.gm.isButtonJustPressed(gpIndex, 'RB'),
-            startJustPressed: this.gm.isButtonJustPressed(gpIndex, 'START')
-        };
-    }
-
-    getKeyboardState(kbIndex) {
-        const map = KEYBOARD_MAPS[kbIndex];
-        return {
-            left: this.isKey(map.Left),
-            right: this.isKey(map.Right),
-            jump: this.isKey(map.Jump),
-            jumpJustPressed: this.isKeyJustPressed(map.Jump),
-            action1: this.isKey(map.Action1),
-            action1JustPressed: this.isKeyJustPressed(map.Action1),
-            action2: this.isKey(map.Action2),
-            action2JustPressed: this.isKeyJustPressed(map.Action2),
-            bumperLJustPressed: this.isKeyJustPressed(map.BumperL),
-            bumperRJustPressed: this.isKeyJustPressed(map.BumperR),
-            startJustPressed: this.isKeyJustPressed(map.Start)
-        };
-    }
-
-    isKey(code) {
+    isKeyPressed(code) {
         return !!this.keys[code];
     }
 
     isKeyJustPressed(code) {
         return !!this.keys[code] && !this.prevKeys[code];
+    }
+
+    getPlayerState(playerSlot) {
+        const mapping = this.playerMappings[playerSlot];
+
+        const state = {
+            left: false,
+            right: false,
+            jump: false,
+            jumpJustPressed: false,
+            action1: false,
+            action1JustPressed: false,
+            action2: false,
+            action2JustPressed: false,
+            bumperL: false,
+            bumperLJustPressed: false,
+            bumperR: false,
+            bumperRJustPressed: false,
+            start: false,
+            startJustPressed: false
+        };
+
+        if (!mapping || mapping.type === 'bot') return state;
+
+        if (mapping.type === 'keyboard') {
+            const map = KEYBOARD_MAPS[mapping.index];
+            if (!map) return state;
+
+            state.left = this.isKeyPressed(map.Left);
+            state.right = this.isKeyPressed(map.Right);
+
+            if (map.Jump) {
+                state.jump = this.isKeyPressed(map.Jump);
+                state.jumpJustPressed = this.isKeyJustPressed(map.Jump);
+            }
+
+            if (map.Action1) {
+                state.action1 = this.isKeyPressed(map.Action1);
+                state.action1JustPressed = this.isKeyJustPressed(map.Action1);
+            }
+
+            if (map.Action2) {
+                state.action2 = this.isKeyPressed(map.Action2);
+                state.action2JustPressed = this.isKeyJustPressed(map.Action2);
+            }
+
+            if (map.BumperL) {
+                state.bumperL = this.isKeyPressed(map.BumperL);
+                state.bumperLJustPressed = this.isKeyJustPressed(map.BumperL);
+            }
+
+            if (map.BumperR) {
+                state.bumperR = this.isKeyPressed(map.BumperR);
+                state.bumperRJustPressed = this.isKeyJustPressed(map.BumperR);
+            }
+
+            if (map.Start) {
+                state.start = this.isKeyPressed(map.Start);
+                state.startJustPressed = this.isKeyJustPressed(map.Start);
+            }
+
+            return state;
+        }
+
+        if (mapping.type === 'gamepad') {
+            const gpIndex = mapping.index;
+
+            const stickX = this.gm.getAxis(gpIndex, 'LeftStickX');
+
+            state.left =
+                this.gm.isButtonPressed(gpIndex, 'LEFT') ||
+                stickX < -0.4;
+
+            state.right =
+                this.gm.isButtonPressed(gpIndex, 'RIGHT') ||
+                stickX > 0.4;
+
+            state.jump = this.gm.isButtonPressed(gpIndex, 'A');
+            state.jumpJustPressed = this.gm.isButtonJustPressed(gpIndex, 'A');
+
+            state.action1 = this.gm.isButtonPressed(gpIndex, 'X');
+            state.action1JustPressed = this.gm.isButtonJustPressed(gpIndex, 'X');
+
+            state.action2 = this.gm.isButtonPressed(gpIndex, 'B');
+            state.action2JustPressed = this.gm.isButtonJustPressed(gpIndex, 'B');
+
+            state.bumperL = this.gm.isButtonPressed(gpIndex, 'LB');
+            state.bumperLJustPressed = this.gm.isButtonJustPressed(gpIndex, 'LB');
+
+            state.bumperR = this.gm.isButtonPressed(gpIndex, 'RB');
+            state.bumperRJustPressed = this.gm.isButtonJustPressed(gpIndex, 'RB');
+
+            state.start = this.gm.isButtonPressed(gpIndex, 'START');
+            state.startJustPressed = this.gm.isButtonJustPressed(gpIndex, 'START');
+
+            // Crane on slot 0 uses A to drop too, matching your UI hint
+            if (playerSlot === 0) {
+                state.action1 = this.gm.isButtonPressed(gpIndex, 'A');
+                state.action1JustPressed = this.gm.isButtonJustPressed(gpIndex, 'A');
+            }
+
+            return state;
+        }
+
+        return state;
     }
 }

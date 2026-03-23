@@ -18,7 +18,7 @@ class Floor {
         this.w = isFoundation ? 400 : this.archetype.w;
         this.h = isFoundation ? 80 : this.archetype.h;
         this.isFoundation = isFoundation;
-        this.theme = theme;
+        this.theme = theme || { id: 'fallback', name: 'Fallback', colors: ['#95a5a6', '#7f8c8d'], props: [], massMult: 1 };
         this.projectTheme = projectTheme;
         this.isSlippery = theme && theme.name === "Ice Room";
         
@@ -95,7 +95,7 @@ class Floor {
             
             // Thematic Wallpaper
             ctx.fillStyle = 'rgba(255,255,255,0.05)';
-            if (this.theme.name === "Luxury Penthouse") {
+            if (this.theme && this.theme.name === "Luxury Penthouse") {
                 // Diamonds
                 for(let i=30; i<this.w-this.wallL-this.wallR; i+=40) {
                      ctx.save(); ctx.translate(this.x + this.wallL + i, this.y + this.h/2); ctx.rotate(Math.PI/4);

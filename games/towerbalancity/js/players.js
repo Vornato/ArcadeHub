@@ -312,6 +312,31 @@ class DropPlayer {
         if (this.cooldown <= 0) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
             ctx.fillRect(this.x, cy + 100, this.currentFloorW, 2000); // beam of light/shadow
+            
+            // Ghost outline tutorial for early drops
+            if (this.game.floors.length < 5) {
+                let perfectX = this.game.towerCenterX - this.currentFloorW/2;
+                let highestTopY = this.game.floors[this.game.floors.length - 1].y;
+                
+                ctx.save();
+                ctx.strokeStyle = 'rgba(46, 213, 115, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 10]);
+                ctx.strokeRect(perfectX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.font = '24px "Fredoka One"';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                if (Math.abs(this.x - perfectX) > 25) {
+                    ctx.fillText("Aim here and Drop!", perfectX + this.currentFloorW/2, highestTopY - this.currentFloorH - 20);
+                } else {
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.fillText("Perfect! DROP!", perfectX + this.currentFloorW/2, highestTopY - this.currentFloorH - 20);
+                }
+                ctx.restore();
+            }
         }
         
         // Cab housing
