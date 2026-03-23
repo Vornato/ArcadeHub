@@ -7,6 +7,7 @@ class UIManager {
         this.scrSetup = document.getElementById('screen-setup');
         this.scrGameover = document.getElementById('screen-gameover');
         this.scrPause = document.getElementById('screen-pause');
+        this.scrOptions = document.getElementById('screen-options');
         this.hud = document.getElementById('hud');
 
         this.btnPlay = document.getElementById('btn-play');
@@ -25,6 +26,8 @@ class UIManager {
         this.volMusic = document.getElementById('vol-music');
         this.volSfx = document.getElementById('vol-sfx');
         this.chkReduced = document.getElementById('chk-reduced-intensity');
+        this.chkWeather = document.getElementById('chk-weather-effects');
+        this.chkShake = document.getElementById('chk-camera-shake');
         
         this.lblMaster = document.getElementById('lbl-vol-master');
         this.lblMusic = document.getElementById('lbl-vol-music');
@@ -83,18 +86,22 @@ class UIManager {
             let mu = parseFloat(this.volMusic.value);
             let s = parseFloat(this.volSfx.value);
             let r = this.chkReduced.checked;
+            let w = this.chkWeather.checked;
+            let c = this.chkShake.checked;
             
             this.lblMaster.innerText = Math.round(m * 100) + '%';
             this.lblMusic.innerText = Math.round(mu * 100) + '%';
             this.lblSfx.innerText = Math.round(s * 100) + '%';
             
-            callbacks.onVolumeChanged(m, s, mu, r);
+            callbacks.onVolumeChanged(m, s, mu, r, w, c);
         };
 
         this.volMaster.addEventListener('input', updateVols);
         this.volMusic.addEventListener('input', updateVols);
         this.volSfx.addEventListener('input', updateVols);
         this.chkReduced.addEventListener('change', updateVols);
+        this.chkWeather.addEventListener('change', updateVols);
+        this.chkShake.addEventListener('change', updateVols);
     }
 
     setOptionsUI(config) {
@@ -102,6 +109,8 @@ class UIManager {
         this.volMusic.value = config.music;
         this.volSfx.value = config.sfx;
         this.chkReduced.checked = config.reducedIntensity;
+        this.chkWeather.checked = config.weatherEffects !== false;
+        this.chkShake.checked = config.cameraShake !== false;
         
         this.lblMaster.innerText = Math.round(config.master * 100) + '%';
         this.lblMusic.innerText = Math.round(config.music * 100) + '%';
@@ -113,11 +122,13 @@ class UIManager {
         this.scrSetup.classList.add('hidden');
         this.scrGameover.classList.add('hidden');
         this.scrPause.classList.add('hidden');
+        this.scrOptions.classList.add('hidden');
 
         if (screenName === 'menu') this.scrMenu.classList.remove('hidden');
         if (screenName === 'setup') this.scrSetup.classList.remove('hidden');
         if (screenName === 'gameover') this.scrGameover.classList.remove('hidden');
         if (screenName === 'pause') this.scrPause.classList.remove('hidden');
+        if (screenName === 'options') this.scrOptions.classList.remove('hidden');
     }
 
     showHUD() { this.hud.classList.remove('hidden'); }

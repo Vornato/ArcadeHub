@@ -101,10 +101,16 @@ window.onload = () => {
             uiManager.showScreen('menu');
         },
 
-        onVolumeChanged: (master, sfx, music, reduced) => {
+        onVolumeChanged: (master, sfx, music, reduced, weather, shake) => {
             audioSystem.setVolumes(master, sfx, music, reduced);
-            metaManager.audioConfig = { master, sfx, music, reducedIntensity: reduced };
-            metaManager.save();
+            metaManager.audioConfig = { master, sfx, music, reducedIntensity: reduced, weatherEffects: weather, cameraShake: shake };
+            metaManager.saveData();
+            
+            // Apply weather immediately if game is active
+            if (game.isRunning) {
+                let showWeather = weather !== false;
+                uiManager.setWeather(showWeather && game.progression.isRaining, showWeather && game.progression.isDark);
+            }
         }
     });
 

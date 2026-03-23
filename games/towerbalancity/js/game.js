@@ -144,6 +144,7 @@ class Game {
     }
 
     triggerShake(mag, duration) {
+        if (this.meta.audioConfig && this.meta.audioConfig.cameraShake === false) return;
         this.cameraDirector.triggerShake(mag, duration);
         this.workerCamera.triggerShake(mag, duration);
     }
@@ -247,7 +248,8 @@ class Game {
         this.progression.onFloorDropped();
         
         // Apply weather overlays based on event states
-        this.ui.setWeather(this.progression.isRaining, this.progression.isDark);
+        let showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
+        this.ui.setWeather(showWeather && this.progression.isRaining, showWeather && this.progression.isDark);
     }
 
     updateStatics() {

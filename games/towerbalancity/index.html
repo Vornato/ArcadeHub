@@ -157,25 +157,37 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <div id="screen-options" class="screen flex-col hidden ui-container" style="padding: 30px; border-radius: 12px;">
-            <h1 class="logo-text" style="font-size: 3rem;">OPTIONS</h1>
-            <div class="setup-controls" style="width: 300px;">
-                <label>Master Volume: <span id="lbl-vol-master">100%</span></label>
-                <input type="range" id="vol-master" min="0" max="1" step="0.1" value="1">
-                
-                <label>Music Volume: <span id="lbl-vol-music">100%</span></label>
-                <input type="range" id="vol-music" min="0" max="1" step="0.1" value="1">
-                
-                <label>SFX Volume: <span id="lbl-vol-sfx">100%</span></label>
-                <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="1">
-                
-                <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
-                    Reduced Intensity Mode
-                    <input type="checkbox" id="chk-reduced-intensity">
-                </label>
-                
-                <button id="btn-options-back" class="btn-secondary" style="margin-top: 20px;">Back</button>
+
+            <!-- Options Screen -->
+            <div id="screen-options" class="screen flex-col hidden ui-container" style="padding: 30px; border-radius: 12px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); z-index: 50;">
+                <h1 class="logo-text" style="font-size: 3rem;">OPTIONS</h1>
+                <div class="setup-controls" style="width: 300px;">
+                    <label>Master Volume: <span id="lbl-vol-master">100%</span></label>
+                    <input type="range" id="vol-master" min="0" max="1" step="0.1" value="1">
+                    
+                    <label>Music Volume: <span id="lbl-vol-music">100%</span></label>
+                    <input type="range" id="vol-music" min="0" max="1" step="0.1" value="1">
+                    
+                    <label>SFX Volume: <span id="lbl-vol-sfx">100%</span></label>
+                    <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="1">
+                    
+                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+                        Reduced Intensity Mode
+                        <input type="checkbox" id="chk-reduced-intensity">
+                    </label>
+
+                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+                        Weather Effects
+                        <input type="checkbox" id="chk-weather-effects" checked>
+                    </label>
+
+                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+                        Camera Shake
+                        <input type="checkbox" id="chk-camera-shake" checked>
+                    </label>
+                    
+                    <button id="btn-options-back" class="btn-secondary" style="margin-top: 20px;">Back</button>
+                </div>
             </div>
         </div>
         
