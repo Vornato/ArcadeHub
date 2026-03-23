@@ -1,0 +1,96 @@
+:root {
+  --bg-0: #05070d;
+  --bg-1: #0d1427;
+  --bg-2: #1b2945;
+  --metal-0: #1a2233;
+  --metal-1: #34425e;
+  --accent-hot: #ff6b2d;
+  --accent-cyan: #2ef0ff;
+  --accent-lime: #b7ff3b;
+  --text-main: #f4f8ff;
+  --text-dim: #93a6c7;
+  --danger: #ff4c63;
+  --good: #45f3a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(46, 240, 255, 0.12), transparent 35%),
+    radial-gradient(circle at bottom, rgba(255, 107, 45, 0.18), transparent 40%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  color: var(--text-main);
+  font-family: "Trebuchet MS", "Arial Black", sans-serif;
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(transparent 0 48%, rgba(255, 255, 255, 0.02) 49%, transparent 50% 100%),
+    linear-gradient(90deg, rgba(46, 240, 255, 0.03), transparent 18%, rgba(255, 107, 45, 0.04));
+  background-size: 100% 6px, 100% 100%;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+
+#game-shell {
+  position: fixed;
+  inset: 0;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+}
+
+#statusBar {
+  position: fixed;
+  left: 18px;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(5, 7, 13, 0.45);
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+noscript {
+  position: fixed;
+  inset: auto 20px 20px 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 76, 99, 0.9);
+  color: white;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  #statusBar {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+}

@@ -34,5 +34,14 @@
         "description": "Build the highest and most stable tower in this physics-based puzzle game!",
         "tags": ["puzzle", "physics", "arcade"],
         "featured": false
+    },
+    {
+        "id": "twisted-blur",
+        "title": "TwistedBlur",
+        "folder": "TwistedBlur",
+        "thumbnail": "Covers/Twistedblur.png",
+        "description": "Local multiplayer vehicle-combat racing with split-screen battles, pickups, boosts, and AI rivals.",
+        "tags": ["racing", "combat", "multiplayer"],
+        "featured": false
     }
 ]

@@ -239,7 +239,9 @@ class Game {
             : this.progression.getThemeForFloor();
         const pTheme = this.progression.projectManager.selectedProject;
 
-        const newFloor = new Floor(x, y, false, theme, archetype, pTheme);
+        let spawnY = this.floors.length > 0 ? this.floors[this.floors.length - 1].y - 800 : y;
+
+        const newFloor = new Floor(x, spawnY, false, theme, archetype, pTheme);
         newFloor.isFalling = true;
         newFloor.vy = 0;
         newFloor.dropOffset = offset;
@@ -254,7 +256,7 @@ class Game {
         // Teleport players to the dropping floor
         for (let p of this.players) {
             p.x = x + w / 2 - p.w / 2 + Utils.random(-10, 10);
-            p.y = y - 80;
+            p.y = newFloor.y + newFloor.h - newFloor.wallL - p.h - 1;
             p.vx = 0;
             p.vy = 0;
             this.particles.emitImpactDust(p.x + p.w / 2, p.y + p.h, 5);
