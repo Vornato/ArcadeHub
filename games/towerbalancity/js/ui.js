@@ -10,7 +10,7 @@ class UIManager {
         this.hud = document.getElementById('hud');
 
         this.btnPlay = document.getElementById('btn-play');
-        this.btnPlayChaos = document.getElementById('btn-play-chaos');
+        this.btnPlayChaos = document.getElementById('btn-chaos');
         this.btnStartGame = document.getElementById('btn-start-game');
         this.btnAddBot = document.getElementById('btn-add-bot');
         this.btnBotDiff = document.getElementById('btn-bot-diff');

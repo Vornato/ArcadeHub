@@ -4,7 +4,14 @@
 class MetaManager {
     constructor() {
         this.saveKey = 'towerPanicMeta_v1';
+        this.unlockedItems = [];
+        this.runHistory = [];
+        this.audioConfig = { master: 1, sfx: 1, music: 1, reducedIntensity: false };
+        
         this.data = this.loadData();
+        if (this.data.unlockedItems) this.unlockedItems = this.data.unlockedItems;
+        if (this.data.runHistory) this.runHistory = this.data.runHistory;
+        if (this.data.audioConfig) this.audioConfig = { ...this.audioConfig, ...this.data.audioConfig };
         
         // Unlocks mapped to XP thresholds
         this.unlocks = [
@@ -43,10 +50,7 @@ class MetaManager {
         return {
             xp: 0,
             totalRuns: 0,
-            maxHeightOverall: 0,
-            unlockedItems: this.unlockedItems, // Use initialized default
-            runHistory: this.runHistory,       // Use initialized default
-            audioConfig: this.audioConfig      // Use initialized default
+            maxHeightOverall: 0
         };
     }
 
