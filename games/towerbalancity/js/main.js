@@ -19,6 +19,7 @@ window.onload = () => {
     let isChaosMode = false;
     let playerClasses = [null, 0, 0, 0]; // Index of ClassManager.getAll()
     let botDifficulty = 1; // 0: Rookie, 1: Normal, 2: Smart
+    let lastJoinTime = 0; // Debounce joining to prevent double-joins
     const botDiffNames = ['Rookie', 'Normal', 'Smart'];
     const allClasses = ClassManager.getAll();
 
@@ -63,7 +64,13 @@ window.onload = () => {
         onStartGameClicked: () => {
             if (assignedPlayers >= 2) {
                 setupActive = false;
+                inputManager.onAnyInputCallback = null; // Stop listening during game
                 uiManager.showScreen('none');
+                
+                // Reset all gamepad prevButtons so no stale presses survive into the first game frame
+                for (let gpState of Object.values(gamepadManager.gamepads)) {
+                    if (gpState) gpState.prevButtons = [];
+                }
                 
                 // Map class indexes to actual class objects
                 let chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
@@ -78,7 +85,12 @@ window.onload = () => {
         },
 
         onRestartClicked: () => {
+            inputManager.onAnyInputCallback = null;
             uiManager.showScreen('none');
+            // Reset stale gamepad state
+            for (let gpState of Object.values(gamepadManager.gamepads)) {
+                if (gpState) gpState.prevButtons = [];
+            }
             let chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
             let projectSelection = document.getElementById('project-selector') ? document.getElementById('project-selector').value : "random";
             game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection);
@@ -114,14 +126,30 @@ window.onload = () => {
         }
     });
 
-    // Handle any input during setup for player assignment
-    inputManager.onAnyInputCallback = (source) => {
-        if (setupActive) {
+    // Handle any input during setup for player assignment (named so it can be re-enabled)
+    function setupInputCallback(source) {
+        if (setupActive && (Date.now() - lastJoinTime > 400)) {
             if (assignedPlayers < 4) {
+                // Check if device is already assigned to ANY slot
+                let alreadyAssigned = false;
+                for(let i = 0; i < 4; i++) {
+                    const e = inputManager.playerMappings[i];
+                    if (e && e.type === source.type && e.index === source.index) {
+                        alreadyAssigned = true;
+                    }
+                }
+                
+                // If device is already assigned, update the debounce shield to block ghost double-pad inputs
+                if (alreadyAssigned) {
+                    lastJoinTime = Date.now();
+                    return;
+                }
+
                 // Try assign
                 if (inputManager.assignPlayer(assignedPlayers, source)) {
                     uiManager.updateSetupSlot(assignedPlayers, true, source.type);
                     assignedPlayers++;
+                    lastJoinTime = Date.now();
                     
                     if (assignedPlayers >= 2) {
                         uiManager.enableStartGame();
@@ -129,7 +157,8 @@ window.onload = () => {
                 }
             }
         }
-    };
+    }
+    inputManager.onAnyInputCallback = setupInputCallback;
 
     // Global loop for input handling outside of game
     function globalLoop() {

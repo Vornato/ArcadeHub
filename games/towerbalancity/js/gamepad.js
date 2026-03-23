@@ -108,6 +108,18 @@ class GamepadManager {
         return false;
     }
 
+    anyButtonJustPressed(index) {
+        const pad = this.gamepads[index];
+        if (!pad || !pad.prevButtons) return false;
+        
+        for (let b = 0; b < pad.buttons.length; b++) {
+            if (pad.buttons[b].pressed && pad.prevButtons[b] && !pad.prevButtons[b].pressed) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Retrieve active gamepad indices
     getActiveGamepadIndices() {
         // Find indices of gamepads that are actually connected and read in the update loop

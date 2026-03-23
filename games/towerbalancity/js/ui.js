@@ -191,9 +191,27 @@ class UIManager {
 
         if (assigned) {
             slot.classList.add('active');
-            status.innerText = `Joined! (${inputType})`;
+            status.innerText = `Joined! (${inputType.toUpperCase()})`;
+            // Show the right control hints based on input type
+            if (inputType === 'keyboard') {
+                if (slotId === 0) {
+                    // Crane / Drop Player - keyboard slot 0
+                    mapping.innerHTML = 'Move: ← →  |  Drop: Enter';
+                } else {
+                    // Inside Player - keyboard slot 1
+                    mapping.innerHTML = 'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Class: Q/E';
+                }
+            } else if (inputType === 'gamepad') {
+                if (slotId === 0) {
+                    mapping.innerHTML = 'Move: D-Pad/Stick  |  Drop: A / Cross';
+                } else {
+                    mapping.innerHTML = 'Jump: A  |  Grab: X  |  Throw: B<br>Class: LB/RB  |  Pause: Start';
+                }
+            } else {
+                mapping.innerHTML = 'AI Controlled';
+            }
             mapping.classList.remove('hidden');
-            if (classSelector) classSelector.classList.remove('hidden');
+            if (classSelector && slotId > 0) classSelector.classList.remove('hidden');
         } else {
             slot.classList.remove('active');
             status.innerText = 'Waiting for input...';

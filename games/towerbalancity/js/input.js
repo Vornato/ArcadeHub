@@ -35,6 +35,11 @@ class InputManager {
         this.prevKeys = {};
 
         window.addEventListener('keydown', (e) => {
+            // Prevent default browser scrolling/actions for game keys
+            const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Enter'];
+            if (gameKeys.includes(e.code)) {
+                e.preventDefault();
+            }
             if (e.repeat) return;
             this.keys[e.code] = true;
             this.handleAnyKeyPress(e.code);
@@ -54,7 +59,7 @@ class InputManager {
         if (this.onAnyInputCallback) {
             const active = this.gm.getActiveGamepadIndices();
             for (let i of active) {
-                if (this.gm.anyButtonPressed(i)) {
+                if (this.gm.anyButtonJustPressed(i)) {
                     this.onAnyInputCallback({ type: 'gamepad', index: i });
                 }
             }

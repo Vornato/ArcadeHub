@@ -131,7 +131,7 @@ class BossFloorManager {
                             r.x += Utils.random(-40, 40);
                             r.x = Utils.clamp(r.x, floor.x + floor.wallL, floor.x + floor.w - floor.wallR - r.w);
                             game.audio.play('perfect');
-                            game.particles.emitDust(r.x + r.w/2, r.y + r.h, 10);
+                            game.particles.emitImpactDust(r.x + r.w/2, r.y + r.h, 10);
                         }
                     }
                 }

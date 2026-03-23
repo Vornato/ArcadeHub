@@ -63,6 +63,10 @@ class Game {
 
     start(playerCount, isChaosMode = false, playerClasses = [], botDifficulty = 1, projectThemeId = "random") {
         this.isRunning = true; this.isPaused = false;
+        this.startGraceTimer = 60; // Ignore pause/start inputs for 60 frames after start
+        // Clear stale input state from menus
+        this.inputManager.prevKeys = {};
+        this.inputManager.keys = {};
         this.floors = []; this.objects = []; this.players = []; this.particles.particles = []; this.hazards = [];
         this.balance = 0; this.dangerTimer = 0; this.score = 0; this.height = 0;
         this.isChaosMode = isChaosMode;
@@ -260,10 +264,15 @@ class Game {
     update() {
         if (!this.isRunning || this.isPaused) return;
 
-        for (let i = 0; i < 4; i++) {
-            if (this.inputManager.isAssigned(i)) {
-                let s = this.inputManager.getPlayerState(i);
-                if (s.startJustPressed) { this.pause(); return; }
+        // Grace period: skip pause/start checks for the first N frames
+        if (this.startGraceTimer > 0) {
+            this.startGraceTimer--;
+        } else {
+            for (let i = 0; i < 4; i++) {
+                if (this.inputManager.isAssigned(i)) {
+                    let s = this.inputManager.getPlayerState(i);
+                    if (s.startJustPressed) { this.pause(); return; }
+                }
             }
         }
 

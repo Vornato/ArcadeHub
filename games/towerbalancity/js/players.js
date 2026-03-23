@@ -113,7 +113,7 @@ class InsidePlayer {
             
             this.scaleX = 1.3;
             this.scaleY = 0.7;
-            particles.emitDust(this.x + this.w/2, this.y + this.h, 3);
+            particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 3);
             audio.play('throw');
         }
 
@@ -142,7 +142,7 @@ class InsidePlayer {
         if (this.onGround && !this.wasOnGround) {
             this.scaleX = 1.4;
             this.scaleY = 0.6;
-            particles.emitDust(this.x + this.w/2, this.y + this.h, 2);
+            particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 2);
         }
         this.wasOnGround = this.onGround;
 
@@ -265,7 +265,7 @@ class DropPlayer {
     constructor(slot, gameWidth, gameRef) {
         this.slot = slot;
         this.x = gameWidth / 2;
-        this.y = -20;
+        this.y = 30;
         this.w = 60;
         this.h = 40;
         this.speed = 6;
@@ -277,6 +277,7 @@ class DropPlayer {
         this.direction = 1;
         this.autoMoveVal = 0;
         this.bob = 0;
+        this.cooldown = 0;
     }
 
     update() {
