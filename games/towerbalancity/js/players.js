@@ -38,7 +38,7 @@ class InsidePlayer {
         }
     }
 
-    update(state, physics, statics, interactables, audio, particles, allPlayers) {
+    update(state, physics, statics, interactables, audio, particles, allPlayers, meta = null) {
         let moving = false;
         // Movement
         let currentSpeed = this.speed;
@@ -115,6 +115,7 @@ class InsidePlayer {
             this.scaleY = 0.7;
             particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 3);
             audio.play('throw');
+            if (meta) meta.recordStat('objsThrown');
         }
 
         physics.applyGravity(this);

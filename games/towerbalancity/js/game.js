@@ -166,6 +166,7 @@ class Game {
 
         this.ui.showHUD();
         this.ui.updateScore(this.score, this.height);
+        this.ui.updatePieceQueue(this.upcomingPieces);
         this.loop();
     }
 
@@ -269,6 +270,7 @@ class Game {
             const bossPiece = Object.assign({}, FloorArchetypes[bossDef.archetype]);
             bossPiece.isBoss = true;
             bossPiece.bossDef = bossDef;
+            bossPiece.name = bossDef.name;
             this.upcomingPieces.push(bossPiece);
             this.ui.showBossBanner(bossDef.name, bossDef.flavorText);
             this.audio.play('perfect');
@@ -316,6 +318,7 @@ class Game {
 
         this.height = this.floors.length - 1;
         this.ui.updateScore(this.score, this.height);
+        this.meta.recordHeight(this.height);
 
         for (let obj of this.objects) {
             if (obj.onGround) obj.triggerBounce();
@@ -422,7 +425,7 @@ class Game {
             } else {
                 state = this.inputManager.getPlayerState(p.slot);
             }
-            p.update(state, this.physics, this.statics, this.objects, this.audio, this.particles, this.players);
+            p.update(state, this.physics, this.statics, this.objects, this.audio, this.particles, this.players, this.meta);
         }
 
         for (let i = this.objects.length - 1; i >= 0; i--) {
@@ -430,15 +433,14 @@ class Game {
 
             if (obj.isThrown) {
                 this.physics.applyGravity(obj);
-                obj.x += obj.vx;
-                obj.y += obj.vy;
+
+                const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
 
                 if (obj.y > this.canvas.height + Math.abs(this.cameraDirector.y) + 800) {
                     this.objects.splice(i, 1);
                     continue;
                 }
 
-                const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
                 if (hits.collideX || hits.collideY) {
                     if (hits.collideY && obj.onGround) {
                         obj.isThrown = false;
@@ -510,11 +512,16 @@ class Game {
             100
         );
 
+        const previousDangerLevel = this.dangerLevel;
         const absBalance = Math.abs(this.balance);
         if (absBalance < 30) this.dangerLevel = 0;
         else if (absBalance < 60) this.dangerLevel = 1;
         else if (absBalance < 85) this.dangerLevel = 2;
         else this.dangerLevel = 3;
+
+        if (previousDangerLevel >= 2 && this.dangerLevel <= 1) {
+            this.meta.recordStat('recoveries');
+        }
 
         this.ui.updateBalance(this.balance, this.dangerLevel);
 

@@ -2,12 +2,12 @@
 // Thematic Floors and Heavy Furniture
 
 const FloorArchetypes = {
-    'normal': { w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal' },
-    'wide': { w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide' },
-    'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow' },
-    'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy' },
-    'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy' },
-    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split' }
+    'normal': { w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal', name: 'Standard Floor' },
+    'wide': { w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide', name: 'Wide Floor' },
+    'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor' },
+    'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor' },
+    'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor' },
+    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor' }
 };
 
 class Floor {
@@ -15,7 +15,7 @@ class Floor {
         this.x = x;
         this.y = y;
         this.archetype = archetype || FloorArchetypes['normal'];
-        this.w = isFoundation ? 400 : this.archetype.w;
+        this.w = isFoundation ? 600 : this.archetype.w;
         this.h = isFoundation ? 80 : this.archetype.h;
         this.isFoundation = isFoundation;
         this.theme = theme || { id: 'fallback', name: 'Fallback', colors: ['#95a5a6', '#7f8c8d'], props: [], massMult: 1 };
@@ -142,7 +142,7 @@ class Floor {
             } else if (winStyle === 'wide') {
                 ctx.fillRect(this.x, this.y, this.wallL, 40);
                 ctx.fillRect(this.x, this.y + 120, this.wallL, this.h - 120 - 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, 40);
+                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, 40);
                 ctx.fillRect(this.x + this.w - this.wallR, this.y + 120, this.wallR, this.h - 120 - 20);
                 ctx.fillStyle = '#f1c40f'; // golden tint
                 ctx.fillRect(this.x, this.y + 40, this.wallL, 80);

@@ -105,6 +105,23 @@ class ParticleSystem {
         }
     }
 
+    emitFire(x, y) {
+        const palette = ['#ffdd59', '#ff9f1a', '#ff6b6b'];
+        for (let i = 0; i < 2; i++) {
+            this.particles.push({
+                x: x + Utils.random(-4, 4),
+                y: y + Utils.random(-2, 2),
+                vx: Utils.random(-0.8, 0.8),
+                vy: Utils.random(-3.5, -1.5),
+                life: 1.0,
+                decay: Utils.random(0.03, 0.06),
+                size: Utils.random(6, 12),
+                color: Utils.choose(palette),
+                type: 'fire'
+            });
+        }
+    }
+
     update() {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             let p = this.particles[i];
@@ -118,6 +135,10 @@ class ParticleSystem {
                 p.size += 0.5; // billow out
             } else if (p.type === 'sweat' || p.type === 'debris') {
                 p.vy += 0.3; // gravity
+            } else if (p.type === 'fire') {
+                p.vx *= 0.96;
+                p.vy *= 0.95;
+                p.size *= 0.99;
             }
 
             p.life -= p.decay;
@@ -141,6 +162,10 @@ class ParticleSystem {
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI);
                 ctx.lineTo(p.x, p.y - p.size*1.5);
                 ctx.closePath();
+                ctx.fill();
+            } else if (p.type === 'fire') {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
             } else {
                 ctx.fillRect(p.x, p.y, p.size, p.size);

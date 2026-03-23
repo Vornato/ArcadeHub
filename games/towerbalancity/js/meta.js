@@ -6,7 +6,14 @@ class MetaManager {
         this.saveKey = 'towerPanicMeta_v1';
         this.unlockedItems = [];
         this.runHistory = [];
-        this.audioConfig = { master: 1, sfx: 1, music: 1, reducedIntensity: false };
+        this.audioConfig = {
+            master: 1,
+            sfx: 1,
+            music: 1,
+            reducedIntensity: false,
+            weatherEffects: true,
+            cameraShake: true
+        };
         
         this.data = this.loadData();
         if (this.data.unlockedItems) this.unlockedItems = this.data.unlockedItems;
@@ -96,12 +103,21 @@ class MetaManager {
     }
 
     recordStat(statId, val = 1) {
+        if (typeof this.currentRunStats[statId] !== 'number') {
+            this.currentRunStats[statId] = 0;
+        }
         this.currentRunStats[statId] += val;
         this.checkObjectives(statId);
     }
 
+    recordHeight(height) {
+        if (height <= this.currentRunStats.maxHeight) return;
+        this.currentRunStats.maxHeight = height;
+        this.checkObjectives('maxHeight');
+    }
+
     endRun(finalHeight) {
-        this.currentRunStats.maxHeight = finalHeight;
+        this.recordHeight(finalHeight);
         if (finalHeight > this.data.maxHeightOverall) {
             this.data.maxHeightOverall = finalHeight;
         }

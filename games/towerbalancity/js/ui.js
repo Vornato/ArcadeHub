@@ -137,9 +137,9 @@ class UIManager {
     hidePause() { this.scrPause.classList.add('hidden'); }
 
     showGameOver(score, height, epitaph) {
-        this.finalScoreItem.innerText = score;
-        this.finalHeightItem.innerText = height;
-        this.gameoverEpitaph.innerText = epitaph;
+        if (this.finalScoreItem) this.finalScoreItem.innerText = score;
+        if (this.finalHeightItem) this.finalHeightItem.innerText = `${height}m`;
+        if (this.gameoverEpitaph) this.gameoverEpitaph.innerText = epitaph;
         this.weatherOverlay.style.opacity = '0';
         this.darknessOverlay.style.opacity = '0';
         this.showScreen('gameover');
@@ -155,7 +155,7 @@ class UIManager {
     }
 
     showFlavorText(msg, type = "playful") {
-        this.flavorText.innerHTML = msg;
+        this.flavorText.textContent = msg;
         this.flavorToast.classList.add('show');
         
         // Color coding by type
@@ -214,7 +214,11 @@ class UIManager {
             if (classSelector && slotId > 0) classSelector.classList.remove('hidden');
         } else {
             slot.classList.remove('active');
-            status.innerText = 'Waiting for input...';
+            if (slotId === 0) {
+                status.innerText = 'Arrow keys or Gamepad to join...';
+            } else {
+                status.innerText = 'A/D keys or Gamepad to join...';
+            }
             mapping.classList.add('hidden');
             if (classSelector) classSelector.classList.add('hidden');
         }
@@ -272,10 +276,14 @@ class UIManager {
     updatePieceQueue(upcomingPieces) {
         for (let i = 0; i < 3; i++) {
             let el = document.getElementById(`queue-${i}`);
-            if (el && upcomingPieces[i]) {
+            if (!el) continue;
+
+            if (upcomingPieces[i]) {
                 el.innerText = upcomingPieces[i].name || upcomingPieces[i].id;
-                if (i === 0) el.style.color = '#f1c40f'; // Highlight next
-                else el.style.color = '#dfe6e9';
+                el.style.color = i === 0 ? '#f1c40f' : '#dfe6e9';
+            } else {
+                el.innerText = '---';
+                el.style.color = '#7f8c8d';
             }
         }
     }
