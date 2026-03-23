@@ -1,0 +1,179 @@
+// audio.js
+// Enhanced Web Audio manager with Mixer and contextual SFX
+
+class AudioSystem {
+    constructor() {
+        this.ctx = null;
+        this.enabled = false;
+        
+        this.masterVol = 1.0;
+        this.sfxVol = 1.0;
+        this.musicVol = 1.0;
+        this.reducedIntensity = false;
+        
+        this.masterGain = null;
+        this.sfxGain = null;
+        this.musicGain = null;
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.connect(this.ctx.destination);
+            
+            this.sfxGain = this.ctx.createGain();
+            this.sfxGain.connect(this.masterGain);
+            
+            this.musicGain = this.ctx.createGain();
+            this.musicGain.connect(this.masterGain);
+            
+            this.updateVolumes();
+            this.enabled = true;
+        }
+    }
+
+    setVolumes(master, sfx, music, reduced) {
+        this.masterVol = master;
+        this.sfxVol = sfx;
+        this.musicVol = music;
+        this.reducedIntensity = reduced;
+        this.updateVolumes();
+    }
+
+    updateVolumes() {
+        if (!this.ctx) return;
+        this.masterGain.gain.value = this.masterVol;
+        this.sfxGain.gain.value = this.sfxVol;
+        this.musicGain.gain.value = this.musicVol;
+    }
+
+    play(soundName, mass = 10, vel = 1) {
+        if (!this.enabled || !this.ctx || this.sfxVol <= 0) return;
+        
+        const now = this.ctx.currentTime;
+        let osc, gain;
+
+        const createSynth = (type = 'sine') => {
+            osc = this.ctx.createOscillator();
+            gain = this.ctx.createGain();
+            osc.type = type;
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+            return { osc, gain };
+        };
+
+        let intensity = this.reducedIntensity ? 0.5 : 1.0;
+        
+        switch(soundName) {
+            case 'drop': // generic floor or object drop
+                let d = createSynth('sine');
+                let baseFreq = Math.max(30, 200 - mass); 
+                d.osc.frequency.setValueAtTime(baseFreq, now);
+                d.osc.frequency.exponentialRampToValueAtTime(baseFreq/4, now + 0.15);
+                d.gain.gain.setValueAtTime(Math.min(1.0, (mass/100)) * intensity, now);
+                d.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                d.osc.start(now); d.osc.stop(now + 0.15);
+                break;
+                
+            case 'perfect': // perfect drop chime
+                let p = createSynth('triangle');
+                p.osc.frequency.setValueAtTime(440, now);
+                p.osc.frequency.setValueAtTime(880, now + 0.1);
+                p.gain.gain.setValueAtTime(0.5 * intensity, now);
+                p.gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                p.osc.start(now); p.osc.stop(now + 0.5);
+                
+                // chord
+                let p2 = createSynth('triangle');
+                p2.osc.frequency.setValueAtTime(554.37, now); // C#
+                p2.osc.frequency.setValueAtTime(1108.73, now + 0.1);
+                p2.gain.gain.setValueAtTime(0.3 * intensity, now);
+                p2.gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                p2.osc.start(now); p2.osc.stop(now + 0.5);
+                break;
+                
+            case 'creak': // structural warning
+                let c = createSynth('sawtooth');
+                c.osc.frequency.setValueAtTime(30, now);
+                c.osc.frequency.linearRampToValueAtTime(70, now + 0.3);
+                c.gain.gain.setValueAtTime(0.15 * intensity, now);
+                c.gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                c.osc.start(now); c.osc.stop(now + 0.3);
+                break;
+
+            case 'throw':
+                let t = createSynth('triangle');
+                t.osc.frequency.setValueAtTime(400, now);
+                t.osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                t.gain.gain.setValueAtTime(0.3 * intensity, now);
+                t.gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                t.osc.start(now); t.osc.stop(now + 0.15);
+                break;
+
+            case 'slide':
+                let s = createSynth('square');
+                s.osc.frequency.setValueAtTime(80, now);
+                s.gain.gain.setValueAtTime(0.05 * intensity, now);
+                s.gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                s.osc.start(now); s.osc.stop(now + 0.2);
+                break;
+                
+            case 'pickup':
+                let pk = createSynth('sine');
+                pk.osc.frequency.setValueAtTime(600, now);
+                pk.osc.frequency.linearRampToValueAtTime(800, now + 0.05);
+                pk.gain.gain.setValueAtTime(0.1 * intensity, now);
+                pk.gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                pk.osc.start(now); pk.osc.stop(now + 0.1);
+                break;
+
+            case 'crash':
+                this.playNoise(now, 1.5, 1.0 * intensity);
+                // Sub impact
+                let sub = createSynth('square');
+                sub.osc.frequency.setValueAtTime(100, now);
+                sub.osc.frequency.exponentialRampToValueAtTime(10, now + 1.0);
+                sub.gain.gain.setValueAtTime(0.8 * intensity, now);
+                sub.gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+                sub.osc.start(now); sub.osc.stop(now + 1.0);
+                break;
+                
+            case 'snap': // collapse start snap
+                this.playNoise(now, 0.3, 0.8 * intensity);
+                let sn = createSynth('sawtooth');
+                sn.osc.frequency.setValueAtTime(1000, now);
+                sn.osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                sn.gain.gain.setValueAtTime(0.6 * intensity, now);
+                sn.gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                sn.osc.start(now); sn.osc.stop(now + 0.2);
+                break;
+        }
+    }
+
+    playNoise(time, duration, vol) {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * Math.max(0.1, duration);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 800;
+        
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(vol, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+        
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.sfxGain);
+        noise.start(time);
+        noise.stop(time + duration);
+    }
+}

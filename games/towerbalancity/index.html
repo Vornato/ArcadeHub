@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Panic - Deluxe Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Environmental Overlays (Weather) -->
+        <div id="weather-overlay"></div>
+        <div id="darkness-overlay"></div>
+
+        <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+        <!-- Game HUD -->
+        <div id="hud" class="hidden">
+            <div id="score-panel" class="glass-panel">
+                <div class="score-label">Score</div>
+                <div id="score-display">0</div>
+                <div class="height-label">Height</div>
+                <div id="height-display">0m</div>
+            </div>
+            
+            <div id="balance-meter-container">
+                <div class="meter-label">TOWER STABILITY</div>
+                <div id="balance-meter" class="glass-panel">
+                    <div id="balance-bg"></div>
+                    <div id="balance-center"></div>
+                    <div id="balance-indicator">
+                        <div class="indicator-weight"></div>
+                    </div>
+                </div>
+                <div id="danger-text">STABLE</div>
+            </div>
+
+            <!-- Flavor Text Toast -->
+            <div id="flavor-toast" class="glass-panel hidden">
+                <p id="flavor-text">flavor text</p>
+            </div>
+
+            <!-- Phase Banner -->
+            <div id="phase-banner" class="hidden">
+                <h1 id="phase-title">PHASE 1</h1>
+            </div>
+        </div>
+
+        <!-- Screens Overlay -->
+        <div id="screens">
+            <!-- Main Menu -->
+            <div id="screen-menu" class="screen active">
+                <div class="menu-content glass-panel">
+                    <h1 class="logo-text">TOWER <br><span class="panic-text">PANIC</span></h1>
+                    <p class="subtitle">A Chaotic Co-Op Balancing Act</p>
+                    <div class="menu-buttons" style="display: flex; flex-direction: column; gap: 15px; margin-top: 30px;">
+                        <button id="btn-play" class="btn-success" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (NORMAL)</button>
+                        <button id="btn-chaos" class="btn-primary" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (CHAOS)</button>
+                        <button id="btn-options" class="btn-secondary" style="font-size: 1.2rem; padding: 10px 30px;">OPTIONS</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setup Screen -->
+            <div id="screen-setup" class="screen hidden">
+                <div class="setup-content glass-panel">
+                    <h2>Grab a Controller!</h2>
+                    <div class="setup-grid">
+                        <div class="player-slot p1" id="slot-1">
+                            <div class="avatar-preview">🏗️</div>
+                            <h3>Player 1 (Crane)</h3>
+                            <p class="status">Press Any Button...</p>
+                            <p class="mapping hidden">Moving: D-Pad/Left Stick<br>Drop: (A) / Cross</p>
+                        </div>
+                        <div class="player-slot p2" id="slot-2">
+                            <div class="avatar-preview">🏃‍♂️</div>
+                            <h3>Player 2 (Inside)</h3>
+                            <div class="class-selector hidden">
+                                <span class="class-name">Worker</span>
+                                <div class="class-desc">All-around</div>
+                            </div>
+                            <p class="status">Press Any Button...</p>
+                            <p class="mapping hidden">Jump: (A)<br>Grab: (X)<br>Class: Bumpers (LB/RB)</p>
+                        </div>
+                        <div class="player-slot p3" id="slot-3">
+                            <div class="avatar-preview">🏃‍♀️</div>
+                            <h3>Player 3 (Inside)</h3>
+                            <div class="class-selector hidden">
+                                <span class="class-name">Worker</span>
+                                <div class="class-desc">All-around</div>
+                            </div>
+                            <p class="status">Press Any Button...</p>
+                            <p class="mapping hidden">Jump: (A)<br>Grab: (X)<br>Class: Bumpers (LB/RB)</p>
+                        </div>
+                        <div class="player-slot p4" id="slot-4">
+                            <div class="avatar-preview">🏃‍♂️</div>
+                            <h3>Player 4 (Inside)</h3>
+                            <div class="class-selector hidden">
+                                <span class="class-name">Worker</span>
+                                <div class="class-desc">All-around</div>
+                            </div>
+                            <p class="status">Press Any Button...</p>
+                            <p class="mapping hidden">Jump: (A)<br>Grab: (X)<br>Class: Bumpers (LB/RB)</p>
+                        </div>
+                    </div>
+                    <div class="setup-controls">
+                        <button id="btn-add-bot" class="btn-primary">Add AI Bot (+)</button>
+                        <button id="btn-bot-diff" class="btn-primary">Bot Difficulty: Normal</button>
+                        <select id="project-selector" class="btn-primary" style="margin: 5px;">
+                            <option value="random">Random District</option>
+                            <option value="modern">Modern Apartment Block</option>
+                            <option value="luxury">Luxury High-Rise</option>
+                            <option value="industrial">Industrial Stack</option>
+                            <option value="cheap">Rushed Construction</option>
+                            <option value="glass">Glass Business HQ</option>
+                        </select>
+                        <button id="btn-start-game" class="btn-success" disabled>BUILD!</button>
+                        <button id="btn-back-menu" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="screen-gameover" class="screen hidden">
+                <div class="gameover-content glass-panel danger-pulse">
+                    <h2 class="panic-text">COLLAPSE!</h2>
+                    <p id="gameover-epitaph" class="epitaph">The tower fell.</p>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <span class="stat-label">Final Height</span>
+                            <span id="final-height" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Perfect Drops</span>
+                            <span id="final-perfects" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Tower XP</span>
+                            <span id="final-xp" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    <div class="gameover-controls">
+                        <button id="btn-restart" class="btn-success">Try Again</button>
+                        <button id="btn-quit" class="btn-secondary">Main Menu</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pause Screen -->
+            <div id="screen-pause" class="screen hidden">
+                <div class="pause-content glass-panel blur-heavy">
+                    <h2>PAUSED</h2>
+                    <div class="pause-controls">
+                        <button id="btn-resume" class="btn-primary">Resume</button>
+                        <button id="btn-quit-pause" class="btn-danger">Quit to Menu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="screen-options" class="screen flex-col hidden ui-container" style="padding: 30px; border-radius: 12px;">
+            <h1 class="logo-text" style="font-size: 3rem;">OPTIONS</h1>
+            <div class="setup-controls" style="width: 300px;">
+                <label>Master Volume: <span id="lbl-vol-master">100%</span></label>
+                <input type="range" id="vol-master" min="0" max="1" step="0.1" value="1">
+                
+                <label>Music Volume: <span id="lbl-vol-music">100%</span></label>
+                <input type="range" id="vol-music" min="0" max="1" step="0.1" value="1">
+                
+                <label>SFX Volume: <span id="lbl-vol-sfx">100%</span></label>
+                <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="1">
+                
+                <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+                    Reduced Intensity Mode
+                    <input type="checkbox" id="chk-reduced-intensity">
+                </label>
+                
+                <button id="btn-options-back" class="btn-secondary" style="margin-top: 20px;">Back</button>
+            </div>
+        </div>
+        
+        <div id="boss-banner" class="hidden" style="position: absolute; top: 30%; left: 0; right: 0; background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; text-align: center; border-top: 4px solid #f1c40f; border-bottom: 4px solid #f1c40f; transform: scaleY(0); transition: transform 0.3s ease-out; z-index: 100;">
+            <h1 id="boss-banner-title" class="logo-text" style="font-size: 3rem; margin: 0; text-shadow: 2px 2px 0px #e74c3c;">WARNING: BOSS FLOOR</h1>
+            <p id="boss-banner-flavor" style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #dfe6e9; margin-top: 5px;">Prepare for the worst.</p>
+        </div>
+
+    </div>
+
+    <!-- Scripts Order Matters -->
+    <script src="js/utils.js"></script>
+    <script src="js/classes.js"></script>
+    <script src="js/meta.js"></script>
+    <script src="js/projectThemes.js"></script>
+    <script src="js/tenantManager.js"></script>
+    <script src="js/storyEvents.js"></script>
+    <script src="js/milestoneSystem.js"></script>
+    <script src="js/endingSummary.js"></script>
+    <script src="js/bossFloors.js"></script>
+    <script src="js/progression.js"></script>
+    <script src="js/hazards.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/gamepad.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/objects.js"></script>
+    <script src="js/players.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/musicSystem.js"></script>
+    <script src="js/cameraDirector.js"></script>
+    <script src="js/collapseDirector.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
