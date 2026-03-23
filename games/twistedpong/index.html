@@ -1358,6 +1358,14 @@ const AudioSys = (() => {
 })();
 
 // ---------- GLOBALS & CONSTANTS ----------
+const STAGES = [
+  { name: "Neon Valley",   desc: "Classic arena. Find your rhythm.",      bg: "#050510", color: "#00e5ff", speedMode: 1.0, glitch: false },
+  { name: "Signal Drift",  desc: "Signals are corrupting. Stay sharp.",   bg: "#0a0010", color: "#ff00cc", speedMode: 1.2, glitch: false },
+  { name: "Glitch Core",   desc: "Reality is breaking. Adapt.",            bg: "#000a0a", color: "#00ff88", speedMode: 1.4, glitch: true  },
+  { name: "Void Pulse",    desc: "The void pulses. Maximum pressure.",     bg: "#0a0500", color: "#ffe600", speedMode: 1.6, glitch: true  },
+  { name: "System Burn",   desc: "Total system overload. Survive.",        bg: "#100000", color: "#ff6a00", speedMode: 1.8, glitch: true  },
+];
+
 const CAMPAIGN = [
   { name: "Chapter 1", desc: "Stable Arena", bg: "#111", pCount: 2, boss: null },
   { name: "Chapter 2", desc: "Signal Drift", bg: "#100", pCount: 3, boss: null },
@@ -1905,7 +1913,7 @@ class Ball {
       if (p && !p.isWall) {
           if (p.effects["Shield"]) {
               delete p.effects["Shield"];
-              AudioSys.playSynth(500, 'square', 0.2);
+              AudioSys.shield();
               spawnParticles(this.x, this.y, "#fff", 20);
               // Bounce
               if (side===0) this.x=10; if (side===1) this.x=cw-10;
@@ -2172,6 +2180,7 @@ const game = {
   lastTime: performance.now(),
   startMatch(keepStage=false, nextChapter=false, idx=0) {
       AudioSys.init();
+      AudioSys.stopMusic(400);
       if(!keepStage) {
           if (playMode==="Campaign") stageIdx = nextChapter ? stageIdx + 1 : idx;
           else stageIdx = 0;
@@ -2223,13 +2232,16 @@ const game = {
       
       if (cData && cData.boss) {
           AudioSys.bossWarning();
-          ui.showStageIntro("WARNING: BOSS APPROACHING", cData.boss, () => {
+          ui.showStageIntro("⚠ BOSS APPROACHING", cData.boss, () => {
+              AudioSys.playIntenseMusic();
               this.lastTime = performance.now();
               requestAnimationFrame(loop);
           });
       } else {
-          ui.showStageIntro(cData ? cData.name : STAGES[stageIdx%STAGES.length].name, 
-                            cData ? cData.desc : STAGES[stageIdx%STAGES.length].desc, () => {
+          const sData = STAGES[stageIdx % STAGES.length];
+          ui.showStageIntro(cData ? cData.name : sData.name,
+                            cData ? cData.desc : sData.desc, () => {
+              AudioSys.playGameMusic();
               this.lastTime = performance.now();
               requestAnimationFrame(loop);
           });
@@ -2308,8 +2320,9 @@ function loop(t) {
   if(state === "playing") requestAnimationFrame(loop);
 }
 
-// Init Check
+// Init
 ui.setPlayerCount(2);
+ui.initAudioUI();
 
 // Start
 ctx.fillStyle = "#000";
