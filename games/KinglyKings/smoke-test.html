@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kingly Kings Smoke Test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas" aria-label="Kingly Kings game canvas"></canvas>
+
+    <div id="menuOverlay" class="overlay">
+      <div class="panel hero-panel">
+        <p class="eyebrow">Smoke test</p>
+        <h1>Kingly Kings</h1>
+        <p class="lead">Smoke harness that auto-starts the game and reports runtime status.</p>
+        <div class="options-grid">
+          <label><span>Mode</span><select id="modeSelect"><option value="1">Solo Commander</option><option value="2">Two Players</option></select></label>
+          <label><span>Split View</span><select id="splitSelect"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
+          <label><span>Difficulty</span><select id="difficultySelect"><option value="standard">Standard</option><option value="explorer">Explorer</option><option value="warlord">Warlord</option></select></label>
+          <label><span>Hero Doctrine</span><select id="doctrineSelect"><option value="marshal">Marshal</option><option value="vanguard">Vanguard</option><option value="pathfinder">Pathfinder</option></select></label>
+        </div>
+        <div id="selectionSummary" class="summary-card"></div>
+        <div class="button-row">
+          <button id="startButton" class="primary-button">Start Campaign</button>
+          <button id="showControlsButton" class="secondary-button" type="button">Controls</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud" class="hud hidden">
+      <div id="playerCards" class="player-cards"></div>
+      <div class="world-card">
+        <div id="worldSummary" class="world-summary"></div>
+        <div id="gamepadStatus" class="world-subtext"></div>
+      </div>
+    </div>
+
+    <div id="controlsOverlay" class="overlay hidden">
+      <div class="panel controls-panel">
+        <div class="controls-header">
+          <h2>Controls</h2>
+          <button id="closeControlsButton" class="secondary-button" type="button">Close</button>
+        </div>
+        <div class="controls-grid"><div><p>Smoke harness controls placeholder.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__smoke = { errors: [] };
+    window.addEventListener('error', (event) => {
+      window.__smoke.errors.push(event.message || 'unknown-error');
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      window.__smoke.errors.push(String(event.reason || 'unhandled-rejection'));
+    });
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('startButton').click();
+      }, 300);
+      setTimeout(() => {
+        const hudVisible = !document.getElementById('hud').classList.contains('hidden');
+        const shopExists = Array.from(document.querySelectorAll('h2')).some((node) => node.textContent === 'Vendor Shop');
+        const cards = document.querySelectorAll('.player-card').length;
+        const payload = { hudVisible, shopExists, cards, errors: window.__smoke.errors };
+        document.body.dataset.smoke = payload.errors.length ? 'fail' : (hudVisible && shopExists && cards > 0 ? 'pass' : 'partial');
+        const pre = document.createElement('pre');
+        pre.id = 'smokeStatus';
+        pre.textContent = JSON.stringify(payload);
+        document.body.appendChild(pre);
+      }, 2500);
+    });
+  </script>
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>

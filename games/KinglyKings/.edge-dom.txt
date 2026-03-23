@@ -1,0 +1,3 @@
+[0314/003708.144:ERROR:third_party\crashpad\crashpad\util\win\registration_protocol_win.cc:108] CreateFile: Access is denied. (0x5)
+[25100:20176:0314/003708.493:FATAL:mojo\public\cpp\platform\platform_channel.cc:170] Check failed: . : Access is denied. (0x5)
+[0314/003708.493:ERROR:third_party\crashpad\crashpad\client\crashpad_client_win.cc:154] crash server failed to launch

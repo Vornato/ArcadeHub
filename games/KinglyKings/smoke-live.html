@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kingly Kings Live Smoke</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas"></canvas>
+    <div id="menuOverlay" class="overlay">
+      <div class="panel hero-panel">
+        <p class="eyebrow">Live smoke</p>
+        <h1>Kingly Kings</h1>
+        <div class="options-grid">
+          <label><span>Mode</span><select id="modeSelect"><option value="1">Solo</option><option value="2">Two</option></select></label>
+          <label><span>Split View</span><select id="splitSelect"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
+          <label><span>Difficulty</span><select id="difficultySelect"><option value="standard">Standard</option><option value="explorer">Explorer</option><option value="warlord">Warlord</option></select></label>
+          <label><span>Hero Doctrine</span><select id="doctrineSelect"><option value="marshal">Marshal</option><option value="vanguard">Vanguard</option><option value="pathfinder">Pathfinder</option></select></label>
+          <label><span>Graphics</span><select id="graphicsSelect"><option value="high">High</option><option value="ultra">Ultra</option></select></label>
+        </div>
+        <div id="selectionSummary" class="summary-card"></div>
+        <div class="button-row">
+          <button id="startButton" class="primary-button">Start Campaign</button>
+          <button id="showControlsButton" class="secondary-button" type="button">Controls</button>
+        </div>
+      </div>
+    </div>
+    <div id="hud" class="hud hidden"><div id="playerCards" class="player-cards"></div><div class="world-card"><div id="worldSummary"></div><div id="gamepadStatus"></div></div></div>
+    <div id="controlsOverlay" class="overlay hidden"><div class="panel controls-panel"><div class="controls-header"><h2>Controls</h2><button id="closeControlsButton" class="secondary-button" type="button">Close</button></div><div class="controls-grid"><div><p>Smoke placeholder.</p></div></div></div></div>
+  </div>
+  <script>
+    window.__smoke = { errors: [] };
+    window.addEventListener('error', (event) => window.__smoke.errors.push(String(event.message || event.error || 'error')));
+    window.addEventListener('unhandledrejection', (event) => window.__smoke.errors.push(String(event.reason || 'rejection')));
+    window.addEventListener('load', () => {
+      setTimeout(() => document.getElementById('startButton').click(), 250);
+      setTimeout(() => {
+        const payload = {
+          errors: window.__smoke.errors,
+          world: document.getElementById('worldSummary')?.textContent || '',
+          hudVisible: !document.getElementById('hud').classList.contains('hidden'),
+        };
+        const pre = document.createElement('pre');
+        pre.id = 'liveSmoke';
+        pre.textContent = JSON.stringify(payload);
+        document.body.appendChild(pre);
+      }, 3500);
+    });
+  </script>
+  <script type="module" src="src/game.js?live=2026031401"></script>
+</body>
+</html>

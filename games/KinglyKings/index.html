@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kingly Kings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas" aria-label="Kingly Kings game canvas"></canvas>
+
+    <div id="menuOverlay" class="overlay">
+      <div class="panel hero-panel">
+        <p class="eyebrow">Open-world survival skirmish</p>
+        <h1>Kingly Kings</h1>
+        <p class="lead">
+          Lead a levelling warlord through a living forest frontier. Defeat roaming warbands,
+          recruit the fallen into your army, and survive an escalating medieval nightmare.
+        </p>
+
+        <div class="options-grid">
+          <label>
+            <span>Mode</span>
+            <select id="modeSelect">
+              <option value="1">Solo Commander</option>
+              <option value="2">Two Players</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Split View</span>
+            <select id="splitSelect">
+              <option value="vertical">Vertical</option>
+              <option value="horizontal">Horizontal</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Difficulty</span>
+            <select id="difficultySelect">
+              <option value="standard">Standard</option>
+              <option value="explorer">Explorer</option>
+              <option value="warlord">Warlord</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Hero Doctrine</span>
+            <select id="doctrineSelect">
+              <option value="marshal">Marshal</option>
+              <option value="vanguard">Vanguard</option>
+              <option value="pathfinder">Pathfinder</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Graphics</span>
+            <select id="graphicsSelect">
+              <option value="high">High</option>
+              <option value="ultra">Ultra</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="selectionSummary" class="summary-card"></div>
+
+        <div class="button-row">
+          <button id="startButton" class="primary-button">Start Campaign</button>
+          <button id="showControlsButton" class="secondary-button" type="button">Controls</button>
+        </div>
+
+        <div class="menu-footnote">
+          <p>Player 1 uses hold-left-click mouse movement.</p>
+          <p>Player 2 uses a connected gamepad. Arrow keys are also enabled as a local fallback.</p>
+          <p>Press <strong>Tab</strong> anytime to toggle the controls sheet.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud" class="hud hidden">
+      <div id="playerCards" class="player-cards"></div>
+      <div class="world-card">
+        <div id="worldSummary" class="world-summary"></div>
+        <div id="gamepadStatus" class="world-subtext"></div>
+      </div>
+    </div>
+
+    <div id="controlsOverlay" class="overlay hidden">
+      <div class="panel controls-panel">
+        <div class="controls-header">
+          <h2>Controls</h2>
+          <button id="closeControlsButton" class="secondary-button" type="button">Close</button>
+        </div>
+        <div class="controls-grid">
+          <div>
+            <h3>Player 1</h3>
+            <p><strong>Hold Left Click:</strong> Move toward the cursor while held</p>
+            <p><strong>Click away while fighting:</strong> Attempt to break contact and escape</p>
+            <p><strong>Mouse Wheel / +/-:</strong> Zoom the camera in and out</p>
+            <p><strong>Tab:</strong> Toggle this controls sheet</p>
+          </div>
+          <div>
+            <h3>Player 2</h3>
+            <p><strong>Gamepad Left Stick:</strong> Move</p>
+            <p><strong>Arrow Keys:</strong> Local fallback movement</p>
+            <p><strong>Run away:</strong> Pull distance until the enemy loses contact</p>
+          </div>
+          <div>
+            <h3>Combat</h3>
+            <p>Touching an enemy starts melee exchanges.</p>
+            <p>Winning recruits the defeated warband into your army.</p>
+            <p>Total health comes from base health, level growth, and recruit count.</p>
+          </div>
+          <div>
+            <h3>Enemy Species</h3>
+            <p>Vampires, werewolves, orcs, ogres, witches, skeleton knights, goblin sappers, treants, boar riders, and cultists stalk the map.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>
+
+
+
+
+

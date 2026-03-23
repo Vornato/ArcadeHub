@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kingly Kings Smoke Test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-smoke="pass">
+  <div id="app">
+    <canvas id="gameCanvas" aria-label="Kingly Kings game canvas" width="752" height="486" style="width: 752px; height: 486px;"></canvas>
+
+    <div id="menuOverlay" class="overlay hidden">
+      <div class="panel hero-panel">
+        <p class="eyebrow">Smoke test</p>
+        <h1>Kingly Kings</h1>
+        <p class="lead">Smoke harness that auto-starts the game and reports runtime status.</p>
+        <div class="options-grid">
+          <label><span>Mode</span><select id="modeSelect"><option value="1">Solo Commander</option><option value="2">Two Players</option></select></label>
+          <label><span>Split View</span><select id="splitSelect"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
+          <label><span>Difficulty</span><select id="difficultySelect"><option value="standard">Standard</option><option value="explorer">Explorer</option><option value="warlord">Warlord</option></select></label>
+          <label><span>Hero Doctrine</span><select id="doctrineSelect"><option value="marshal">Marshal</option><option value="vanguard">Vanguard</option><option value="pathfinder">Pathfinder</option></select></label>
+        </div>
+        <div id="selectionSummary" class="summary-card">Marshal: Balanced commander with a royal slash and stronger recruit growth.<br>Standard: slower major waves, stronger later pressure.<br>Solo commander with one full battlefield camera.</div>
+        <div class="button-row">
+          <button id="startButton" class="primary-button">Start Campaign</button>
+          <button id="showControlsButton" class="secondary-button" type="button">Controls</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud" class="hud">
+      <div id="playerCards" class="player-cards"><div class="player-card" id="player-card-1">
+      <h3 style="color:#f4d28c; font-size:1.08rem">Player 1</h3>
+      <div class="bar"><div class="bar-fill" style="width:100%"></div></div>
+      <p><strong>HP</strong> 210 / 210 | <strong>Coins</strong> 0 | <strong>Souls</strong> 0</p>
+      <p><strong>Level</strong> 1 | <strong>XP</strong> 0 / 122 | <strong>Recruits</strong> 10</p>
+      <p>Royal Slash | Dash 0.0s | Zoom 100%</p>
+      <p>1:- | 2:- | 3:-</p>
+    </div></div>
+      <div class="world-card">
+        <div id="worldSummary" class="world-summary">
+    <p><strong>Time:</strong> 0:00</p>
+    <p><strong>Warbands:</strong> 8</p>
+    <p><strong>Next Event:</strong> 1:00 - random warband surge</p>
+    <p><strong>Total Army Kills:</strong> 0</p>
+  </div>
+        <div id="gamepadStatus" class="world-subtext">Space dashes on a 7s cooldown. Q, W, E are hero skills. 1, 2, 3 use items. Mouse wheel zooms in and out.</div>
+      </div>
+    </div>
+
+    <div id="controlsOverlay" class="overlay hidden">
+      <div class="panel controls-panel">
+        <div class="controls-header">
+          <h2>Controls</h2>
+          <button id="closeControlsButton" class="secondary-button" type="button">Close</button>
+        </div>
+        <div class="controls-grid"><div><p>Smoke harness controls placeholder.</p></div></div>
+      </div>
+    </div>
+  <div class="overlay shop-overlay hidden" style="z-index: 20;"><div class="panel" style="padding: 28px; width: min(1080px, -48px + 100vw); border-radius: 32px;"><div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;"><div><h2>Vendor Shop</h2><p style="margin: 6px 0px 0px; color: rgb(201, 191, 159);">Player 1 has 0 coins.</p></div><button class="secondary-button" type="button">Close</button></div><p style="color: rgb(183, 190, 166); margin: 14px 0px 18px;">Buy to the first empty slot. Use item slots with 1, 2, and 3.</p><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;"><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Shooting Bomb" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%23ffb76d'%20stroke-width%3D'3'%2F%3E%3Ccircle%20cx%3D'28'%20cy%3D'34'%20r%3D'13'%20fill%3D'%23ffb76d'%2F%3E%3Cpath%20d%3D'M31%2019l8-6%205%205-8%206'%20fill%3D'%23f4edd4'%2F%3E%3Cpath%20d%3D'M40%2012c4%200%206%202%208%206'%20stroke%3D'%23f4edd4'%20stroke-width%3D'3'%20fill%3D'none'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Shooting Bomb</strong><br><span style="color:#c9bf9f; line-height:1.5">Explodes at the aimed point.</span><br><span style="color:#ffb76d; font-size:1.02rem">Cost 22 | Ammo 3</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Elixir of Health" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%2376e2a4'%20stroke-width%3D'3'%2F%3E%3Cpath%20d%3D'M24%2016h16v8l8%2011c4%206%200%2015-7%2015H23c-7%200-11-9-7-15l8-11z'%20fill%3D'%2376e2a4'%2F%3E%3Cpath%20d%3D'M26%2031h12'%20stroke%3D'%23f4edd4'%20stroke-width%3D'3'%2F%3E%3Cpath%20d%3D'M32%2025v12'%20stroke%3D'%23f4edd4'%20stroke-width%3D'3'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Elixir of Health</strong><br><span style="color:#c9bf9f; line-height:1.5">Heals the carrier instantly.</span><br><span style="color:#76e2a4; font-size:1.02rem">Cost 18 | Ammo 1</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Long Spear" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%23d9c596'%20stroke-width%3D'3'%2F%3E%3Cpath%20d%3D'M14%2049L46%2017'%20stroke%3D'%23f4edd4'%20stroke-width%3D'5'%20stroke-linecap%3D'round'%2F%3E%3Cpath%20d%3D'M44%2014l8%201-1%208-7-2z'%20fill%3D'%23d9c596'%2F%3E%3Cpath%20d%3D'M12%2051l6-1%201-6-8-1z'%20fill%3D'%23d9c596'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Long Spear</strong><br><span style="color:#c9bf9f; line-height:1.5">Piercing ranged thrust.</span><br><span style="color:#d9c596; font-size:1.02rem">Cost 28 | Ammo 24</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="AK47" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%23d87468'%20stroke-width%3D'3'%2F%3E%3Cpath%20d%3D'M16%2038h28l8-6v-6h-7l-4-5H24l-3%206h-5z'%20fill%3D'%23d87468'%2F%3E%3Cpath%20d%3D'M29%2038l4%2012h6l-2-12'%20fill%3D'%23f4edd4'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">AK47</strong><br><span style="color:#c9bf9f; line-height:1.5">Fast rifle fire with 150 ammo.</span><br><span style="color:#d87468; font-size:1.02rem">Cost 96 | Ammo 150</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Golden Desert Eagle" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%23f6d56b'%20stroke-width%3D'3'%2F%3E%3Cpath%20d%3D'M18%2024h26l4%206-2%206H31l-5%2014h-7l2-14h-3z'%20fill%3D'%23f6d56b'%2F%3E%3Crect%20x%3D'21'%20y%3D'18'%20width%3D'16'%20height%3D'5'%20fill%3D'%23f4edd4'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Golden Desert Eagle</strong><br><span style="color:#c9bf9f; line-height:1.5">Heavy pistol shot.</span><br><span style="color:#f6d56b; font-size:1.02rem">Cost 82 | Ammo 60</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Laser Beam Gun" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%2389e7ff'%20stroke-width%3D'3'%2F%3E%3Crect%20x%3D'15'%20y%3D'28'%20width%3D'30'%20height%3D'10'%20rx%3D'4'%20fill%3D'%2389e7ff'%2F%3E%3Crect%20x%3D'45'%20y%3D'30'%20width%3D'9'%20height%3D'6'%20fill%3D'%23f4edd4'%2F%3E%3Cpath%20d%3D'M54%2033h6'%20stroke%3D'%23f4edd4'%20stroke-width%3D'4'%20stroke-linecap%3D'round'%2F%3E%3Ccircle%20cx%3D'22'%20cy%3D'33'%20r%3D'5'%20fill%3D'%23f4edd4'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Laser Beam Gun</strong><br><span style="color:#c9bf9f; line-height:1.5">Piercing beam weapon.</span><br><span style="color:#89e7ff; font-size:1.02rem">Cost 120 | Ammo 75</span></div></button><button type="button" disabled="" style="text-align: left; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(72, 89, 69, 0.28), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(244, 237, 212, 0.12); display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 14px; min-height: 110px;"><img alt="Meteor Strike Curse" width="64" height="64" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20x%3D'4'%20y%3D'4'%20width%3D'56'%20height%3D'56'%20rx%3D'14'%20fill%3D'%23131b16'%20stroke%3D'%23ff8a70'%20stroke-width%3D'3'%2F%3E%3Ccircle%20cx%3D'28'%20cy%3D'26'%20r%3D'12'%20fill%3D'%23ff8a70'%2F%3E%3Cpath%20d%3D'M39%2015l10-8'%20stroke%3D'%23f4edd4'%20stroke-width%3D'4'%20stroke-linecap%3D'round'%2F%3E%3Cpath%20d%3D'M20%2044l-4%208M28%2046l0%208M36%2044l4%208'%20stroke%3D'%23f4edd4'%20stroke-width%3D'3'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E" style="width: 64px; height: 64px; border-radius: 16px; background: rgba(0, 0, 0, 0.14); padding: 6px;"><div><strong style="font-size:1.12rem">Meteor Strike Curse</strong><br><span style="color:#c9bf9f; line-height:1.5">Delayed cursed meteor impact.</span><br><span style="color:#ff8a70; font-size:1.02rem">Cost 105 | Ammo 2</span></div></button></div></div></div></div>
+
+  <script>
+    window.__smoke = { errors: [] };
+    window.addEventListener('error', (event) => {
+      window.__smoke.errors.push(event.message || 'unknown-error');
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      window.__smoke.errors.push(String(event.reason || 'unhandled-rejection'));
+    });
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('startButton').click();
+      }, 300);
+      setTimeout(() => {
+        const hudVisible = !document.getElementById('hud').classList.contains('hidden');
+        const shopExists = Array.from(document.querySelectorAll('h2')).some((node) => node.textContent === 'Vendor Shop');
+        const cards = document.querySelectorAll('.player-card').length;
+        const payload = { hudVisible, shopExists, cards, errors: window.__smoke.errors };
+        document.body.dataset.smoke = payload.errors.length ? 'fail' : (hudVisible && shopExists && cards > 0 ? 'pass' : 'partial');
+        const pre = document.createElement('pre');
+        pre.id = 'smokeStatus';
+        pre.textContent = JSON.stringify(payload);
+        document.body.appendChild(pre);
+      }, 2500);
+    });
+  </script>
+  <script type="module" src="src/game.js"></script>
+
+
+<pre id="smokeStatus">{"hudVisible":true,"shopExists":true,"cards":1,"errors":[]}</pre></body></html>

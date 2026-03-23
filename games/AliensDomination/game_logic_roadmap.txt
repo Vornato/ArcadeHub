@@ -1,0 +1,228 @@
+GAME LOGIC ROADMAP (HTML + Three.js UFO COOP)
+
+0) Goal & Non-Goals
+- Goal: polished playable prototype with smooth UFO movement, click-to-move, gamepad movement, split-screen, minimap, orbit upgrades, 2 planets, torus world wrap, enemies + NPC reactions, basic inventory/items.
+- Non-goal (v1): perfect pathfinding, heavy physics, networking multiplayer, ultra-detailed assets.
+
+1) Core Architecture
+1.1 State Machine
+- States:
+  MENU
+  OPTIONS
+  PLAYING (Planet surface)
+  ORBIT (station/shop/planet select/time machine)
+  PAUSED
+- Central Game class handles:
+  - currentState
+  - load/unload scenes
+  - global config
+  - player objects (P1, P2)
+  - update loop
+
+1.2 Systems (single responsibility)
+- InputSystem: per-player input mapping -> "intent" commands
+- MovementSystem: applies acceleration/turn/boost and world wrap
+- CombatSystem: laser hitscan + bombs + cooldown/overheat
+- AISystem: enemy + civilian + ancient clan behavior
+- InventorySystem: hotbar 1-5 + inventory UI (I)
+- UpgradeSystem: tiers + applying modifiers
+- SpawnSystem: planet layout spawn points, periodic spawns
+- UISystem: HUD, minimap, prompts, notifications
+- OrbitSystem: upgrade menus, planet select, time machine evolution
+
+1.3 Data-driven configuration
+- config object:
+  - movement: base speed, accel, damping
+  - boost: duration, cooldown, multiplier
+  - laser: range, damage, heat gain, heat max, overheat cooldown=10s
+  - spawns: cow density, enemy density, clan density
+  - time machine: chaos level, spawn caps
+  - world: size=1000, wrap=true
+
+2) World: 1x1 km Toroidal "Planet"
+2.1 Coordinate system
+- Use XZ for ground plane, Y for height.
+- World bounds: 0..1000 in X and Z.
+
+2.2 Wrap math (critical)
+- wrapPosition(vec3):
+  if x<0 x+=1000; if x>1000 x-=1000; same for z.
+- torusDelta(a,b):
+  dx=b.x-a.x; if dx>500 dx-=1000; if dx<-500 dx+=1000;
+  dz same. Use for AI/targeting/distances.
+
+2.3 Terrain generation
+- Heightmap using simple noise:
+  - base rolling hills
+  - mountain region(s) higher amplitude
+  - water plane at seaLevel
+- Place features (with anchors):
+  - Sea + port + ships
+  - Small town cluster
+  - Mid town + church landmark
+  - Farms + cow spawn points
+- Use low-poly mesh chunks OR a single plane with vertex displacement.
+
+3) Player Controls
+3.1 Player 1 (Mouse + Keyboard)
+- Left-click -> raycast to ground -> set moveTarget
+- UFO steers toward target:
+  - compute desired direction = normalized(torusDelta(pos,target))
+  - apply acceleration toward that direction
+  - arrival: slow down when within arrivalRadius
+- Boost (Space):
+  - if boostReady -> multiplier 3x, duration 2.5s, cooldown 8s
+- Items:
+  - 1-5 activates hotbar item
+  - I toggles inventory panel
+
+3.2 Player 2 (Gamepad)
+- Left stick -> immediate movement vector
+- Button mapping (Xbox 360 style suggestion):
+  - A = Boost
+  - X = Laser Bomb
+  - Y = Inventory toggle
+  - LB/RB = cycle hotbar
+- Split-screen:
+  - camera1 viewport left half
+  - camera2 viewport right half
+  - each camera follows its player smoothly
+
+4) UFO Mechanics
+4.1 Movement feel
+- Smooth acceleration and damping
+- Slight hover bob (visual only)
+- Tilt/roll when turning (visual only)
+
+4.2 Health and HUD
+- Health bar bottom-left:
+  - show P1 and P2 (or whichever exists)
+  - flashing when low HP
+
+4.3 Base weapon (laser)
+- Hitscan short beam
+- Heat/overheat:
+  - each shot adds heat
+  - if heat >= max -> overheat, disable firing for 10s
+  - heat slowly cools when not firing
+- UI:
+  - heat bar or "OVERHEAT" indicator
+
+4.4 Harvesting cows -> fuel
+- Cows are resource entities near farms
+- Abduct mechanic:
+  - tractor beam cone under UFO OR proximity pickup
+  - increment cowCount
+- When cowCount >= 10:
+  - enable "Ascend to Orbit" prompt
+  - consuming 10 cows adds fuel and transitions to ORBIT state
+
+5) Enemies & NPCs
+5.1 Modern enemies
+- Towers: stationary, range check using torusDelta, shoot projectiles at UFO.
+- Planes/jets: patrol loops, do fly-by attacks.
+- Ships/cruisers: patrol on water region, shoot occasionally.
+
+5.2 Ancient clans
+- Spawn camps on edges/valleys.
+- Large groups use instanced meshes or billboards.
+- Catapults lob arc projectiles; low damage but many units.
+
+5.3 Civilians (town NPCs)
+- Wander in towns.
+- Fear response when UFO near: run away and show panic icon.
+
+6) Minimap
+- Canvas 2D overlay in upper-right.
+- Draw border, water mask, objective/resource/enemy/player markers.
+- World-to-minimap mapping:
+  miniX = (pos.x / 1000) * miniWidth
+  miniY = (pos.z / 1000) * miniHeight
+
+7) Items, Shop, Crops
+7.1 Inventory/Hotbar
+- hotbarSlots[5]
+- inventory list with counts
+- Keybinds: 1-5, I
+
+7.2 Crop placement
+- Seed item:
+  - placement on valid farm zones
+  - click/button places crop patch
+- Crops grow over time and can be harvested
+
+7.3 Alien Shop (Orbit)
+- Buy items with tech parts/fuel:
+  - Laser bomb
+  - Seed pack
+  - Repair kit
+  - Scan pulse
+
+8) Orbit Station
+8.1 Orbit UI
+- Tabs:
+  - Upgrades
+  - Color selection
+  - Planet selection (2 planets)
+  - Time Machine (wait 500 years)
+- Descend button loads chosen planet
+
+8.2 Upgrade system
+- Boost Upgrade
+- Weapon Cooling
+- Hull Plating
+- Maneuver Thrusters
+- Beam Amplifier
+- Color selection persisted
+
+8.3 Time Machine 500 years
+- epoch += 500
+- apply evolution algorithm:
+  - terrain tint/noise shifts
+  - ruins/vegetation tweaks
+  - spawn capped evolved creatures
+  - NPC mix adjustments
+
+9) Two Planets
+- Planet A: coastal sea + port + towns + church + farms + mountains inland
+- Planet B: lakes + canyon mountains + ruins + different layout
+
+10) Options Menu
+- Sliders/toggles:
+  - enemy density
+  - cow density
+  - ancient clan density
+  - loot multiplier
+  - time-machine chaos
+  - day/night speed
+
+11) Split-screen Rendering
+- camera1: left viewport
+- camera2: right viewport
+- shared HUD with player indicators
+
+12) Performance & Polish Checklist
+- Use instancing for large armies
+- Keep dynamic lights minimal
+- Clamp entity counts post-time-machine
+- Add camera smoothing and small explosion feedback
+- Add placeholder audio hooks
+
+13) Milestone Build Order
+M1: Project scaffolding + Three.js scene + UFO + camera follow
+M2: P1 click-to-move + acceleration + wrap world
+M3: P2 gamepad movement + split-screen
+M4: Minimap + health bar + hotbar/inventory
+M5: Terrain + landmarks + towns/farms/ships
+M6: Laser weapon + overheat + basic enemies
+M7: Cow harvesting + fuel + Orbit transition
+M8: Orbit UI + upgrades + color select + planet select
+M9: Crops + shop items + bombs
+M10: NPC fear + ancient clans + catapults
+M11: Time machine evolution + spawn caps
+M12: Options menu + tuning + bug fixing
+
+14) Debug Tools (recommended)
+- Toggle debug overlay: FPS, entity counts, epoch, planet
+- Landmark teleport hotkeys
+- Spawn wave test buttons
