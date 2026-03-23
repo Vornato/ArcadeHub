@@ -240,13 +240,57 @@ class Game {
         const pTheme = this.progression.projectManager.selectedProject;
 
         const newFloor = new Floor(x, y, false, theme, archetype, pTheme);
+        newFloor.isFalling = true;
+        newFloor.vy = 0;
+        newFloor.dropOffset = offset;
+        newFloor.dropArchetype = archetype;
+        newFloor.dropTheme = theme;
         this.floors.push(newFloor);
+
+        this.updateStatics();
+
+        this.audio.play('throw'); // sound for releasing the drop
+
+        // Teleport players to the dropping floor
+        for (let p of this.players) {
+            p.x = x + w / 2 - p.w / 2 + Utils.random(-10, 10);
+            p.y = y - 80;
+            p.vx = 0;
+            p.vy = 0;
+            this.particles.emitImpactDust(p.x + p.w / 2, p.y + p.h, 5);
+        }
+
+        const nextArchetype = Utils.choose(Object.values(FloorArchetypes));
+        const bossDef = this.bossManager.rollForBoss(this.progression, this.height);
+
+        if (bossDef) {
+            const bossPiece = Object.assign({}, FloorArchetypes[bossDef.archetype]);
+            bossPiece.isBoss = true;
+            bossPiece.bossDef = bossDef;
+            this.upcomingPieces.push(bossPiece);
+            this.ui.showBossBanner(bossDef.name, bossDef.flavorText);
+            this.audio.play('perfect');
+        } else {
+            this.upcomingPieces.push(nextArchetype);
+        }
+
+        const showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
+        this.ui.setWeather(showWeather && this.progression.isRaining, showWeather && this.progression.isDark);
+    }
+
+    onFloorLanded(newFloor) {
+        let x = newFloor.x;
+        let y = newFloor.y;
+        let w = newFloor.w;
+        let h = newFloor.h;
+        let cx = x + w / 2;
+        let offset = newFloor.dropOffset;
+        let archetype = newFloor.dropArchetype;
+        let theme = newFloor.dropTheme;
 
         if (archetype.isBoss) {
             newFloor.bossDef = archetype.bossDef;
         }
-
-        this.updateStatics();
 
         if (Math.abs(offset) < 15 && this.dangerTimer === 0) {
             this.audio.play('perfect');
@@ -266,7 +310,6 @@ class Game {
             this.vibrateAll(200, 0.5, 0.5);
         }
 
-        // Reward a successful drop by clearing active danger build-up
         this.dangerTimer = 0;
 
         this.height = this.floors.length - 1;
@@ -290,29 +333,17 @@ class Game {
             }
         }
 
-        const nextArchetype = Utils.choose(Object.values(FloorArchetypes));
-        const bossDef = this.bossManager.rollForBoss(this.progression, this.height);
-
-        if (bossDef) {
-            const bossPiece = Object.assign({}, FloorArchetypes[bossDef.archetype]);
-            bossPiece.isBoss = true;
-            bossPiece.bossDef = bossDef;
-            this.upcomingPieces.push(bossPiece);
-            this.ui.showBossBanner(bossDef.name, bossDef.flavorText);
-            this.audio.play('perfect');
-        } else {
-            this.upcomingPieces.push(nextArchetype);
-        }
+        this.updateStatics();
 
         this.progression.onEventAction = (evName) => {
             if (evName === "Fire Outbreak" && this.floors.length > 2) {
                 const floor = this.floors[Utils.randomInt(1, this.floors.length - 1)];
-                const hx = floor.x + Utils.random(floor.wallW, floor.w - floor.wallW - 30);
-                const hy = floor.y + floor.h - floor.wallW - 40;
+                const hx = floor.x + Utils.random(20, floor.w - 20 - 30);
+                const hy = floor.y + floor.h - 20 - 40;
                 this.hazards.push(new FireHazard(hx, hy));
             } else if (evName === "Heavy Delivery" && this.floors.length > 1) {
                 const floor = this.floors[this.floors.length - 1];
-                const hx = floor.x + Utils.random(floor.wallW, floor.w - floor.wallW - 30);
+                const hx = floor.x + Utils.random(20, floor.w - 20 - 30);
                 this.objects.push(new Interactable(hx, floor.y - 40, 'safe'));
             } else if (evName === "Shake") {
                 this.triggerShake(10, 40);
@@ -321,9 +352,6 @@ class Game {
         };
 
         this.progression.onFloorDropped();
-
-        const showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
-        this.ui.setWeather(showWeather && this.progression.isRaining, showWeather && this.progression.isDark);
     }
 
     updateStatics() {
@@ -335,6 +363,12 @@ class Game {
 
     update() {
         if (!this.isRunning || this.isPaused) return;
+
+        if (this.collapseDirector.isActive) {
+            this.collapseDirector.update();
+            this.particles.update();
+            return;
+        }
 
         if (this.startGraceTimer > 0) {
             this.startGraceTimer--;
@@ -350,10 +384,26 @@ class Game {
             }
         }
 
-        if (this.collapseDirector.isActive) {
-            this.collapseDirector.update();
-            this.particles.update();
-            return;
+        // Update falling floors
+        for (let i = 1; i < this.floors.length; i++) {
+            let f = this.floors[i];
+            if (f.isFalling) {
+                f.vy = (f.vy || 0) + this.physics.gravity;
+                if (f.vy > this.physics.maxFallSpeed) f.vy = this.physics.maxFallSpeed;
+                
+                let nextY = f.y + f.vy;
+                let prevFloor = this.floors[i - 1];
+                let targetY = prevFloor.y - f.h;
+                
+                if (nextY >= targetY) {
+                    f.updatePosition(targetY);
+                    f.isFalling = false;
+                    this.onFloorLanded(f);
+                } else {
+                    f.updatePosition(nextY);
+                    this.updateStatics();
+                }
+            }
         }
 
         this.dropPlayer.update();

@@ -41,7 +41,7 @@ class Floor {
                 this.ceilingColor = Utils.adjustColor(visuals.exterior, -40);
             } else {
                 this.baseColor = visuals.exterior;
-                this.wallColor = theme.colors[1]; // Keep internal wall for theme recognition
+                this.wallColor = this.theme.colors[1]; // Keep internal wall for theme recognition
                 this.floorColor = Utils.adjustColor(this.wallColor, -10);
                 this.ceilingColor = visuals.trim;
             }
@@ -52,8 +52,8 @@ class Floor {
                 this.floorColor = '#576574';
                 this.ceilingColor = '#2d3436';
             } else {
-                this.baseColor = theme.colors[0];
-                this.wallColor = theme.colors[1];
+                this.baseColor = this.theme.colors[0];
+                this.wallColor = this.theme.colors[1];
                 this.floorColor = Utils.adjustColor(this.wallColor, -10);
                 this.ceilingColor = '#dfe6e9';
             }
@@ -190,6 +190,14 @@ class Floor {
             ctx.lineTo(this.x + this.w, this.y);
             ctx.closePath();
             ctx.fill();
+        }
+    }
+
+    updatePosition(y) {
+        let dy = y - this.y;
+        this.y = y;
+        for (let c of this.colliders) {
+            c.y += dy;
         }
     }
 }

@@ -93,8 +93,8 @@ class GamepadManager {
 
                 // Track previous buttons to detect "just pressed"
                 state.prevButtons = (state.buttons || []).map(btn => ({
-                    pressed: !!btn.pressed,
-                    value: btn.value || 0
+                    pressed: btn.pressed,
+                    value: btn.value
                 }));
 
                 // Read current buttons
