@@ -4,6 +4,7 @@
 class CameraDirector {
     constructor(canvas) {
         this.canvas = canvas;
+        this.x = 0;
         this.y = 0;
         this.targetY = 0;
         this.zoom = 1.0;
@@ -17,11 +18,12 @@ class CameraDirector {
         this.time = 0;
     }
 
-    update(highestFloorY, balance, dangerLevel) {
+    update(targetX, targetY, balance, dangerLevel) {
         this.time += 0.016;
 
-        // Target Height
-        let desiredY = -highestFloorY + this.canvas.height / 2 + 100;
+        // Target Height and Center
+        let desiredY = -targetY + this.canvas.height / 2 + 100;
+        let desiredX = this.canvas.width / 2 - targetX;
         
         // Dynamic drift in danger
         if (dangerLevel >= 2) {
@@ -33,6 +35,7 @@ class CameraDirector {
 
         // Lerp transforms
         this.y += (desiredY - this.y) * 0.08;
+        this.x += (desiredX - this.x) * 0.08;
         this.zoom += (this.targetZoom - this.zoom) * 0.1;
 
         if (this.targetZoom > 1.0) {
@@ -63,6 +66,13 @@ class CameraDirector {
         ctx.translate(this.canvas.width/2, this.canvas.height/2);
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(-this.canvas.width/2, -this.canvas.height/2);
-        ctx.translate(this.offsetX, this.y + this.offsetY);
+        ctx.translate(this.x + this.offsetX, this.y + this.offsetY);
+    }
+
+    applyTransformXOnly(ctx) {
+        ctx.translate(this.canvas.width/2, this.canvas.height/2);
+        ctx.scale(this.zoom, this.zoom);
+        ctx.translate(-this.canvas.width/2, -this.canvas.height/2);
+        ctx.translate(this.x + this.offsetX, 0);
     }
 }

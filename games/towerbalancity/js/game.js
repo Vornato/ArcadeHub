@@ -11,6 +11,7 @@ class Game {
         this.meta = metaManager;
         
         this.cameraDirector = new CameraDirector(canvas);
+        this.workerCamera = new CameraDirector(canvas);
         this.collapseDirector = new CollapseDirector(this);
         this.music = new ProceduralMusicSystem(this.audio);
         this.bossManager = new BossFloorManager();
@@ -67,8 +68,15 @@ class Game {
         this.isChaosMode = isChaosMode;
         
         this.cameraDirector.y = 0;
+        this.cameraDirector.x = 0;
         this.cameraDirector.targetZoom = 1.0;
         this.cameraDirector.zoom = 1.0;
+
+        this.workerCamera.y = 0;
+        this.workerCamera.x = 0;
+        this.workerCamera.targetZoom = 1.0;
+        this.workerCamera.zoom = 1.0;
+        
         this.collapseDirector.isActive = false;
 
         this.progression.projectManager.setProject(projectThemeId);
@@ -137,6 +145,7 @@ class Game {
 
     triggerShake(mag, duration) {
         this.cameraDirector.triggerShake(mag, duration);
+        this.workerCamera.triggerShake(mag, duration);
     }
 
     dropFloor(x, y, archetype) {
@@ -382,7 +391,25 @@ class Game {
         }
         
         let highestY = this.floors.length > 0 ? this.floors[this.floors.length-1].y : this.canvas.height;
-        this.cameraDirector.update(highestY, torque, dLevel);
+        this.cameraDirector.update(this.dropPlayer.x + this.dropPlayer.w/2, highestY - 50, torque, dLevel);
+
+        let workerAvgX = this.towerCenterX;
+        let workerAvgY = highestY;
+        let activePlayers = 0;
+        let sumX = 0, sumY = 0;
+        
+        for (let p of this.players) {
+            if (p.y < this.canvas.height + Math.abs(this.workerCamera.y) + 300) {
+                sumX += p.x + p.w / 2;
+                sumY += p.y;
+                activePlayers++;
+            }
+        }
+        if (activePlayers > 0) {
+            workerAvgX = sumX / activePlayers;
+            workerAvgY = sumY / activePlayers;
+        }
+        this.workerCamera.update(workerAvgX, workerAvgY, torque, dLevel);
 
         // Update Background Elements
         this.particles.update();
@@ -392,10 +419,33 @@ class Game {
         }
     }
 
+    drawWorld(ctx) {
+        ctx.translate(this.towerCenterX, this.canvas.height);
+        let angle = (this.balance / 100) * (Math.PI / 14); 
+        ctx.rotate(angle);
+        ctx.translate(-this.towerCenterX, -this.canvas.height);
+
+        for (let f of this.floors) f.draw(ctx);
+        for (let h of this.hazards) h.draw(ctx);
+        for (let obj of this.objects) obj.draw(ctx);
+        for (let p of this.players) p.draw(ctx);
+        
+        this.particles.draw(ctx);
+    }
+    
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (this.isRunning) {
+            const hw = this.canvas.width / 2;
+
+            // --- LEFT SCREEN (Crane) ---
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.rect(0, 0, hw, this.canvas.height);
+            this.ctx.clip();
+            this.ctx.translate(-hw / 2, 0);
+
             this.ctx.save();
             this.ctx.translate(0, this.cameraDirector.y * 0.2);
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
@@ -407,23 +457,47 @@ class Game {
 
             this.ctx.save();
             this.cameraDirector.applyTransform(this.ctx);
-
-            this.ctx.translate(this.towerCenterX, this.canvas.height);
-            let angle = (this.balance / 100) * (Math.PI / 14); 
-            this.ctx.rotate(angle);
-            this.ctx.translate(-this.towerCenterX, -this.canvas.height);
-
-            for (let f of this.floors) f.draw(this.ctx);
-            for (let h of this.hazards) h.draw(this.ctx);
-            for (let obj of this.objects) obj.draw(this.ctx);
-            for (let p of this.players) p.draw(this.ctx);
-            
-            this.particles.draw(this.ctx);
+            this.drawWorld(this.ctx);
             this.ctx.restore();
 
             this.ctx.save();
+            this.cameraDirector.applyTransformXOnly(this.ctx);
             this.dropPlayer.draw(this.ctx);
             this.ctx.restore();
+            
+            this.ctx.restore(); // End Left Screen
+
+            // --- RIGHT SCREEN (Workers) ---
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.rect(hw, 0, hw, this.canvas.height);
+            this.ctx.clip();
+            this.ctx.translate(hw / 2, 0);
+
+            this.ctx.save();
+            this.ctx.translate(0, this.workerCamera.y * 0.2);
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            for(let c of this.clouds) {
+                Utils.drawRoundedRect(this.ctx, c.x, c.y, c.w, c.h, 20, 'rgba(255, 255, 255, 0.1)');
+                Utils.drawRoundedRect(this.ctx, c.x + 20, c.y - 15, c.w * 0.6, c.h, 20, 'rgba(255, 255, 255, 0.1)');
+            }
+            this.ctx.restore();
+
+            this.ctx.save();
+            this.workerCamera.applyTransform(this.ctx);
+            this.drawWorld(this.ctx);
+            this.ctx.restore();
+            
+            this.ctx.save();
+            this.workerCamera.applyTransformXOnly(this.ctx);
+            this.dropPlayer.draw(this.ctx);
+            this.ctx.restore();
+
+            this.ctx.restore(); // End Right Screen
+
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillRect(hw - 2, 0, 4, this.canvas.height);
+            
         } else {
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             for(let c of this.clouds) {
