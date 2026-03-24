@@ -86,6 +86,8 @@ class Game {
         this.dailyChallenge = null;
         this.victoryTriggered = false;
         this.lastContractsCompleted = 0;
+        this.objectSpawnSerial = 0;
+        this.heavyDeliveryCooldown = 0;
 
         this.clouds = [];
         this.cityBuildings = [];
@@ -231,6 +233,8 @@ class Game {
         this.dailyChallenge = dailyChallenge;
         this.victoryTriggered = false;
         this.lastContractsCompleted = 0;
+        this.objectSpawnSerial = 0;
+        this.heavyDeliveryCooldown = 0;
 
         let humanCount = 0;
         for (let i = 0; i < 4; i++) {
@@ -373,34 +377,35 @@ class Game {
     }
 
     updateTowerMotion(netTorque, maxTorque) {
-        const normalizedTorque = Utils.clamp(netTorque / maxTorque, -1.5, 1.5);
+        const targetTorque = Utils.clamp(netTorque / maxTorque, -1.35, 1.35);
+        this.torqueRatio = Utils.lerp(this.torqueRatio, targetTorque, 0.16);
+        const normalizedTorque = this.torqueRatio;
         const torqueLoad = Math.min(1, Math.abs(normalizedTorque));
         const stabilityBias = this.structureStabilityBias;
         const memory = this.instabilityMemory;
 
-        this.torqueRatio = normalizedTorque;
         this.microSwayTime += 0.015 + ((1 - torqueLoad) * 0.02);
 
-        const spring = (0.028 - (torqueLoad * 0.008)) * stabilityBias * (1 - (memory * 0.18));
-        const damping = (0.11 - (torqueLoad * 0.035)) * (0.94 + (stabilityBias * 0.08)) * (1 - (memory * 0.28));
-        const torqueDrive = (0.007 + (torqueLoad * 0.002)) / stabilityBias;
-        const nominalLeanAngle = (Math.PI / 12) * Utils.clamp(0.92 + (stabilityBias * 0.08), 0.86, 1.06);
+        const spring = (0.036 - (torqueLoad * 0.005)) * stabilityBias * (1 - (memory * 0.12));
+        const damping = (0.17 - (torqueLoad * 0.03)) * (1 + (stabilityBias * 0.08)) * (1 - (memory * 0.16));
+        const torqueDrive = (0.0044 + (torqueLoad * 0.0012)) / Math.sqrt(Math.max(0.7, stabilityBias));
+        const nominalLeanAngle = (Math.PI / 11) * Utils.clamp(0.94 + (stabilityBias * 0.08), 0.9, 1.08);
         const maxLeanAngle = Math.PI / 8;
 
         let ambientTorque = 0;
-        if (torqueLoad < 0.2 && Math.abs(this.towerAngle) < 0.08) {
+        if (torqueLoad < 0.18 && Math.abs(this.towerAngle) < 0.07) {
             ambientTorque =
-                (Math.sin(this.microSwayTime) * 0.0009) +
-                (Math.sin(this.microSwayTime * 0.43) * 0.0005);
+                (Math.sin(this.microSwayTime) * 0.00045) +
+                (Math.sin(this.microSwayTime * 0.43) * 0.00025);
         }
-        if (memory > 0.75) {
-            ambientTorque += Utils.random(-0.0018, 0.0018) * ((memory - 0.75) / 0.25);
+        if (memory > 0.82) {
+            ambientTorque += Utils.random(-0.0009, 0.0009) * ((memory - 0.82) / 0.18);
         }
 
-        const edgeInstability = Math.max(0, (Math.abs(this.towerAngle) / nominalLeanAngle) - 0.8);
+        const edgeInstability = Math.max(0, (Math.abs(this.towerAngle) / nominalLeanAngle) - 0.92);
         const instabilityTorque =
             Math.sign(this.towerAngle || normalizedTorque || 1) *
-            edgeInstability * edgeInstability * 0.0015;
+            edgeInstability * edgeInstability * 0.0011;
 
         this.towerAngularAcceleration =
             (normalizedTorque * torqueDrive) +
@@ -410,11 +415,11 @@ class Game {
             (this.towerAngularVelocity * damping);
 
         this.towerAngularVelocity += this.towerAngularAcceleration;
-        this.towerAngularVelocity = Utils.clamp(this.towerAngularVelocity, -0.05, 0.05);
+        this.towerAngularVelocity = Utils.clamp(this.towerAngularVelocity, -0.038, 0.038);
 
-        if (torqueLoad < 0.08 && Math.abs(this.towerAngle) < 0.03) {
-            this.towerAngularVelocity *= 0.82;
-            if (Math.abs(this.towerAngularVelocity) < 0.0005) {
+        if (torqueLoad < 0.06 && Math.abs(this.towerAngle) < 0.028) {
+            this.towerAngularVelocity *= 0.72;
+            if (Math.abs(this.towerAngularVelocity) < 0.00035) {
                 this.towerAngularVelocity = 0;
             }
         }
@@ -432,13 +437,18 @@ class Game {
         const edgeStress = Math.min(1, edgeInstability);
 
         this.motionStress = Math.min(
-            1.4,
-            (leanStress * 0.65) +
-            (velocityStress * 0.2) +
-            (torqueStress * 0.15) +
-            (edgeStress * 0.25)
+            1.25,
+            (leanStress * 0.56) +
+            (velocityStress * 0.14) +
+            (torqueStress * 0.12) +
+            (edgeStress * 0.22)
         );
-        this.instabilityMemory = Math.max(this.motionStress, this.instabilityMemory * 0.985);
+        const memoryTarget = Math.min(1, (this.motionStress * 0.85) + (torqueLoad * 0.15));
+        this.instabilityMemory = Utils.lerp(
+            this.instabilityMemory,
+            memoryTarget,
+            memoryTarget > this.instabilityMemory ? 0.055 : 0.02
+        );
 
         this.balance = Utils.clamp((this.towerAngle / nominalLeanAngle) * 100, -100, 100);
     }
@@ -449,17 +459,17 @@ class Game {
         const impactStrength = Utils.clamp((impactSpeed / 10) * massFactor, 0.1, 3.2);
         const floorCenterOffset = ((floor.x + floor.w / 2) - this.towerCenterX) / Math.max(120, floor.w / 2);
         const offsetNorm = Utils.clamp(floorCenterOffset, -1.5, 1.5);
-        const horizontalImpulse = (floor.vx || 0) * 0.0009 * massFactor;
-        const rotationalImpulse = (offsetNorm * 0.0045 * impactStrength) / widthBias;
+        const horizontalImpulse = (floor.vx || 0) * 0.0006 * massFactor;
+        const rotationalImpulse = (offsetNorm * 0.0031 * impactStrength) / widthBias;
 
         if (Math.abs(offsetNorm) < 0.12) {
-            this.towerAngularVelocity *= 0.92;
-            this.towerAngularVelocity += horizontalImpulse * 0.5;
+            this.towerAngularVelocity *= 0.88;
+            this.towerAngularVelocity += horizontalImpulse * 0.35;
         } else {
             this.towerAngularVelocity += rotationalImpulse + horizontalImpulse;
         }
 
-        this.towerCompressionVelocity += impactStrength * (isSettled ? 0.03 : 0.045);
+        this.towerCompressionVelocity += impactStrength * (isSettled ? 0.02 : 0.03);
 
         if (isSettled) {
             const settledBias = Utils.clamp(0.85 + ((floor.w - 300) / 600), 0.78, 1.2);
@@ -472,7 +482,7 @@ class Game {
 
         const offset = ((player.x + player.w / 2) - this.towerCenterX) / 300;
         const impulse = Utils.clamp((landingSpeed / 22) * (player.mass / 20), 0, 1.5);
-        this.towerAngularVelocity += Utils.clamp(offset, -1, 1) * impulse * 0.0025;
+        this.towerAngularVelocity += Utils.clamp(offset, -1, 1) * impulse * 0.0018;
         this.towerCompressionVelocity += impulse * 0.01;
         this.cameraDirector.addImpact(impulse * 0.06);
         this.workerCamera.addImpact(impulse * 0.06);
@@ -484,11 +494,11 @@ class Game {
 
         const massFactor = Utils.clamp(obj.mass / 80, 0.2, 3.2);
         const offset = Utils.clamp(((obj.x + obj.w / 2) - this.towerCenterX) / 320, -1.2, 1.2);
-        const lift = Utils.clamp((verticalImpact / 12) * massFactor, 0, 2.2);
-        const lateral = Utils.clamp((impactVx / 18) * massFactor, -1.8, 1.8);
+        const lift = Utils.clamp((verticalImpact / 12) * massFactor, 0, 1.7);
+        const lateral = Utils.clamp((impactVx / 18) * massFactor, -1.3, 1.3);
 
-        this.towerAngularVelocity += (offset * lift * 0.0018) + (lateral * 0.0009);
-        this.towerCompressionVelocity += lift * 0.006;
+        this.towerAngularVelocity += (offset * lift * 0.0011) + (lateral * 0.00055);
+        this.towerCompressionVelocity += lift * 0.004;
         this.cameraDirector.addImpact(lift * 0.12);
         this.workerCamera.addImpact(lift * 0.12);
     }
@@ -568,6 +578,62 @@ class Game {
         return this.floors.indexOf(floor);
     }
 
+    getLooseObjectCount() {
+        return this.objects.filter(obj => !obj.heldBy && !obj.isThrown).length;
+    }
+
+    getObjectSoftCap() {
+        return Utils.clamp(14 + Math.floor(this.height * 0.45) + (this.progression.currentChapter * 2), 18, 36);
+    }
+
+    tagSpawnedObjects(startIndex, source = 'floor', floorRef = null) {
+        for (let i = startIndex; i < this.objects.length; i++) {
+            const obj = this.objects[i];
+            if (!obj) continue;
+            obj.spawnSerial = ++this.objectSpawnSerial;
+            obj.spawnSource = source;
+            if (floorRef) obj.spawnFloorRef = floorRef;
+        }
+    }
+
+    pruneLooseObjects(targetCount = this.getObjectSoftCap()) {
+        const looseCount = this.getLooseObjectCount();
+        if (looseCount <= targetCount) return 0;
+
+        const topFloorIndex = this.floors.length - 1;
+        const candidates = this.objects
+            .map((obj, index) => ({
+                obj,
+                index,
+                supportFloor: this.getSupportingFloor(obj)
+            }))
+            .filter(entry => {
+                const { obj, supportFloor } = entry;
+                if (!obj || obj.heldBy || obj.isThrown || obj.helper || obj.isBoss || obj.partyGuest) return false;
+                if (obj.mass > 45) return false;
+                if (!supportFloor) return false;
+                return this.getFloorIndex(supportFloor) <= (topFloorIndex - 5);
+            })
+            .sort((a, b) => {
+                const floorDelta = this.getFloorIndex(a.supportFloor) - this.getFloorIndex(b.supportFloor);
+                if (floorDelta !== 0) return floorDelta;
+                return (a.obj.spawnSerial || 0) - (b.obj.spawnSerial || 0);
+            });
+
+        const removeCount = Math.min(looseCount - targetCount, candidates.length);
+        if (removeCount <= 0) return 0;
+
+        const removalIndexes = candidates
+            .slice(0, removeCount)
+            .map(entry => entry.index)
+            .sort((a, b) => b - a);
+
+        for (let index of removalIndexes) {
+            this.objects.splice(index, 1);
+        }
+        return removeCount;
+    }
+
     getSupportMetrics(floor, supportingFloor) {
         if (!floor || !supportingFloor) {
             return { overlap: 0, supportRatio: 0, overhangLeft: floor ? floor.w * 0.5 : 0, overhangRight: floor ? floor.w * 0.5 : 0 };
@@ -611,9 +677,9 @@ class Game {
             const supportIndex = this.getFloorIndex(supportFloor);
             const floorDelta = Math.abs(supportIndex - floorIndex);
             if (floorDelta > 1) continue;
-            const attenuation = floorDelta === 0 ? 1 : 0.45;
-            obj.vx += (impulseX * attenuation) / Math.max(1, obj.mass / 18);
-            obj.vy -= (impulseY * attenuation) / Math.max(1, obj.mass / 24);
+            const attenuation = floorDelta === 0 ? 0.65 : 0.25;
+            obj.vx += (impulseX * attenuation) / Math.max(1, obj.mass / 14);
+            obj.vy -= (impulseY * attenuation) / Math.max(1, obj.mass / 20);
         }
     }
 
@@ -645,20 +711,20 @@ class Game {
             this.applyFloorSupportState(floor, supportingFloor);
 
             const stressLoad = Utils.clamp(
-                (Math.abs(this.towerAngle) * 1.6) +
-                (Math.abs(this.towerAngularVelocity) * 14) +
-                ((1 - floor.supportRatio) * 1.35),
+                (Math.abs(this.towerAngle) * 1.25) +
+                (Math.abs(this.towerAngularVelocity) * 10.5) +
+                ((1 - floor.supportRatio) * 1.2),
                 0,
                 1.2
             );
 
-            if (stressLoad > 0.42) {
+            if (stressLoad > 0.52) {
                 const direction = Math.sign(this.centerOfMassOffset || this.towerAngle || 1);
-                floor.applyStructureDamage((stressLoad - 0.4) * 0.0036, direction);
+                floor.applyStructureDamage((stressLoad - 0.5) * 0.0024, direction);
             }
 
             if (floor.connectionIntegrity < 0.82) {
-                const shearStep = ((1 - floor.connectionIntegrity) * 0.12) + ((floor.shearDrift || 0) * 0.0025);
+                const shearStep = ((1 - floor.connectionIntegrity) * 0.09) + ((floor.shearDrift || 0) * 0.0018);
                 floor.updatePosition(floor.x + (Math.sign(this.centerOfMassOffset || this.towerAngle || 1) * shearStep), floor.y);
             }
 
@@ -666,11 +732,11 @@ class Game {
                 this.particles.emitDebris(floor.x + floor.w / 2, floor.y + floor.h - 12);
             }
 
-            const shouldBreakWindows = floor.connectionIntegrity < 0.62 || floor.demolitionProgress > 0.35;
+            const shouldBreakWindows = floor.connectionIntegrity < 0.52 || floor.demolitionProgress > 0.42;
             if (shouldBreakWindows && !floor.windowBrokenLeft && Math.random() < 0.02) floor.breakWindow('left');
             if (shouldBreakWindows && !floor.windowBrokenRight && Math.random() < 0.02) floor.breakWindow('right');
 
-            if (floor.connectionIntegrity < 0.28 && i >= Math.max(2, this.floors.length - 3)) {
+            if (floor.connectionIntegrity < 0.22 && i >= Math.max(2, this.floors.length - 3)) {
                 this.detachUpperTower(i, Math.sign(this.centerOfMassOffset || 1));
                 break;
             }
@@ -701,7 +767,7 @@ class Game {
                     b.x -= dir * (separation * (massA / totalMass));
 
                     const relativeVx = a.vx - b.vx;
-                    const impulse = Utils.clamp(relativeVx * 0.22, -2.4, 2.4);
+                    const impulse = Utils.clamp(relativeVx * 0.16, -1.5, 1.5);
                     a.vx -= impulse * (massB / totalMass) * a.impactDamping;
                     b.vx += impulse * (massA / totalMass) * b.impactDamping;
                 } else {
@@ -709,19 +775,19 @@ class Game {
                     const aAbove = a.y < b.y;
                     if (aAbove) {
                         a.y -= separation * (massB / totalMass);
-                        if (a.vy > 0) a.vy *= -a.restitutionY * 0.35;
+                        if (a.vy > 0) a.vy = Math.abs(a.vy) < 0.45 ? 0 : (-a.vy * a.restitutionY * 0.18);
                     } else {
                         b.y -= separation * (massA / totalMass);
-                        if (b.vy > 0) b.vy *= -b.restitutionY * 0.35;
+                        if (b.vy > 0) b.vy = Math.abs(b.vy) < 0.45 ? 0 : (-b.vy * b.restitutionY * 0.18);
                     }
                 }
 
-                const impact = Math.abs(a.vx - b.vx) + Math.abs(a.vy - b.vy) * 0.35;
-                if (impact > 1.2) {
-                    const bounceStrength = Utils.clamp(impact / 5, 0.4, 1.2);
+                const impact = (Math.abs(a.vx - b.vx) * 0.75) + (Math.abs(a.vy - b.vy) * 0.22);
+                if (impact > 1.8) {
+                    const bounceStrength = Utils.clamp(impact / 6.5, 0.35, 0.9);
                     a.triggerBounce(bounceStrength);
                     b.triggerBounce(bounceStrength);
-                    this.addObjectImpactImpulse(a, impact * 0.35, a.vx - b.vx);
+                    this.addObjectImpactImpulse(a, impact * 0.2, a.vx - b.vx);
                 }
             }
         }
@@ -802,19 +868,20 @@ class Game {
         let theme = newFloor.dropTheme;
         const supportingFloor = this.floors.length > 1 ? this.floors[this.floors.length - 2] : null;
         const supportMetrics = this.getSupportMetrics(newFloor, supportingFloor);
+        if (this.heavyDeliveryCooldown > 0) this.heavyDeliveryCooldown--;
 
         if (archetype.isBoss) {
             newFloor.bossDef = archetype.bossDef;
         }
 
         newFloor.supportRatio = supportMetrics.supportRatio;
-        newFloor.connectionIntegrity = Utils.clamp(0.42 + (supportMetrics.supportRatio * 0.58), 0.12, 1);
+        newFloor.connectionIntegrity = Utils.clamp(0.56 + (supportMetrics.supportRatio * 0.44), 0.22, 1);
         newFloor.crackSeverity = Utils.clamp(1 - newFloor.connectionIntegrity, 0, 1);
-        if (supportMetrics.supportRatio < 0.8) {
-            const supportDamage = (0.8 - supportMetrics.supportRatio) * 0.35;
+        if (supportMetrics.supportRatio < 0.74) {
+            const supportDamage = (0.74 - supportMetrics.supportRatio) * 0.24;
             newFloor.applyStructureDamage(supportDamage, Math.sign(newFloor.x + newFloor.w / 2 - this.towerCenterX || 1));
             this.ui.showActionCallout('BAD SUPPORT!', 'warning');
-            this.triggerShake(18, 34);
+            this.triggerShake(14, 28);
         }
 
         if (Math.abs(offset) < 15 && this.dangerTimer === 0) {
@@ -831,12 +898,12 @@ class Game {
             this.meta.recordStat('perfectDrops');
             this.vibrateAll(400, 1.0, 1.0);
             this.particles.emitImpactDust(cx, y + h, 50);
-            this.triggerShake(15, 30);
+            this.triggerShake(12, 24);
         } else {
             this.audio.play(`land_${newFloor.material}`);
             this.audio.play('drop', newFloor.mass);
             this.score += 100;
-            this.triggerShake(12, 30);
+            this.triggerShake(9, 22);
             this.particles.emitImpactDust(cx, y + h, 30);
             this.vibrateAll(200, 0.5, 0.5);
         }
@@ -864,10 +931,14 @@ class Game {
             if (obj.onGround) obj.triggerBounce();
         }
 
+        const spawnStartIndex = this.objects.length;
         if (archetype.isBoss) {
             archetype.bossDef.setup(this, newFloor, this.objects);
         } else if (this.floors.length > 1) {
-            const itemAmount = Utils.randomInt(1, 3 + Math.floor(this.progression.currentChapter / 2));
+            const spawnBudget = Math.max(0, this.getObjectSoftCap() - this.getLooseObjectCount());
+            const itemCeiling = Math.min(spawnBudget, 1 + Math.floor(this.progression.currentChapter / 3));
+            const canPopulateFloor = theme && theme.props && theme.props.length > 0 && itemCeiling > 0;
+            const itemAmount = canPopulateFloor ? Utils.randomInt(0, itemCeiling) : 0;
             for (let i = 0; i < itemAmount; i++) {
                 const maxDistL = w / 2 - archetype.wallLeft - 30;
                 const maxDistR = w / 2 - archetype.wallRight - 30;
@@ -877,6 +948,8 @@ class Game {
                 this.objects.push(new Interactable(ox, oy, typeToSpawn));
             }
         }
+        this.tagSpawnedObjects(spawnStartIndex, archetype.isBoss ? 'boss-floor' : 'floor', newFloor);
+        this.pruneLooseObjects();
 
         this.updateStatics();
 
@@ -887,9 +960,16 @@ class Game {
                 const hy = floor.y + floor.h - 20 - 40;
                 this.hazards.push(new FireHazard(hx, hy));
             } else if (evName === "Heavy Delivery" && this.floors.length > 1) {
+                const looseHeavyCount = this.objects.filter(obj => !obj.heldBy && !obj.isThrown && obj.mass >= 70).length;
+                const overBudget = this.getLooseObjectCount() >= (this.getObjectSoftCap() + 2);
+                if (this.heavyDeliveryCooldown > 0 || overBudget || looseHeavyCount >= 4) return;
                 const floor = this.floors[this.floors.length - 1];
                 const hx = floor.x + Utils.random(20, floor.w - 20 - 30);
+                const spawnStart = this.objects.length;
                 this.objects.push(new Interactable(hx, floor.y - 40, 'safe'));
+                this.tagSpawnedObjects(spawnStart, 'event-heavy-delivery', floor);
+                this.heavyDeliveryCooldown = 4;
+                this.pruneLooseObjects();
             } else if (evName === "Shake") {
                 this.triggerQuake(3.5, 2.5);
                 this.triggerShake(10, 40);
@@ -921,11 +1001,11 @@ class Game {
                 f.rebuildColliders();
             }
             if (f.colliders) {
-                const rainSlip = (this.progression.rainIntensity || 0) * 0.18;
-                const slopeSlip = Math.abs((f.localSlope || 0) + (f.seesawAngle || 0)) * 0.45;
+                const rainSlip = (this.progression.rainIntensity || 0) * 0.08;
+                const slopeSlip = Math.abs((f.localSlope || 0) + (f.seesawAngle || 0)) * 0.12;
                 for (let collider of f.colliders) {
                     if (!collider.isFloor) continue;
-                    collider.frictionModifier = Utils.clamp(f.baseFloorFriction + rainSlip + slopeSlip, 0.72, 1.08);
+                    collider.frictionModifier = Utils.clamp(f.baseFloorFriction + rainSlip + slopeSlip - (f.gripAssist || 0), 0.66, 1.02);
                 }
             }
             this.statics = this.statics.concat(f.colliders);
@@ -1003,9 +1083,9 @@ class Game {
                     f.updatePosition(nextX, targetY);
 
                     const impactSpeed = Math.abs(f.vy);
-                    const maxBounces = impactSpeed > 11 ? 2 : 1;
-                    const bounceRestitution = Utils.clamp(0.18 - ((f.mass / 500) * 0.04), 0.08, 0.16);
-                    const shouldBounce = impactSpeed > 2.8 && f.impactBounces < maxBounces;
+                    const maxBounces = impactSpeed > 12 ? 1 : 0;
+                    const bounceRestitution = Utils.clamp(0.12 - ((f.mass / 500) * 0.03), 0.05, 0.1);
+                    const shouldBounce = impactSpeed > 4.2 && f.impactBounces < maxBounces;
 
                     this.applyFloorImpact(f, impactSpeed, !shouldBounce);
                     this.cameraDirector.addImpact(impactSpeed * 0.06);
@@ -1014,7 +1094,7 @@ class Game {
                     if (shouldBounce) {
                         f.impactBounces++;
                         f.vy = -impactSpeed * bounceRestitution;
-                        f.vx *= 0.65;
+                        f.vx *= 0.45;
                         if (i === this.floors.length - 1) {
                             const dx = f.x - prevX;
                             const dy = f.y - prevY;
@@ -1027,7 +1107,7 @@ class Game {
                     } else {
                         f.isFalling = false;
                         f.vy = 0;
-                        f.vx *= 0.2;
+                        f.vx *= 0.12;
                         this.onFloorLanded(f);
                     }
                 } else {
@@ -1051,6 +1131,7 @@ class Game {
         this.ui.updatePieceQueue(this.upcomingPieces);
 
         const windForce = this.progression.windForce;
+        const objectWindForce = windForce * (1 - Utils.clamp((Math.abs(this.towerAngle) * 1.2) + (this.motionStress * 0.18), 0, 0.5));
 
         for (let p of this.players) {
             p.panicMode = this.dangerLevel >= 2;
@@ -1086,7 +1167,7 @@ class Game {
                     });
                 }
 
-                const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
+                const hits = this.physics.moveAndCollide(obj, this.statics, objectWindForce);
 
                 if (obj.y > this.canvas.height + Math.abs(this.cameraDirector.y) + 800) {
                     this.objects.splice(i, 1);
@@ -1105,7 +1186,7 @@ class Game {
                     obj.spinVelocity *= 0.82;
                     if (hits.collideY && obj.onGround) {
                         obj.isThrown = false;
-                        obj.vx *= 0.52;
+                        obj.vx *= obj.weightClass === 'heavy' ? 0.3 : 0.42;
                         obj.triggerBounce(Utils.clamp(Math.abs(hits.impactVy) / 10, 0.55, 1.5));
                         this.addObjectImpactImpulse(obj, hits.impactVy, hits.impactVx);
                         this.particles.emitImpactDust(obj.x + obj.w / 2, obj.y + obj.h, Math.max(4, Math.floor(obj.mass / 20)));
@@ -1114,8 +1195,8 @@ class Game {
                         this.audio.play('drop', obj.mass);
                         if (hits.groundCollider && hits.groundCollider.floorRef) {
                             const impactFloor = hits.groundCollider.floorRef;
-                            impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 14000, 0, 0.08), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
-                            this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.18, Math.abs(hits.impactVy) * 0.12);
+                            impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 18000, 0, 0.05), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
+                            this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.1, Math.abs(hits.impactVy) * 0.07);
                         }
 
                         for (let h of this.hazards) {
@@ -1136,32 +1217,36 @@ class Game {
                 const tilt = Math.abs(this.towerAngle);
                 const downhillDir = Math.sign(Math.sin(this.towerAngle) || this.towerAngularVelocity || 0) || 0;
                 const supportFloor = this.getSupportingFloor(obj);
-                const dynamicTilt = tilt + (Math.abs(this.towerAngularVelocity) * 1.8) + (this.motionStress * 0.02);
+                const dynamicTilt = tilt + (Math.abs(this.towerAngularVelocity) * 1.15) + (this.motionStress * 0.012);
                 if (obj.onGround) {
                     const sampledSlope = supportFloor ? supportFloor.getLocalSlopeAt(obj.x + obj.w / 2) : 0;
                     const floorSlope = Math.abs(sampledSlope);
-                    const totalTilt = dynamicTilt + floorSlope;
-                    if (totalTilt > obj.slideThreshold) {
+                    const floorThresholdMult = supportFloor ? supportFloor.slideThresholdMult || 1 : 1;
+                    const floorAccelMult = supportFloor ? supportFloor.slideAccelMult || 1 : 1;
+                    const downhillForceMult = supportFloor ? supportFloor.downhillForceMult || 1 : 1;
+                    const effectiveSlideThreshold = obj.slideThreshold * floorThresholdMult;
+                    const totalTilt = dynamicTilt + (floorSlope * downhillForceMult);
+                    if (totalTilt > effectiveSlideThreshold) {
                         const slideRatio = Utils.clamp(
-                            (totalTilt - obj.slideThreshold) / Math.max(0.01, (Math.PI / 8) - obj.slideThreshold),
+                            (totalTilt - effectiveSlideThreshold) / Math.max(0.01, (Math.PI / 8) - effectiveSlideThreshold),
                             0,
                             1
                         );
-                        obj.slideTimer = Math.min(1, obj.slideTimer + (0.06 + slideRatio * 0.04));
+                        obj.slideTimer = Math.min(1, obj.slideTimer + (0.03 + slideRatio * 0.025));
                         const localDir = sampledSlope ? Math.sign(sampledSlope) : downhillDir;
-                        obj.vx += localDir * obj.slideAccel * (0.18 + slideRatio + obj.slideTimer) * (1 + Math.abs(this.towerAngularVelocity) * 6);
-                        obj.visualTiltTarget = downhillDir * Math.min(0.22, 0.05 + slideRatio * 0.16);
-                    } else if (totalTilt > obj.slideThreshold * 0.58) {
-                        const wobbleRatio = (totalTilt - (obj.slideThreshold * 0.58)) / (obj.slideThreshold * 0.42);
-                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.08);
+                        obj.vx += localDir * obj.slideAccel * floorAccelMult * (0.08 + (slideRatio * 0.42) + (obj.slideTimer * 0.18)) * (1 + Math.abs(this.towerAngularVelocity) * 2.6) * downhillForceMult;
+                        obj.visualTiltTarget = localDir * Math.min(0.14, 0.03 + slideRatio * 0.08);
+                    } else if (totalTilt > effectiveSlideThreshold * 0.72) {
+                        const wobbleRatio = (totalTilt - (effectiveSlideThreshold * 0.72)) / (effectiveSlideThreshold * 0.28);
+                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.05);
                         obj.wobbleTime += 0.18 + wobbleRatio * 0.1;
-                        const wobble = Math.sin(obj.wobbleTime) * wobbleRatio * 0.05;
-                        obj.visualTiltTarget = (downhillDir * Math.min(0.1, wobbleRatio * 0.08)) + wobble;
+                        const wobble = Math.sin(obj.wobbleTime) * wobbleRatio * 0.03;
+                        obj.visualTiltTarget = (downhillDir * Math.min(0.06, wobbleRatio * 0.05)) + wobble;
                     } else {
-                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.14);
+                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.12);
                         obj.visualTiltTarget = 0;
                     }
-                    obj.restTimer = (Math.abs(obj.vx) < obj.settleThreshold && obj.slideTimer < 0.08) ? (obj.restTimer + 1) : 0;
+                    obj.restTimer = (Math.abs(obj.vx) < (obj.settleThreshold * 1.25) && Math.abs(obj.vy) < 0.35 && obj.slideTimer < 0.06) ? (obj.restTimer + 1) : 0;
                 } else {
                     obj.slideTimer = Math.max(0, obj.slideTimer - 0.06);
                     obj.visualTiltTarget = 0;
@@ -1174,7 +1259,7 @@ class Game {
                     obj.vy -= this.quakeImpulseY * 0.04;
                 }
                 const wasOnGround = obj.onGround;
-                const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
+                const hits = this.physics.moveAndCollide(obj, this.statics, objectWindForce);
 
                 if (hits.hitColliderX && hits.hitColliderX.isWindow && Math.abs(hits.impactVx) > 2.4) {
                     hits.hitColliderX.floorRef.breakWindow(hits.hitColliderX.windowSide);
@@ -1192,17 +1277,21 @@ class Game {
                     this.audio.play('drop', obj.mass);
                     if (hits.groundCollider && hits.groundCollider.floorRef) {
                         const impactFloor = hits.groundCollider.floorRef;
-                        impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 22000, 0, 0.04), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
-                        this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.1, Math.abs(hits.impactVy) * 0.08);
+                        impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 26000, 0, 0.025), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
+                        this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.06, Math.abs(hits.impactVy) * 0.045);
                     }
                 }
 
-                if (obj.onGround && obj.restTimer > 14) {
+                if (obj.onGround && obj.restTimer > 8) {
+                    obj.vx *= obj.restingDamping || 0.6;
+                }
+
+                if (obj.onGround && obj.restTimer > 18) {
                     obj.vx = 0;
                     obj.vy = 0;
                 }
 
-                if (obj.onGround && Math.abs(obj.vx) > 0.5 && Math.random() < 0.1) {
+                if (obj.onGround && Math.abs(obj.vx) > 0.6 && Math.random() < 0.08) {
                     this.audio.play('slide');
                 }
             }
@@ -1267,9 +1356,10 @@ class Game {
         this.updateTowerMotion(netTorque, maxTorque);
 
         const previousDangerLevel = this.dangerLevel;
-        if (this.motionStress < 0.18) this.dangerLevel = 0;
-        else if (this.motionStress < 0.42) this.dangerLevel = 1;
-        else if (this.motionStress < 0.75) this.dangerLevel = 2;
+        const dangerSignal = Math.max(this.motionStress * 0.82, this.instabilityMemory);
+        if (dangerSignal < 0.26) this.dangerLevel = 0;
+        else if (dangerSignal < 0.54) this.dangerLevel = 1;
+        else if (dangerSignal < 0.86) this.dangerLevel = 2;
         else this.dangerLevel = 3;
 
         const nearFailure = Math.abs(this.towerAngle) > (Math.PI / 10.2) || this.motionStress > 0.95;
@@ -1286,8 +1376,17 @@ class Game {
             horizontalOffset: this.centerOfMassOffset,
             verticalOffset: this.centerOfMassVerticalOffset,
             totalMass: this.totalMass,
-            massRatio: Utils.clamp(this.totalMass / 9000, 0, 1),
-            dangerRatio: Utils.clamp(Math.abs(this.torqueRatio), 0, 1)
+            massRatio: Utils.clamp(this.totalMass / Math.max(5000, massState.foundationWidth * 14), 0, 1),
+            dangerRatio: Utils.clamp(Math.max(Math.abs(this.torqueRatio) * 0.88, dangerSignal * 0.82), 0, 1),
+            centerX: this.centerOfMassX,
+            centerY: this.centerOfMassY,
+            foundationWidth: massState.foundationWidth,
+            activeWidth: massState.activeWidth,
+            towerHeight: massState.towerHeight,
+            horizontalLimit: massState.horizontalLimit,
+            horizontalRatio: massState.horizontalRatio,
+            verticalRatio: massState.verticalRatio,
+            topHeavyRatio: massState.topHeavyRatio
         };
         this.ui.updateBalance(this.balance, this.dangerLevel, balanceState);
         this.ui.updateWeatherStates(this.progression.getWeatherState());
@@ -1298,7 +1397,10 @@ class Game {
         this.ui.updateMinimap(this.floors, this.players, this.objects, this.towerCenterX, {
             horizontalOffset: this.centerOfMassOffset,
             centerX: this.centerOfMassX,
-            centerY: this.centerOfMassY
+            centerY: this.centerOfMassY,
+            foundationWidth: massState.foundationWidth,
+            activeWidth: massState.activeWidth,
+            towerHeight: massState.towerHeight
         });
 
         const completedContracts = this.meta.getCompletedContractsCount();

@@ -9,12 +9,12 @@ const FloorArchetypes = {
     'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor', material: 'wood', tooltip: 'Built thick on the right side. Counter-weight it early.' },
     'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor', material: 'metal', tooltip: 'Center pillar breaks movement and load paths.' },
     'hex': { w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck', material: 'metal', tooltip: 'Tapered edges narrow the safe payload lane.' },
-    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.14, id: 'ramp-left', name: 'Ramp Left', material: 'wood', tooltip: 'Slides cargo left. Brace or stumble downhill.' },
-    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.14, id: 'ramp-right', name: 'Ramp Right', material: 'wood', tooltip: 'Slides cargo right. Brace or stumble downhill.' },
-    'curve-left': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 18, curveBias: -0.45, surfaceSegments: 7, id: 'curve-left', name: 'Curved Left', material: 'metal', tooltip: 'Curved deck collects weight on the left pocket.' },
-    'curve-right': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 18, curveBias: 0.45, surfaceSegments: 7, id: 'curve-right', name: 'Curved Right', material: 'metal', tooltip: 'Curved deck collects weight on the right pocket.' },
-    'circular': { w: 340, h: 108, massMult: 1.12, wallLeft: 22, wallRight: 22, curveDepth: -16, surfaceSegments: 8, id: 'circular', name: 'Circular Deck', material: 'ice', tooltip: 'Convex circular floor sheds loads toward the sides.' },
-    'seesaw': { w: 340, h: 96, massMult: 0.95, wallLeft: 18, wallRight: 18, isSeesaw: true, seesawRange: 0.16, surfaceSegments: 8, id: 'seesaw', name: 'Seesaw Deck', material: 'wood', tooltip: 'Pivoting floor feeds occupant torque back into the tower.' }
+    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-left', name: 'Ramp Left', material: 'wood', tooltip: 'Slides cargo left. Brace or stumble downhill.' },
+    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-right', name: 'Ramp Right', material: 'wood', tooltip: 'Slides cargo right. Brace or stumble downhill.' },
+    'curve-left': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: -0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-left', name: 'Curved Left', material: 'metal', tooltip: 'Curved deck collects weight on the left pocket.' },
+    'curve-right': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: 0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-right', name: 'Curved Right', material: 'metal', tooltip: 'Curved deck collects weight on the right pocket.' },
+    'circular': { w: 340, h: 108, massMult: 1.12, wallLeft: 22, wallRight: 22, curveDepth: -10, surfaceSegments: 8, surfaceFriction: 0.88, gripAssist: 0.04, slideThresholdMult: 1.42, slideAccelMult: 0.62, downhillForceMult: 0.5, braceAssist: 1.14, id: 'circular', name: 'Circular Deck', material: 'ice', tooltip: 'Convex circular floor sheds loads toward the sides.' },
+    'seesaw': { w: 340, h: 96, massMult: 0.95, wallLeft: 18, wallRight: 18, isSeesaw: true, seesawRange: 0.1, seesawResponse: 0.045, seesawDamping: 0.9, seesawTorqueScale: 110, surfaceSegments: 8, surfaceFriction: 0.73, gripAssist: 0.06, slideThresholdMult: 1.38, slideAccelMult: 0.66, downhillForceMult: 0.54, braceAssist: 1.2, id: 'seesaw', name: 'Seesaw Deck', material: 'wood', tooltip: 'Pivoting floor feeds occupant torque back into the tower.' }
 };
 
 class Floor {
@@ -94,7 +94,17 @@ class Floor {
         const winTop = 40;
         const winH = 80;
 
-        this.baseFloorFriction = this.getMaterialFriction(this.material);
+        this.baseFloorFriction = this.archetype.surfaceFriction !== undefined
+            ? this.archetype.surfaceFriction
+            : this.getMaterialFriction(this.material);
+        this.gripAssist = this.archetype.gripAssist || 0;
+        this.slideThresholdMult = this.archetype.slideThresholdMult || 1;
+        this.slideAccelMult = this.archetype.slideAccelMult || 1;
+        this.downhillForceMult = this.archetype.downhillForceMult || 1;
+        this.braceAssist = this.archetype.braceAssist || 1;
+        this.seesawResponse = this.archetype.seesawResponse || 0.08;
+        this.seesawDamping = this.archetype.seesawDamping || 0.82;
+        this.seesawTorqueScale = this.archetype.seesawTorqueScale || 180;
         this.winTop = winTop;
         this.winH = winH;
         this.colliders = [];
@@ -154,7 +164,7 @@ class Floor {
         const sample = 14;
         const left = this.getSurfaceYAt(worldX - sample);
         const right = this.getSurfaceYAt(worldX + sample);
-        return Utils.clamp((right - left) / 40, -0.24, 0.24);
+        return Utils.clamp((right - left) / 40, -0.18, 0.18);
     }
 
     rebuildColliders() {
@@ -248,12 +258,14 @@ class Floor {
             applyEntity(player, player.mass + (player.heldObject ? player.heldObject.mass * 0.35 : 0));
         }
 
-        const targetAngle = Utils.clamp(occupantTorque / 12500, -this.seesawRange, this.seesawRange);
-        this.seesawVelocity += (targetAngle - this.seesawAngle) * 0.08;
-        this.seesawVelocity *= 0.82;
+        const targetAngle = Utils.clamp(occupantTorque / 19000, -this.seesawRange, this.seesawRange);
+        this.seesawVelocity += (targetAngle - this.seesawAngle) * this.seesawResponse;
+        this.seesawVelocity *= this.seesawDamping;
         this.seesawAngle += this.seesawVelocity;
-        this.intrinsicTorqueOffset = this.seesawAngle * 180;
-        this.rebuildColliders();
+        this.intrinsicTorqueOffset = this.seesawAngle * this.seesawTorqueScale;
+        if (Math.abs(this.seesawVelocity) > 0.0008 || Math.abs(targetAngle - this.seesawAngle) > 0.0008) {
+            this.rebuildColliders();
+        }
     }
 
     draw(ctx) {
@@ -607,21 +619,35 @@ class Interactable {
         }
 
         this.weightClass = this.mass < 20 ? 'light' : (this.mass < 80 ? 'medium' : 'heavy');
-        this.slideThreshold = this.weightClass === 'light' ? 0.028 : (this.weightClass === 'medium' ? 0.052 : 0.074);
-        this.slideAccel = this.weightClass === 'light' ? 0.52 : (this.weightClass === 'medium' ? 0.34 : 0.26);
-        this.restitutionX = this.weightClass === 'light' ? 0.14 : (this.weightClass === 'medium' ? 0.09 : 0.05);
-        this.restitutionY = this.weightClass === 'light' ? 0.13 : (this.weightClass === 'medium' ? 0.08 : 0.045);
-        this.bounceThreshold = this.weightClass === 'light' ? 2.2 : (this.weightClass === 'medium' ? 3.1 : 4.2);
+        this.slideThreshold = this.weightClass === 'light' ? 0.05 : (this.weightClass === 'medium' ? 0.074 : 0.102);
+        this.slideAccel = this.weightClass === 'light' ? 0.3 : (this.weightClass === 'medium' ? 0.22 : 0.14);
+        this.restitutionX = this.weightClass === 'light' ? 0.1 : (this.weightClass === 'medium' ? 0.06 : 0.02);
+        this.restitutionY = this.weightClass === 'light' ? 0.11 : (this.weightClass === 'medium' ? 0.06 : 0.02);
+        this.bounceThreshold = this.weightClass === 'light' ? 2.8 : (this.weightClass === 'medium' ? 3.8 : 5.8);
         this.airDrag = this.weightClass === 'light' ? 0.995 : (this.weightClass === 'medium' ? 0.992 : 0.989);
-        this.surfaceGrip = this.weightClass === 'light' ? 0.24 : (this.weightClass === 'medium' ? 0.42 : 0.28);
-        this.settleThreshold = this.weightClass === 'light' ? 0.08 : (this.weightClass === 'medium' ? 0.12 : 0.16);
-        this.impactDamping = this.weightClass === 'light' ? 0.76 : (this.weightClass === 'medium' ? 0.82 : 0.88);
+        this.surfaceGrip = this.weightClass === 'light' ? 0.52 : (this.weightClass === 'medium' ? 0.72 : 0.94);
+        this.settleThreshold = this.weightClass === 'light' ? 0.12 : (this.weightClass === 'medium' ? 0.16 : 0.22);
+        this.impactDamping = this.weightClass === 'light' ? 0.74 : (this.weightClass === 'medium' ? 0.68 : 0.58);
+        this.bounceVisualMult = this.weightClass === 'light' ? 1 : (this.weightClass === 'medium' ? 0.8 : 0.55);
+        this.restingDamping = this.weightClass === 'light' ? 0.74 : (this.weightClass === 'medium' ? 0.62 : 0.48);
+        this.groundWindFactor = this.weightClass === 'light' ? 0.032 : (this.weightClass === 'medium' ? 0.015 : 0.006);
+        this.airWindFactor = this.weightClass === 'light' ? 0.022 : (this.weightClass === 'medium' ? 0.012 : 0.006);
+
+        if (['safe', 'piano', 'generator', 'grand_piano', 'vault_safe', 'engine_block', 'statue', 'haunted_statue', 'haunted_clock'].includes(type)) {
+            this.restitutionX *= 0.55;
+            this.restitutionY *= 0.45;
+            this.bounceThreshold += 1.2;
+            this.settleThreshold += 0.05;
+            this.impactDamping *= 0.85;
+            this.restingDamping *= 0.88;
+            this.surfaceGrip = Math.min(1.02, this.surfaceGrip + 0.08);
+        }
     }
 
     triggerBounce(strength = 1) {
-        const bounce = Utils.clamp(strength, 0.4, 1.6);
-        this.scaleX = 1 + (0.22 * bounce);
-        this.scaleY = 1 - (0.18 * bounce);
+        const bounce = Utils.clamp(strength, 0.35, 1.4) * (this.bounceVisualMult || 1);
+        this.scaleX = 1 + (0.18 * bounce);
+        this.scaleY = 1 - (0.14 * bounce);
         this.restTimer = 0;
     }
 

@@ -3,6 +3,8 @@
 
 window.onload = () => {
     console.log('Tower Panic Init');
+    const searchParams = new URLSearchParams(window.location.search);
+    const autoTestMode = searchParams.get('autotest') === '1';
 
     const canvas = document.getElementById('game-canvas');
     const projectSelector = document.getElementById('project-selector');
@@ -13,6 +15,7 @@ window.onload = () => {
     const uiManager = new UIManager();
     const metaManager = new MetaManager();
     const game = new Game(canvas, inputManager, audioSystem, uiManager, metaManager);
+    window.__towerPanicDebug = { game, inputManager, audioSystem, uiManager, metaManager };
 
     let setupActive = false;
     let assignedPlayers = 0;
@@ -290,6 +293,153 @@ window.onload = () => {
         }
     }
 
+    function runAutoTest() {
+        const reportEl = document.createElement('pre');
+        reportEl.id = 'autotest-report';
+        reportEl.style.cssText = 'position:absolute;left:20px;top:20px;z-index:9999;width:760px;height:620px;overflow:auto;margin:0;padding:16px;background:rgba(0,0,0,0.9);border:2px solid rgba(255,255,255,0.22);color:#fff;font:16px/1.45 monospace;pointer-events:none;white-space:pre-wrap;';
+        document.body.appendChild(reportEl);
+
+        const report = {
+            status: 'running',
+            summary: 'booting',
+            steps: [],
+            errors: [],
+            startedAt: Date.now()
+        };
+        window.__towerAutotestReport = report;
+        const renderReport = () => {
+            reportEl.textContent = JSON.stringify({
+                status: report.status,
+                summary: report.summary,
+                lastStep: report.steps.length > 0 ? report.steps[report.steps.length - 1] : null,
+                steps: report.steps.slice(-8),
+                errors: report.errors
+            }, null, 2);
+        };
+        const recordStep = (name, extra = {}) => {
+            report.steps.push({ name, t: Date.now() - report.startedAt, ...extra });
+            report.summary = name;
+            renderReport();
+        };
+        const recordError = (type, message, extra = {}) => {
+            report.errors.push({ type, message: String(message), t: Date.now() - report.startedAt, ...extra });
+            report.summary = `${type}: ${String(message)}`;
+            renderReport();
+        };
+        const finish = (status) => {
+            report.status = status;
+            report.finishedAt = Date.now() - report.startedAt;
+            renderReport();
+        };
+
+        window.addEventListener('error', (event) => {
+            recordError('error', event.message || 'Unknown error', {
+                file: event.filename,
+                line: event.lineno,
+                col: event.colno
+            });
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event.reason && event.reason.stack ? event.reason.stack : event.reason;
+            recordError('unhandledrejection', reason || 'Unhandled promise rejection');
+        });
+
+        const fail = (message) => {
+            recordError('assert', message);
+            finish('failed');
+        };
+        const expect = (condition, message, extra = {}) => {
+            if (!condition) {
+                fail(message);
+                return false;
+            }
+            recordStep(message, extra);
+            return true;
+        };
+
+        const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const waitFor = async (predicate, timeoutMs = 8000, intervalMs = 120) => {
+            const start = Date.now();
+            while ((Date.now() - start) < timeoutMs) {
+                if (predicate()) return true;
+                await wait(intervalMs);
+            }
+            return false;
+        };
+        const pumpGame = (frames = 240) => {
+            for (let i = 0; i < frames; i++) {
+                if (!game.isRunning || game.isPaused) break;
+                game.update();
+                inputManager.postUpdate();
+            }
+        };
+
+        (async () => {
+            try {
+                recordStep('menu_visible', {
+                    menuVisible: !uiManager.scrMenu.classList.contains('hidden')
+                });
+
+                uiManager.btnPlay.click();
+                await wait(120);
+                if (!expect(!uiManager.scrSetup.classList.contains('hidden'), 'setup_opened')) return;
+
+                uiManager.btnAddBot.click();
+                await wait(120);
+                if (!expect(assignedPlayers >= 1, 'bot_added', { assignedPlayers })) return;
+
+                uiManager.btnStartGame.click();
+                await wait(180);
+                if (!expect(game.isRunning, 'run_started')) return;
+                if (!expect(uiManager.hud && !uiManager.hud.classList.contains('hidden'), 'hud_visible')) return;
+
+                let pieceA = game.upcomingPieces[0];
+                game.dropFloor(game.towerCenterX - (pieceA.w / 2), 120, pieceA, 0);
+                recordStep('first_drop_triggered', { archetype: pieceA.id });
+                pumpGame(520);
+                if (!expect(game.floors.length >= 2, 'first_floor_spawned', { floors: game.floors.length })) return;
+                if (!expect(game.floors[1] && !game.floors[1].isFalling, 'first_floor_landed', { y: game.floors[1] ? game.floors[1].y : null })) return;
+
+                let pieceB = game.upcomingPieces[0];
+                game.dropFloor(game.towerCenterX - (pieceB.w / 2) + 28, 120, pieceB, 0.6);
+                recordStep('second_drop_triggered', { archetype: pieceB.id });
+                pumpGame(620);
+                if (!expect(game.floors.length >= 3, 'second_floor_spawned', { floors: game.floors.length })) return;
+                if (!expect(game.floors[2] && !game.floors[2].isFalling, 'second_floor_landed', { y: game.floors[2] ? game.floors[2].y : null })) return;
+
+                const topFloor = game.floors[game.floors.length - 1];
+                const testSafe = new Interactable(topFloor.x + topFloor.w / 2 - 20, topFloor.y - 140, 'safe');
+                game.objects.push(testSafe);
+                recordStep('heavy_object_spawned', { objectType: testSafe.type });
+                pumpGame(360);
+                if (!expect(Number.isFinite(game.balance), 'balance_finite', { balance: game.balance })) return;
+                if (!expect(Number.isFinite(game.centerOfMassX) && Number.isFinite(game.centerOfMassY), 'com_finite', {
+                    centerOfMassX: game.centerOfMassX,
+                    centerOfMassY: game.centerOfMassY
+                })) return;
+                if (!expect(uiManager.comArrowMass && uiManager.comArrowMass.textContent.includes('LOAD'), 'hud_com_updated', {
+                    comLabel: uiManager.comArrowMass ? uiManager.comArrowMass.textContent : null
+                })) return;
+
+                game.pause();
+                await wait(120);
+                if (!expect(game.isPaused, 'pause_works')) return;
+                game.pause();
+                await wait(120);
+                if (!expect(!game.isPaused, 'resume_works')) return;
+
+                if (report.errors.length > 0) {
+                    finish('failed');
+                    return;
+                }
+                finish('passed');
+            } catch (error) {
+                recordError('exception', error && error.stack ? error.stack : error);
+                finish('failed');
+            }
+        })();
+    }
+
     inputManager.onAnyInputCallback = setupInputCallback;
 
     function globalLoop() {
@@ -346,5 +496,6 @@ window.onload = () => {
 
     updateMenuMeta();
     uiManager.showScreen('menu');
+    if (autoTestMode) runAutoTest();
     globalLoop();
 };

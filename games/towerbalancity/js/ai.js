@@ -77,7 +77,7 @@ class BotController {
         const localSlope = supportFloor ? Math.abs(supportFloor.getLocalSlopeAt(pCenterX)) : 0;
         const fireTarget = this.getNearestFire(game, supportFloor, playerRef);
         const panicThreshold = this.difficulty === 0 ? 3 : (this.difficulty === 1 ? 2 : 1);
-        const shouldBrace = playerRef.onGround && (dangerLevel >= panicThreshold || localSlope > 0.085 || Math.abs(game.towerAngularVelocity) > 0.018);
+        const shouldBrace = playerRef.onGround && (dangerLevel >= panicThreshold || localSlope > 0.1 || Math.abs(game.towerAngularVelocity) > 0.022);
 
         if (shouldBrace) {
             this.state.bumperL = true;
@@ -168,7 +168,7 @@ class BotController {
 
         if (Math.random() < 0.008 && (this.state.left || this.state.right) && floorBounds) {
             const atEdge = pCenterX < floorBounds.supportX + 26 || pCenterX > floorBounds.supportX + floorBounds.supportW - 26;
-            if (atEdge || localSlope > 0.06) {
+            if (atEdge || localSlope > 0.08) {
                 this.state.jumpJustPressed = true;
             }
         }

@@ -20,7 +20,7 @@ class PhysicsEngine {
     moveAndCollide(entity, statics, windForce) {
         // Apply wind subtly if airborne (objects only, to not ruin platforming too much, or both for chaos)
         if (!entity.onGround && !entity.isPlayer && windForce) {
-            entity.vx += windForce * 0.05; 
+            entity.vx += windForce * (entity.airWindFactor !== undefined ? entity.airWindFactor : 0.018);
         }
 
         const attemptedVX = entity.vx;
@@ -101,11 +101,14 @@ class PhysicsEngine {
         if (entity.onGround && !entity.isPlayer) {
             // Apply wind pushing if object is light and wind is very strong
             if (windForce && Math.abs(windForce) > 4 && entity.mass < 20) {
-                 entity.vx += windForce * 0.1;
+                 entity.vx += windForce * (entity.groundWindFactor !== undefined ? entity.groundWindFactor : 0.03);
             } else {
                 const surfaceGrip = entity.surfaceGrip !== undefined ? entity.surfaceGrip : 1;
                 const effectiveDrag = Utils.clamp(1 - ((1 - groundFriction) * surfaceGrip), 0.78, 0.995);
                 entity.vx *= effectiveDrag;
+            }
+            if (!entity.isThrown && Math.abs(entity.vx) < ((entity.settleThreshold || 0.1) * 2.2)) {
+                entity.vx *= entity.restingDamping !== undefined ? entity.restingDamping : 0.68;
             }
             if (Math.abs(entity.vx) < (entity.settleThreshold || 0.1)) entity.vx = 0;
         }
@@ -113,11 +116,13 @@ class PhysicsEngine {
         return { collideX, collideY, impactVx: attemptedVX, impactVy: attemptedVY, groundFriction, groundCollider, hitColliderX, hitColliderY };
     }
 
-    calculateMassState(floors, objects, players, towerCenterX, windForce, exaggeration = 1.12) {
+    calculateMassState(floors, objects, players, towerCenterX, windForce, exaggeration = 0.88) {
         let totalTorque = 0;
         let totalMass = 0;
         let weightedX = 0;
         let weightedY = 0;
+        let minSupportX = towerCenterX;
+        let maxSupportX = towerCenterX;
 
         for (let floor of floors) {
             if (!floor.isFoundation) {
@@ -137,6 +142,11 @@ class PhysicsEngine {
                 weightedX += centerX * floorMass;
                 weightedY += centerY * floorMass;
             }
+            const bounds = typeof floor.getSupportBounds === 'function'
+                ? floor.getSupportBounds()
+                : { supportX: floor.x, supportW: floor.w };
+            minSupportX = Math.min(minSupportX, bounds.supportX);
+            maxSupportX = Math.max(maxSupportX, bounds.supportX + bounds.supportW);
         }
 
         for (let obj of objects) {
@@ -164,16 +174,27 @@ class PhysicsEngine {
         const centerOfMassX = totalMass > 0 ? (weightedX / totalMass) : towerCenterX;
         const centerOfMassY = totalMass > 0 ? (weightedY / totalMass) : 0;
         const centerOfMassOffset = centerOfMassX - towerCenterX;
-        const towerTopY = floors.length > 0 ? floors[floors.length - 1].y : centerOfMassY;
-        const towerBaseY = floors.length > 0 ? floors[0].y + floors[0].h : centerOfMassY;
+        const towerTopY = floors.length > 0 ? Math.min(...floors.map(f => f.y)) : centerOfMassY;
+        const towerBaseY = floors.length > 0 ? Math.max(...floors.map(f => f.y + f.h)) : centerOfMassY;
         const towerMidY = (towerTopY + towerBaseY) / 2;
         const centerOfMassVerticalOffset = towerMidY - centerOfMassY;
+        const towerHeight = Math.max(120, towerBaseY - towerTopY);
+        const foundation = floors.length > 0 ? floors[0] : null;
+        const foundationBounds = foundation && typeof foundation.getSupportBounds === 'function'
+            ? foundation.getSupportBounds()
+            : { supportX: towerCenterX - 180, supportW: foundation ? foundation.w : 360 };
+        const foundationWidth = foundationBounds.supportW;
+        const activeWidth = Math.max(foundationWidth, maxSupportX - minSupportX);
+        const horizontalLimit = Math.max(42, Math.min(foundationWidth, activeWidth) * 0.26);
+        const topHeavyRatio = Utils.clamp((towerBaseY - centerOfMassY) / towerHeight, 0, 1);
         const structuralTorque = totalTorque * exaggeration;
-        
+
+        let windTorque = 0;
         if (windForce) {
-            let towerHeight = floors.length * 100; // rough estimation
-            totalTorque += windForce * towerHeight * 5; 
+            const windLeverArm = Math.max(140, (towerHeight * 0.42) + (foundationWidth * 0.08));
+            windTorque = windForce * windLeverArm * (0.88 + (topHeavyRatio * 0.24));
         }
+        const effectiveTorque = structuralTorque + windTorque;
 
         return {
             totalMass,
@@ -181,9 +202,19 @@ class PhysicsEngine {
             centerOfMassY,
             centerOfMassOffset,
             centerOfMassVerticalOffset,
+            towerTopY,
+            towerBaseY,
+            towerHeight,
+            foundationWidth,
+            activeWidth,
+            horizontalLimit,
+            topHeavyRatio,
+            horizontalRatio: Utils.clamp(Math.abs(centerOfMassOffset) / Math.max(1, horizontalLimit), 0, 1.4),
+            verticalRatio: Utils.clamp((topHeavyRatio - 0.56) / 0.26, 0, 1.3),
             structuralTorque,
-            windTorque: totalTorque - structuralTorque,
-            torque: totalTorque
+            windTorque,
+            rawTorque: totalTorque,
+            torque: effectiveTorque
         };
     }
 

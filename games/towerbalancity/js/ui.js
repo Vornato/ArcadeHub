@@ -45,6 +45,7 @@ class UIManager {
         this.balanceMeterContainer = document.getElementById('balance-meter-container');
         this.balanceBg = document.getElementById('balance-bg');
         this.balIndicator = document.getElementById('balance-indicator');
+        this.balanceWeight = this.balIndicator ? this.balIndicator.querySelector('.indicator-weight') : null;
         this.dangerText = document.getElementById('danger-text');
         this.comArrow = document.getElementById('com-arrow');
         this.comArrowTrail = document.getElementById('com-arrow-trail');
@@ -232,10 +233,10 @@ class UIManager {
         if (screenName === 'options') this.scrOptions.classList.remove('hidden');
     }
 
-    showHUD() { this.hud.classList.remove('hidden'); }
-    hideHUD() { this.hud.classList.add('hidden'); }
-    showPause() { this.scrPause.classList.remove('hidden'); }
-    hidePause() { this.scrPause.classList.add('hidden'); }
+    showHUD() { if (this.hud) this.hud.classList.remove('hidden'); }
+    hideHUD() { if (this.hud) this.hud.classList.add('hidden'); }
+    showPause() { if (this.scrPause) this.scrPause.classList.remove('hidden'); }
+    hidePause() { if (this.scrPause) this.scrPause.classList.add('hidden'); }
 
     showGameOver(score, height, epitaph, summary = null) {
         if (this.finalScoreItem) this.finalScoreItem.innerText = score;
@@ -249,8 +250,8 @@ class UIManager {
             }
             if (this.finalContractsItem) this.finalContractsItem.innerText = `${summary.completedContracts}/${summary.totalContracts}`;
         }
-        this.weatherOverlay.style.opacity = '0';
-        this.darknessOverlay.style.opacity = '0';
+        if (this.weatherOverlay) this.weatherOverlay.style.opacity = '0';
+        if (this.darknessOverlay) this.darknessOverlay.style.opacity = '0';
         this.showScreen('gameover');
     }
 
@@ -266,25 +267,28 @@ class UIManager {
             }
             if (this.victoryContractsItem) this.victoryContractsItem.innerText = `${summary.completedContracts}/${summary.totalContracts}`;
         }
-        this.weatherOverlay.style.opacity = '0';
-        this.darknessOverlay.style.opacity = '0';
+        if (this.weatherOverlay) this.weatherOverlay.style.opacity = '0';
+        if (this.darknessOverlay) this.darknessOverlay.style.opacity = '0';
         this.showScreen('victory');
     }
 
     setSkyColors(colors) {
-        this.gameContainer.style.background = `radial-gradient(circle at top, ${colors[0]} 0%, ${colors[1]} 100%)`;
+        if (this.gameContainer) this.gameContainer.style.background = `radial-gradient(circle at top, ${colors[0]} 0%, ${colors[1]} 100%)`;
     }
 
     setWeather(isRaining, isDark) {
         const rainLevel = typeof isRaining === 'number' ? Utils.clamp(isRaining, 0, 1) : (isRaining ? 1 : 0);
         const darkLevel = typeof isDark === 'number' ? Utils.clamp(isDark, 0, 1) : (isDark ? 1 : 0);
-        this.weatherOverlay.style.opacity = `${rainLevel}`;
-        this.weatherOverlay.style.filter = `blur(${rainLevel * 0.6}px)`;
-        this.darknessOverlay.style.opacity = `${darkLevel}`;
-        this.gameContainer.style.setProperty('--exposure-size', `${Utils.lerp(68, 26, darkLevel)}%`);
+        if (this.weatherOverlay) {
+            this.weatherOverlay.style.opacity = `${rainLevel}`;
+            this.weatherOverlay.style.filter = `blur(${rainLevel * 0.6}px)`;
+        }
+        if (this.darknessOverlay) this.darknessOverlay.style.opacity = `${darkLevel}`;
+        if (this.gameContainer) this.gameContainer.style.setProperty('--exposure-size', `${Utils.lerp(68, 26, darkLevel)}%`);
     }
 
     showFlavorText(msg, type = "playful") {
+        if (!this.flavorToast || !this.flavorText) return;
         this.flavorText.textContent = msg;
         this.flavorToast.classList.add('show');
         
@@ -304,6 +308,7 @@ class UIManager {
     }
 
     showPhaseBanner(phaseName) {
+        if (!this.phaseBanner || !this.phaseTitle) return;
         this.phaseTitle.innerText = phaseName;
         this.phaseBanner.classList.add('show');
         
@@ -315,6 +320,7 @@ class UIManager {
 
     updateSetupSlot(slotId, assigned, inputType) {
         const slot = document.getElementById(`slot-${slotId + 1}`);
+        if (!slot) return;
         const status = slot.querySelector('.status');
         const mapping = slot.querySelector('.mapping');
         const classSelector = slot.querySelector('.class-selector');
@@ -356,6 +362,7 @@ class UIManager {
     }
 
     showBossBanner(name, flavorText) {
+        if (!this.bossBanner || !this.bossBannerTitle || !this.bossBannerFlavor) return;
         this.bossBannerTitle.innerText = `WARNING: ${name.toUpperCase()}`;
         this.bossBannerFlavor.innerText = flavorText;
         this.bossBanner.classList.remove('hidden');
@@ -372,6 +379,7 @@ class UIManager {
 
     updateClassSelector(slotId, classData, isLocked = false) {
         const slot = document.getElementById(`slot-${slotId + 1}`);
+        if (!slot) return;
         const className = slot.querySelector('.class-name');
         const classDesc = slot.querySelector('.class-desc');
         
@@ -389,8 +397,8 @@ class UIManager {
     }
 
     updateScore(amount, height) {
-        this.scoreDisp.innerText = amount;
-        this.heightDisp.innerText = height + "m";
+        if (this.scoreDisp) this.scoreDisp.innerText = amount;
+        if (this.heightDisp) this.heightDisp.innerText = height + "m";
     }
 
     updateGoalPanel(goalSummary) {
@@ -421,26 +429,34 @@ class UIManager {
 
     updateBalance(balanceValue, dangerLevel, comState = 0) {
         let percent = 50 + (balanceValue / 2);
-        this.balIndicator.style.left = `${percent}%`;
+        if (this.balIndicator) this.balIndicator.style.left = `${percent}%`;
         
-        this.balIndicator.querySelector('.indicator-weight').style.borderColor = this.dangerColors[dangerLevel];
+        if (this.balanceWeight) this.balanceWeight.style.borderColor = this.dangerColors[dangerLevel];
         
-        this.dangerText.innerText = this.dangerLabels[dangerLevel];
-        this.dangerText.style.color = this.dangerColors[dangerLevel];
+        if (this.dangerText) {
+            this.dangerText.innerText = this.dangerLabels[dangerLevel];
+            this.dangerText.style.color = this.dangerColors[dangerLevel];
+        }
 
         const data = typeof comState === 'object'
             ? comState
             : { horizontalOffset: comState, verticalOffset: 0, totalMass: 0, dangerRatio: 0 };
-        const horizontalNorm = Utils.clamp((data.horizontalOffset || 0) / 180, -1, 1);
-        const verticalNorm = Utils.clamp((data.verticalOffset || 0) / 260, -1, 1);
-        const vectorMagnitude = Utils.clamp(Math.hypot(horizontalNorm, verticalNorm), 0, 1);
+        const foundationWidth = Math.max(160, data.foundationWidth || data.activeWidth || 360);
+        const towerHeight = Math.max(160, data.towerHeight || 360);
+        const horizontalLimit = Math.max(40, data.horizontalLimit || (foundationWidth * 0.26));
+        const horizontalNorm = Utils.clamp((data.horizontalOffset || 0) / horizontalLimit, -1.1, 1.1);
+        const verticalNorm = Utils.clamp((data.verticalOffset || 0) / Math.max(90, towerHeight * 0.34), -1.1, 1.1);
+        const horizontalSignal = Utils.clamp(data.horizontalRatio !== undefined ? data.horizontalRatio : Math.abs(horizontalNorm), 0, 1);
+        const verticalSignal = Utils.clamp(data.verticalRatio !== undefined ? data.verticalRatio : Math.max(0, (verticalNorm - 0.24) / 0.76), 0, 1);
+        const vectorMagnitude = Utils.clamp(Math.hypot(horizontalSignal, verticalSignal), 0, 1);
         const massRatio = Utils.clamp((data.massRatio !== undefined ? data.massRatio : (data.totalMass || 0) / 9000), 0, 1);
         const dangerRatio = Utils.clamp(data.dangerRatio !== undefined ? data.dangerRatio : (Math.abs(balanceValue) / 100), 0, 1);
-        const instabilitySignal = Utils.clamp(Math.max(dangerRatio, (vectorMagnitude * 0.78) + (massRatio * 0.22)), 0, 1);
+        const topHeavyRatio = Utils.clamp(data.topHeavyRatio !== undefined ? data.topHeavyRatio : 0, 0, 1);
+        const instabilitySignal = Utils.clamp(Math.max(dangerRatio * 0.94, (horizontalSignal * 0.54) + (verticalSignal * 0.3) + (massRatio * 0.16)), 0, 1);
         const vectorAngle = Math.atan2(-verticalNorm, horizontalNorm || 0.001);
-        const vectorLength = Utils.lerp(42, 104, Utils.clamp((vectorMagnitude * 0.58) + (massRatio * 0.42), 0, 1));
-        const trailLength = Utils.lerp(28, 112, Utils.clamp((instabilitySignal * 0.72) + (massRatio * 0.28), 0, 1));
-        const arrowColor = instabilitySignal > 0.82 ? '#ff4757' : (instabilitySignal > 0.55 ? '#ff9f43' : '#8ad8ff');
+        const vectorLength = Utils.lerp(40, 98, Utils.clamp((vectorMagnitude * 0.68) + (massRatio * 0.18), 0, 1));
+        const trailLength = Utils.lerp(24, 104, Utils.clamp((instabilitySignal * 0.7) + (verticalSignal * 0.2), 0, 1));
+        const arrowColor = instabilitySignal > 0.9 ? '#ff4757' : (instabilitySignal > 0.68 ? '#ff9f43' : '#8ad8ff');
 
         if (this.comArrowVector) {
             this.comArrowVector.style.width = `${vectorLength}px`;
@@ -457,16 +473,21 @@ class UIManager {
         if (this.comArrow) this.comArrow.style.opacity = `${0.72 + (instabilitySignal * 0.28)}`;
         if (this.comArrowMass) {
             const tons = (data.totalMass || 0) / 1000;
-            this.comArrowMass.textContent = `LOAD ${tons.toFixed(1)}T`;
+            const posture = horizontalSignal > 0.72
+                ? 'OFF-CENTER'
+                : (topHeavyRatio > 0.72 ? 'TOP-HEAVY' : 'BALANCED');
+            this.comArrowMass.textContent = `LOAD ${tons.toFixed(1)}T ${posture}`;
         }
 
-        this.balanceMeterContainer.classList.toggle('critical', dangerLevel >= 2 || instabilitySignal > 0.72);
+        if (this.balanceMeterContainer) this.balanceMeterContainer.classList.toggle('critical', dangerLevel >= 3 || instabilitySignal > 0.86);
         if (this.balanceBg) {
-            this.balanceBg.style.opacity = `${0.42 + (instabilitySignal * 0.46)}`;
+            this.balanceBg.style.opacity = `${0.34 + (instabilitySignal * 0.38)}`;
         }
 
-        if (dangerLevel === 3) this.dangerText.classList.add('shake');
-        else this.dangerText.classList.remove('shake');
+        if (this.dangerText) {
+            if (dangerLevel === 3) this.dangerText.classList.add('shake');
+            else this.dangerText.classList.remove('shake');
+        }
     }
 
     updateWeatherStates(weatherState, isRaining, isDark) {
@@ -483,12 +504,18 @@ class UIManager {
         const windy = Math.abs(state.windForce || 0) > 0.75;
         const raining = (state.rainIntensity || 0) > 0.15;
         const dark = (state.darkness || 0) > 0.15;
-        this.windState.classList.toggle('active', windy);
-        this.windState.classList.toggle('wind', windy);
-        this.rainState.classList.toggle('active', raining);
-        this.rainState.classList.toggle('rain', raining);
-        this.darkState.classList.toggle('active', dark);
-        this.darkState.classList.toggle('dark', dark);
+        if (this.windState) {
+            this.windState.classList.toggle('active', windy);
+            this.windState.classList.toggle('wind', windy);
+        }
+        if (this.rainState) {
+            this.rainState.classList.toggle('active', raining);
+            this.rainState.classList.toggle('rain', raining);
+        }
+        if (this.darkState) {
+            this.darkState.classList.toggle('active', dark);
+            this.darkState.classList.toggle('dark', dark);
+        }
 
         if (this.windForecast) this.windForecast.textContent = this.describeWindForecast(state);
         if (this.rainForecast) this.rainForecast.textContent = this.describeForecast(state.forecastRain, state.rainTrend, 'CLEAR', 'SHOWERS', 'SQUALL');
@@ -529,11 +556,45 @@ class UIManager {
         if (!floors || floors.length === 0) return;
 
         const foundation = floors[0];
-        const topFloor = floors[floors.length - 1];
-        const minY = topFloor.y - 120;
-        const maxY = foundation.y + foundation.h;
+        const foundationBounds = typeof foundation.getSupportBounds === 'function'
+            ? foundation.getSupportBounds()
+            : { supportX: foundation.x, supportW: foundation.w };
+        let minWorldX = foundationBounds.supportX;
+        let maxWorldX = foundationBounds.supportX + foundationBounds.supportW;
+        let minY = foundation.y;
+        let maxY = foundation.y + foundation.h;
+
+        for (let floor of floors) {
+            const bounds = typeof floor.getSupportBounds === 'function'
+                ? floor.getSupportBounds()
+                : { supportX: floor.x, supportW: floor.w };
+            minWorldX = Math.min(minWorldX, bounds.supportX);
+            maxWorldX = Math.max(maxWorldX, bounds.supportX + bounds.supportW);
+            minY = Math.min(minY, floor.y);
+            maxY = Math.max(maxY, floor.y + floor.h);
+        }
+        for (let obj of objects) {
+            if (obj.heldBy) continue;
+            minWorldX = Math.min(minWorldX, obj.x);
+            maxWorldX = Math.max(maxWorldX, obj.x + obj.w);
+            minY = Math.min(minY, obj.y);
+            maxY = Math.max(maxY, obj.y + obj.h);
+        }
+        for (let player of players) {
+            minWorldX = Math.min(minWorldX, player.x);
+            maxWorldX = Math.max(maxWorldX, player.x + player.w);
+            minY = Math.min(minY, player.y);
+            maxY = Math.max(maxY, player.y + player.h);
+        }
+
+        minY -= 70;
+        maxY += 10;
+        const paddingX = Math.max(50, (maxWorldX - minWorldX) * 0.12);
+        minWorldX -= paddingX;
+        maxWorldX += paddingX;
+        const rangeX = Math.max(220, maxWorldX - minWorldX);
         const rangeY = Math.max(240, maxY - minY);
-        const centerX = width / 2;
+        const centerX = 10 + (((towerCenterX - minWorldX) / rangeX) * (width - 20));
 
         ctx.strokeStyle = 'rgba(255,255,255,0.16)';
         ctx.lineWidth = 1;
@@ -542,7 +603,7 @@ class UIManager {
         ctx.lineTo(centerX, height - 12);
         ctx.stroke();
 
-        const mapX = (worldX) => centerX + Utils.clamp(((worldX - towerCenterX) / 280) * (width * 0.42), -width * 0.42, width * 0.42);
+        const mapX = (worldX) => 10 + (((worldX - minWorldX) / rangeX) * (width - 20));
         const mapY = (worldY) => 12 + (((worldY - minY) / rangeY) * (height - 24));
 
         for (let floor of floors) {

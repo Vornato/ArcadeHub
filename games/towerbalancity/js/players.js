@@ -33,6 +33,7 @@ class InsidePlayer {
         this.throwQueued = false;
         this.bracing = false;
         this.wasBracing = false;
+        this.braceCharge = 0;
         this.stumbleMeter = 0;
         this.stumbleLock = 0;
 
@@ -69,8 +70,9 @@ class InsidePlayer {
             audio.play('brace');
         }
         const braceGrip = this.charClass.stats.braceGrip || 1.35;
+        this.braceCharge = Utils.approach(this.braceCharge, (this.bracing && this.onGround) ? 1 : 0, this.bracing ? 0.14 : 0.1);
         if (this.bracing && this.onGround) {
-            currentSpeed *= 0.55;
+            currentSpeed *= 0.58;
         }
 
         let inputDir = 0;
@@ -87,8 +89,8 @@ class InsidePlayer {
         const desiredVx = inputDir * currentSpeed;
         const accelGround = Utils.clamp(0.3 + (this.speed * 0.055) - (this.stability * 0.09) - carryPenalty, 0.18, 0.55);
         const accelAir = accelGround * 0.55;
-        let decelGround = Utils.clamp(0.34 + (this.stability * 0.07), 0.24, 0.5);
-        if (this.bracing) decelGround *= 1.5;
+        let decelGround = Utils.clamp(0.42 + (this.stability * 0.09), 0.3, 0.66);
+        if (this.bracing) decelGround *= 1.7;
         if (game && game.progression.isRaining) decelGround *= 0.8;
         const decelAir = 0.12;
         const turnBrake = this.onGround ? (0.82 + (this.stability * 0.05)) : 0.92;
@@ -109,33 +111,43 @@ class InsidePlayer {
         }
 
         if (this.onGround && game) {
-            let downhillForce = (Math.sin(game.towerAngle) * 0.24) + (game.towerAngularVelocity * 4.5);
             const supportSlope = supportFloor ? supportFloor.getLocalSlopeAt(this.x + this.w / 2) : 0;
-            if (supportFloor) downhillForce += supportSlope * 1.9;
+            const floorDownhillMult = supportFloor ? supportFloor.downhillForceMult || 1 : 1;
+            const floorBraceAssist = supportFloor ? supportFloor.braceAssist || 1 : 1;
+            const floorSlideThreshold = supportFloor ? supportFloor.slideThresholdMult || 1 : 1;
+            let downhillForce = (Math.sin(game.towerAngle) * 0.16) + (game.towerAngularVelocity * 2.6);
+            if (supportFloor) downhillForce += supportSlope * 1.15 * floorDownhillMult;
             downhillForce /= Math.max(0.7, this.stability * (this.charClass.stats.slideResistance || 1));
-            if (game.progression.rainIntensity) downhillForce *= (1 + (game.progression.rainIntensity * 0.45));
-            if (this.bracing) downhillForce *= 0.24 / braceGrip;
+            if (game.progression.rainIntensity) downhillForce *= (1 + (game.progression.rainIntensity * 0.2));
+            if (this.bracing) {
+                downhillForce *= Utils.lerp(1, 0.12 / (braceGrip * floorBraceAssist), this.braceCharge);
+            }
             if (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(downhillForce)) {
-                downhillForce *= 0.36;
+                downhillForce *= 0.25;
             }
             this.vx += downhillForce;
+            if (this.bracing && inputDir === 0) {
+                this.vx = Utils.approach(this.vx, 0, 0.18 * braceGrip * floorBraceAssist);
+            }
 
             const stumbleSlope = Math.abs(supportSlope);
-            if (!this.bracing && stumbleSlope > 0.08 && Math.abs(downhillForce) > 0.28) {
-                this.stumbleMeter = Math.min(1, this.stumbleMeter + (0.08 + (stumbleSlope * 0.18)));
+            const stumbleSlopeThreshold = 0.11 * floorSlideThreshold;
+            if (!this.bracing && stumbleSlope > stumbleSlopeThreshold && Math.abs(downhillForce) > 0.38) {
+                this.stumbleMeter = Math.min(1, this.stumbleMeter + (0.04 + (stumbleSlope * 0.12)));
                 if (this.stumbleMeter > 0.88 && this.stumbleLock <= 0) {
-                    this.vx += Math.sign(downhillForce || supportSlope || 1) * (1.2 + stumbleSlope * 2.2);
+                    this.vx += Math.sign(downhillForce || supportSlope || 1) * (0.8 + stumbleSlope * 1.5);
                     this.scaleX = 1.18;
                     this.scaleY = 0.82;
                     this.stumbleLock = 18;
                     audio.play('slip');
                 }
             } else {
-                this.stumbleMeter = Math.max(0, this.stumbleMeter - (this.bracing ? 0.18 : 0.08));
+                this.stumbleMeter = Math.max(0, this.stumbleMeter - (this.bracing ? 0.24 : 0.12));
             }
         }
         this.stumbleLock = Math.max(0, this.stumbleLock - 1);
-        if (Math.abs(this.vx) < 0.02) this.vx = 0;
+        if (this.onGround && !moving && Math.abs(this.vx) < 0.06) this.vx = 0;
+        else if (Math.abs(this.vx) < 0.02) this.vx = 0;
 
         if (moving && this.onGround) {
             this.walkTimer += 0.18 + Math.abs(this.vx) * 0.045;
@@ -435,7 +447,7 @@ class DropPlayer {
         this.currentFloorH = nextPiece.h;
 
         const manualForce = (state.right ? 1 : 0) - (state.left ? 1 : 0);
-        const windSway = this.game && this.game.progression ? this.game.progression.windForce * (0.02 + (this.game.progression.stormLevel || 0) * 0.01) : 0;
+        const windSway = this.game && this.game.progression ? this.game.progression.windForce * (0.012 + (this.game.progression.stormLevel || 0) * 0.006) : 0;
         this.carriageVelocity += (-this.carriageOffset * 0.0018) - (this.carriageVelocity * 0.01) + (manualForce * 0.38) + windSway;
         this.carriageOffset += this.carriageVelocity;
 
