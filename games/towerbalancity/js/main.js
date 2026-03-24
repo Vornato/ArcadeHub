@@ -5,6 +5,7 @@ window.onload = () => {
     console.log('Tower Panic Init');
     const searchParams = new URLSearchParams(window.location.search);
     const autoTestMode = searchParams.get('autotest') === '1';
+    const hudTestMode = searchParams.get('hudtest') === '1';
 
     const canvas = document.getElementById('game-canvas');
     const projectSelector = document.getElementById('project-selector');
@@ -440,6 +441,54 @@ window.onload = () => {
         })();
     }
 
+    function runHudTest() {
+        const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const pumpGame = (frames = 180) => {
+            for (let i = 0; i < frames; i++) {
+                if (!game.isRunning || game.isPaused) break;
+                game.update();
+                inputManager.postUpdate();
+            }
+        };
+
+        (async () => {
+            uiManager.btnPlay.click();
+            await wait(120);
+            uiManager.btnAddBot.click();
+            await wait(120);
+            uiManager.btnStartGame.click();
+            await wait(220);
+
+            const pieceA = game.upcomingPieces[0];
+            if (pieceA) {
+                game.dropFloor(game.towerCenterX - (pieceA.w / 2), 120, pieceA, 0);
+                pumpGame(480);
+            }
+
+            const pieceB = game.upcomingPieces[0];
+            if (pieceB) {
+                game.dropFloor(game.towerCenterX - (pieceB.w / 2) + 24, 120, pieceB, 0.48);
+                pumpGame(560);
+            }
+
+            const topFloor = game.floors[game.floors.length - 1];
+            if (topFloor) {
+                const testSafe = new Interactable(topFloor.x + topFloor.w / 2 - 18, topFloor.y - 120, 'safe');
+                game.objects.push(testSafe);
+                pumpGame(220);
+            }
+
+            if (uiManager.phaseBanner) {
+                uiManager.phaseBanner.classList.remove('show');
+                uiManager.phaseBanner.style.display = 'none';
+            }
+            if (uiManager.actionCallout) {
+                uiManager.actionCallout.classList.remove('show');
+                uiManager.actionCallout.style.display = 'none';
+            }
+        })();
+    }
+
     inputManager.onAnyInputCallback = setupInputCallback;
 
     function globalLoop() {
@@ -497,5 +546,6 @@ window.onload = () => {
     updateMenuMeta();
     uiManager.showScreen('menu');
     if (autoTestMode) runAutoTest();
+    if (hudTestMode) runHudTest();
     globalLoop();
 };

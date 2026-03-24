@@ -42,7 +42,7 @@ canvas { display: block; width: 100%; height: 100%; position: absolute; z-index:
 @keyframes rain { from { background-position: 0 0; } to { background-position: -20px 40px; } }
 
 /* UI Screens & HUD */
-#hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 20px; z-index: 20; }
+#hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: clamp(12px, 1.6vw, 20px); z-index: 20; }
 #hud.hidden { display: none; }
 
 #screens { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
@@ -154,25 +154,32 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 .class-desc { font-size: 0.8rem; color: #aaa; line-height: 1.2; height: 30px; }
 
 /* HUD Elements */
-#score-panel { position: absolute; top: 20px; left: 20px; padding: 15px 25px; text-align: center; }
-.score-label, .height-label { font-size: 0.9rem; color: #a4b0be; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
-#score-display { font-size: 2.5rem; font-family: 'Fredoka One', cursive; color: #f1c40f; text-shadow: 0 3px 0 #b7950b, 0 5px 10px rgba(0,0,0,0.5); margin-bottom: 5px; }
-#height-display { font-size: 1.5rem; font-weight: bold; }
+#score-panel {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    width: clamp(158px, 13vw, 184px);
+    padding: 12px 16px;
+    text-align: center;
+}
+.score-label, .height-label { font-size: 0.78rem; color: #a4b0be; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
+#score-display { font-size: clamp(1.85rem, 2.6vw, 2.3rem); font-family: 'Fredoka One', cursive; color: #f1c40f; text-shadow: 0 3px 0 #b7950b, 0 5px 10px rgba(0,0,0,0.5); margin-bottom: 3px; line-height: 1; }
+#height-display { font-size: clamp(1.05rem, 1.6vw, 1.28rem); font-weight: bold; }
 
-#balance-meter-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
-.meter-label { font-weight: bold; color: #fff; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-#balance-meter { width: 500px; height: 40px; border-radius: 20px; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; }
+#balance-meter-container { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); text-align: center; }
+.meter-label { font-weight: bold; color: #fff; letter-spacing: 2px; margin-bottom: 6px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); font-size: 0.82rem; }
+#balance-meter { width: clamp(290px, 34vw, 430px); height: 32px; border-radius: 18px; position: relative; overflow: hidden; padding: 0; margin-bottom: 8px; }
 #balance-bg { position: absolute; width: 100%; height: 100%; background: linear-gradient(90deg, rgba(255,71,87,0.8) 0%, rgba(255,165,2,0.8) 25%, rgba(46,213,115,0.8) 45%, rgba(46,213,115,0.8) 55%, rgba(255,165,2,0.8) 75%, rgba(255,71,87,0.8) 100%); opacity: 0.5; transform-origin: center; }
-#balance-center { position: absolute; left: 50%; top: -5px; width: 6px; height: 50px; background: #fff; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-#balance-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 50px; transition: left 0.1s ease-out; }
-.indicator-weight { width: 30px; height: 30px; background: #fff; border: 4px solid #222; border-radius: 50%; box-shadow: 0 5px 10px rgba(0,0,0,0.5); position: absolute; top: 10px; left: 0; }
+#balance-center { position: absolute; left: 50%; top: -4px; width: 5px; height: 40px; background: #fff; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+#balance-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 24px; height: 42px; transition: left 0.1s ease-out; }
+.indicator-weight { width: 24px; height: 24px; background: #fff; border: 3px solid #222; border-radius: 50%; box-shadow: 0 5px 10px rgba(0,0,0,0.5); position: absolute; top: 9px; left: 0; }
 #balance-meter-container.critical { animation: hudStressShake 0.32s infinite linear; }
 #balance-meter-container.critical #balance-bg { animation: dangerGradientPulse 0.95s ease-in-out infinite; }
-#com-arrow { font-size: 0.82rem; letter-spacing: 1px; color: #dfe6e9; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
-.com-label, #com-arrow-mass { min-width: 110px; font-weight: bold; }
+#com-arrow { font-size: 0.72rem; letter-spacing: 1px; color: #dfe6e9; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+.com-label, #com-arrow-mass { min-width: 92px; font-weight: bold; }
 .com-label { text-align: right; }
 #com-arrow-mass { text-align: left; color: rgba(255,255,255,0.84); }
-#com-arrow-widget { position: relative; width: 128px; height: 34px; display: flex; align-items: center; justify-content: center; }
+#com-arrow-widget { position: relative; width: 114px; height: 30px; display: flex; align-items: center; justify-content: center; }
 #com-arrow-trail {
     position: absolute;
     left: 50%;
@@ -209,22 +216,22 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
     transition: color 0.16s ease-out;
 }
 
-#danger-text { font-size: 2rem; font-family: 'Fredoka One', cursive; text-shadow: 0 4px 6px rgba(0,0,0,0.8); transition: all 0.2s; }
+#danger-text { font-size: clamp(1.15rem, 2vw, 1.6rem); font-family: 'Fredoka One', cursive; text-shadow: 0 4px 6px rgba(0,0,0,0.8); transition: all 0.2s; }
 
 #weather-status {
     position: absolute;
-    top: 148px;
+    top: 120px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 6px 8px;
 }
 .status-chip {
-    min-width: 78px;
-    padding: 8px 10px;
+    min-width: 72px;
+    padding: 7px 9px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: bold;
     letter-spacing: 1px;
     color: rgba(255,255,255,0.45);
@@ -249,15 +256,15 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 
 #tower-minimap-panel {
     position: absolute;
-    top: 20px;
-    right: 190px;
-    width: 170px;
-    padding: 14px 14px 12px;
+    top: 18px;
+    right: 182px;
+    width: clamp(148px, 12vw, 164px);
+    padding: 12px 12px 10px;
     text-align: center;
 }
 #tower-minimap {
     width: 100%;
-    height: 220px;
+    height: clamp(168px, 21vh, 210px);
     border-radius: 14px;
     background:
         radial-gradient(circle at 50% 15%, rgba(255,255,255,0.1), rgba(255,255,255,0.02) 45%, transparent 70%),
@@ -268,40 +275,40 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 
 #run-goal-panel {
     position: absolute;
-    left: 20px;
-    top: 148px;
-    width: 220px;
-    padding: 14px 16px;
+    left: 18px;
+    top: 132px;
+    width: clamp(176px, 15vw, 210px);
+    padding: 12px 14px;
 }
 .goal-title {
     font-family: 'Fredoka One', cursive;
     color: #ffffff;
-    font-size: 1.15rem;
+    font-size: clamp(0.96rem, 1.4vw, 1.08rem);
     margin-bottom: 4px;
 }
 .goal-height {
     color: #f1c40f;
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: bold;
     margin-bottom: 6px;
 }
 .goal-seed {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     line-height: 1.35;
     color: rgba(223,230,233,0.82);
 }
 
 #contract-panel {
     position: absolute;
-    left: 20px;
-    top: 260px;
-    width: 220px;
-    padding: 14px 16px;
+    left: 18px;
+    top: 240px;
+    width: clamp(176px, 15vw, 210px);
+    padding: 12px 14px;
 }
 .contract-entry {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     line-height: 1.4;
-    padding: 8px 0;
+    padding: 7px 0;
     border-top: 1px solid rgba(255,255,255,0.08);
     color: rgba(223,230,233,0.86);
 }
@@ -318,17 +325,17 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 
 #action-callout {
     position: absolute;
-    top: 22%;
+    top: 18%;
     left: 50%;
     transform: translate(-50%, -20px) scale(0.85);
-    padding: 14px 26px;
+    padding: 12px 22px;
     border-radius: 999px;
     background: rgba(7, 18, 34, 0.78);
     border: 2px solid rgba(255,255,255,0.18);
     color: #fff;
     font-family: 'Fredoka One', cursive;
-    font-size: 2rem;
-    letter-spacing: 2px;
+    font-size: clamp(1.1rem, 2.4vw, 1.65rem);
+    letter-spacing: 1px;
     opacity: 0;
     transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -349,40 +356,74 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 /* Piece Queue HUD */
 #piece-queue {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 150px;
+    top: 18px;
+    right: 18px;
+    width: clamp(144px, 12vw, 160px);
     text-align: right;
-    padding: 14px 18px;
+    padding: 12px 14px;
 }
 .queue-title {
-    font-size: 0.9em;
+    font-size: 0.78rem;
     color: #a4b0be;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     letter-spacing: 1px;
 }
 .queue-slot {
-    font-size: 1.1em;
+    font-size: 0.94rem;
     font-weight: bold;
     min-height: 1.5em;
-    margin: 5px 0;
+    margin: 4px 0;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     transition: color 0.2s;
 }
 .queue-tooltip {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid rgba(255,255,255,0.08);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     line-height: 1.35;
     color: rgba(223,230,233,0.84);
     text-align: left;
-    min-height: 60px;
+    min-height: 48px;
 }
 
 @media (max-width: 1100px) {
     .setup-grid, .setup-brief { width: min(92vw, 900px); }
     #menu-meta { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1400px) {
+    #tower-minimap-panel { right: 168px; }
+    #run-goal-panel, #contract-panel { width: 188px; }
+}
+
+@media (max-width: 1180px) {
+    #score-panel,
+    #run-goal-panel,
+    #contract-panel,
+    #piece-queue,
+    #tower-minimap-panel {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    #score-panel { width: 152px; }
+    #balance-meter { width: clamp(250px, 34vw, 340px); }
+    #weather-status { top: 112px; }
+    #run-goal-panel, #contract-panel { left: 14px; width: 170px; }
+    #tower-minimap-panel { right: 14px; width: 146px; }
+    #piece-queue { right: 14px; width: 146px; top: 210px; }
+}
+
+@media (max-width: 980px) {
+    #tower-minimap-panel { display: none; }
+    #piece-queue {
+        top: auto;
+        bottom: 16px;
+    }
+    #queue-tooltip { display: none; }
+    #run-goal-panel { top: auto; bottom: 116px; }
+    #contract-panel { top: auto; bottom: 16px; }
 }
 
 /* Animations */

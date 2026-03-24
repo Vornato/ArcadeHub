@@ -28,6 +28,24 @@ function withAlpha(color, alpha) {
   return color;
 }
 
+function formatWeaponLabel(weaponId) {
+  if (!weaponId) {
+    return "AUTOCANNON";
+  }
+  const labels = {
+    rocket: "RKT",
+    homing: "HOMING",
+    mine: "MINES",
+    emp: "EMP",
+    shockwave: "SHOCK",
+    shield: "SHIELD",
+    rail: "RAIL",
+    flak: "FLAK",
+    arc: "ARC",
+  };
+  return labels[weaponId] ?? weaponId.toUpperCase();
+}
+
 function drawPanel(ctx, x, y, w, h, accent = UI_COLORS.accentCyan, alpha = 0.82) {
   ctx.save();
   ctx.fillStyle = `rgba(7, 11, 20, ${alpha})`;
@@ -427,13 +445,13 @@ export class UIRenderer {
     const y = viewport.y;
     const w = viewport.w;
     const h = viewport.h;
-    const hudScale = Math.max(0.72, Math.min(1, Math.min(w / 760, h / 430)));
+    const hudScale = Math.max(0.68, Math.min(0.95, Math.min(w / 760, h / 430)));
     const compact = hudScale < 0.94;
     const ultraCompact = hudScale < 0.82;
     const pad = Math.round(14 * hudScale);
-    const leftWidth = Math.round((ultraCompact ? 220 : compact ? 244 : 274) * hudScale);
-    const rightWidth = Math.round((ultraCompact ? 136 : compact ? 156 : 186) * hudScale);
-    const panelHeight = Math.round((compact ? 134 : 148) * hudScale);
+    const leftWidth = Math.round((ultraCompact ? 210 : compact ? 232 : 260) * hudScale);
+    const rightWidth = Math.round((ultraCompact ? 126 : compact ? 144 : 172) * hudScale);
+    const panelHeight = Math.round((compact ? 122 : 136) * hudScale);
     const leftX = x + pad;
     const topY = y + pad;
     const rightX = x + w - rightWidth - pad;
@@ -488,7 +506,7 @@ export class UIRenderer {
 
     ctx.fillStyle = UI_COLORS.text;
     ctx.textAlign = "right";
-    ctx.fillText(vehicle.specialWeaponId ? `${vehicle.specialWeaponId.toUpperCase()} x${vehicle.specialAmmo}` : "AUTOCANNON", leftX + leftWidth - Math.round(12 * hudScale), topY + Math.round(42 * hudScale));
+    ctx.fillText(`${formatWeaponLabel(vehicle.specialWeaponId)}${vehicle.specialWeaponId ? ` x${vehicle.specialAmmo}` : ""}`, leftX + leftWidth - Math.round(12 * hudScale), topY + Math.round(42 * hudScale));
     ctx.fillStyle = hookColor;
     ctx.textAlign = "left";
     ctx.font = `${Math.round((compact ? 12 : 13) * hudScale)}px Trebuchet MS`;
@@ -507,7 +525,7 @@ export class UIRenderer {
     ctx.font = `${Math.round((compact ? 13 : 15) * hudScale)}px Trebuchet MS`;
     if (match.mode.id === "combatRace") {
       ctx.fillText(`Lap ${Math.min(match.mode.laps, vehicle.lap + 1)}/${match.mode.laps}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
-      ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "Race Line", rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
+      ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "On Line", rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
       ctx.fillText(`Kills ${vehicle.kills}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
     } else if (match.mode.id === "driftAttack") {
       ctx.fillText(`Score ${Math.round(vehicle.score)}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
@@ -557,7 +575,8 @@ export class UIRenderer {
       const toastWidth = Math.round((ultraCompact ? 190 : 230) * hudScale);
       const toastHeight = Math.round((vehicle.hudDetail ? 54 : 38) * hudScale);
       const toastX = x + w * 0.5 - toastWidth * 0.5;
-      const toastY = y + h * 0.68;
+      const toastOffset = vehicle.streakLevel > 0 ? 72 : 24;
+      const toastY = y + h - toastHeight - Math.round(toastOffset * hudScale);
       drawCutPanel(ctx, toastX, toastY, toastWidth, toastHeight, vehicle.hudMessageAccent, 0.86);
       fillTextGlow(ctx, vehicle.hudMessage, toastX + toastWidth * 0.5, toastY + Math.round(20 * hudScale), Math.max(12, Math.round(15 * hudScale)), vehicle.hudMessageColor);
       if (vehicle.hudDetail) {

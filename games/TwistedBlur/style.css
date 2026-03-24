@@ -57,22 +57,36 @@ body::before {
 
 #statusBar {
   position: fixed;
-  left: 18px;
-  right: 18px;
-  bottom: 16px;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 32px));
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   background: rgba(5, 7, 13, 0.45);
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   backdrop-filter: blur(10px);
   pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#statusBar span:last-child {
+  opacity: 0.82;
+  text-align: center;
+}
+
+body[data-phase="playing"] #statusBar,
+body[data-phase="paused"] #statusBar,
+body[data-phase="results"] #statusBar {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
 }
 
 noscript {
@@ -87,10 +101,10 @@ noscript {
 
 @media (max-width: 720px) {
   #statusBar {
-    bottom: 12px;
-    left: 12px;
-    right: 12px;
+    top: 12px;
+    width: calc(100vw - 24px);
     font-size: 10px;
     padding: 8px 10px;
+    gap: 10px;
   }
 }
