@@ -62,16 +62,19 @@ export class PickupSystem {
 
     if (def.kind === "support") {
       if (pickupType === "repair") {
-        vehicle.heal(36);
+        vehicle.heal(vehicle.maxHealth * 0.42);
+        vehicle.stunTimer = Math.max(0, vehicle.stunTimer - 0.5);
+        audio.playSfx("repair", 0.34);
       } else if (pickupType === "turbo") {
-        vehicle.addBoost(42);
+        vehicle.addBoost(vehicle.maxBoost * 0.58);
+        audio.playSfx("turbo", 0.34);
       }
     } else {
       vehicle.assignSpecialWeapon(pickupType);
+      audio.playSfx("pickup", 0.26);
     }
 
     effects.emitPickupPulse(vehicle.x, vehicle.y, def.color);
-    audio.playSfx("pickup", 0.26);
   }
 
   render(ctx, time) {

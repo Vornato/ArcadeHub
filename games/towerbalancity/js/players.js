@@ -12,14 +12,14 @@ class InsidePlayer {
         this.vy = 0;
         
         // Apply class statistics
-        this.charClass = charClass || { stats: { speed: 4.5, jumpForce: -11, massMult: 1.0, throwMult: 1.0, pushForce: 1.5, grabRange: 30 } };
+        this.charClass = charClass || { stats: { speed: 4.5, jumpForce: -11, bodyMass: 1.0, carryStrength: 1.0, throwMult: 1.0, pushForce: 1.5, grabRange: 30, slideResistance: 1.0, braceGrip: 1.35 } };
         this.speed = this.charClass.stats.speed;
         this.jumpForce = this.charClass.stats.jumpForce;
         
         this.color = color;
         this.onGround = false;
-        this.mass = 20 * this.charClass.stats.massMult;
-        this.stability = Utils.clamp(this.charClass.stats.massMult, 0.7, 2.2);
+        this.mass = 20 * (this.charClass.stats.bodyMass || this.charClass.stats.massMult || 1.0);
+        this.stability = Utils.clamp((this.charClass.stats.slideResistance || 1.0) * Math.sqrt(this.mass / 20), 0.7, 2.6);
         
         this.heldObject = null;
         this.facing = 1;
@@ -31,6 +31,9 @@ class InsidePlayer {
         this.turnLag = 0;
         this.throwWindup = 0;
         this.throwQueued = false;
+        this.bracing = false;
+        this.stumbleMeter = 0;
+        this.stumbleLock = 0;
 
         // Animation State
         this.walkTimer = 0;
@@ -54,9 +57,16 @@ class InsidePlayer {
         let carryPenalty = 0;
         if (this.heldObject) {
             const coopMult = this.heldObject.helper ? 0.58 : 1;
-            const burden = (this.heldObject.mass * coopMult) / (85 * Math.max(0.8, this.stability));
-            carryPenalty = (this.heldObject.mass * coopMult) / (180 * Math.max(0.8, this.stability));
+            const carryStrength = this.charClass.stats.carryStrength || Math.max(0.8, this.stability);
+            const burden = (this.heldObject.mass * coopMult) / (85 * Math.max(0.8, carryStrength));
+            carryPenalty = (this.heldObject.mass * coopMult) / (180 * Math.max(0.8, carryStrength));
             currentSpeed = Math.max(1.2, this.speed - burden);
+        }
+
+        this.bracing = !!(state.bumperL || state.bumperR);
+        const braceGrip = this.charClass.stats.braceGrip || 1.35;
+        if (this.bracing && this.onGround) {
+            currentSpeed *= 0.55;
         }
 
         let inputDir = 0;
@@ -74,6 +84,7 @@ class InsidePlayer {
         const accelGround = Utils.clamp(0.3 + (this.speed * 0.055) - (this.stability * 0.09) - carryPenalty, 0.18, 0.55);
         const accelAir = accelGround * 0.55;
         let decelGround = Utils.clamp(0.34 + (this.stability * 0.07), 0.24, 0.5);
+        if (this.bracing) decelGround *= 1.5;
         if (game && game.progression.isRaining) decelGround *= 0.8;
         const decelAir = 0.12;
         const turnBrake = this.onGround ? (0.82 + (this.stability * 0.05)) : 0.92;
@@ -95,14 +106,31 @@ class InsidePlayer {
 
         if (this.onGround && game) {
             let downhillForce = (Math.sin(game.towerAngle) * 0.24) + (game.towerAngularVelocity * 4.5);
-            if (supportFloor) downhillForce += (supportFloor.localSlope || 0) * 1.9;
-            downhillForce /= Math.max(0.7, this.stability);
-            if (game.progression.isRaining) downhillForce *= 1.35;
+            const supportSlope = supportFloor ? supportFloor.getLocalSlopeAt(this.x + this.w / 2) : 0;
+            if (supportFloor) downhillForce += supportSlope * 1.9;
+            downhillForce /= Math.max(0.7, this.stability * (this.charClass.stats.slideResistance || 1));
+            if (game.progression.rainIntensity) downhillForce *= (1 + (game.progression.rainIntensity * 0.45));
+            if (this.bracing) downhillForce *= 0.24 / braceGrip;
             if (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(downhillForce)) {
                 downhillForce *= 0.36;
             }
             this.vx += downhillForce;
+
+            const stumbleSlope = Math.abs(supportSlope);
+            if (!this.bracing && stumbleSlope > 0.08 && Math.abs(downhillForce) > 0.28) {
+                this.stumbleMeter = Math.min(1, this.stumbleMeter + (0.08 + (stumbleSlope * 0.18)));
+                if (this.stumbleMeter > 0.88 && this.stumbleLock <= 0) {
+                    this.vx += Math.sign(downhillForce || supportSlope || 1) * (1.2 + stumbleSlope * 2.2);
+                    this.scaleX = 1.18;
+                    this.scaleY = 0.82;
+                    this.stumbleLock = 18;
+                    audio.play('slide');
+                }
+            } else {
+                this.stumbleMeter = Math.max(0, this.stumbleMeter - (this.bracing ? 0.18 : 0.08));
+            }
         }
+        this.stumbleLock = Math.max(0, this.stumbleLock - 1);
         if (Math.abs(this.vx) < 0.02) this.vx = 0;
 
         if (moving && this.onGround) {
@@ -114,7 +142,7 @@ class InsidePlayer {
         // Jump
         if (this.jumpBuffer > 0 && (this.onGround || this.coyoteTimer > 0)) {
             this.vy = this.jumpForce - Math.min(1.1, Math.abs(this.vx) * 0.035);
-            const jumpFlow = Math.sign((Math.sin(game ? game.towerAngle : 0) * 0.8) + (supportFloor ? supportFloor.localSlope || 0 : 0));
+            const jumpFlow = Math.sign((Math.sin(game ? game.towerAngle : 0) * 0.8) + (supportFloor ? supportFloor.getLocalSlopeAt(this.x + this.w / 2) : 0));
             if (jumpFlow && Math.sign(this.vx || inputDir || jumpFlow) === jumpFlow) {
                 this.vx += jumpFlow * 0.6;
             } else if (Math.abs(game ? game.towerAngularVelocity : 0) > 0.015) {
@@ -396,7 +424,8 @@ class DropPlayer {
         this.currentFloorH = nextPiece.h;
 
         const manualForce = (state.right ? 1 : 0) - (state.left ? 1 : 0);
-        this.carriageVelocity += (-this.carriageOffset * 0.0018) - (this.carriageVelocity * 0.01) + (manualForce * 0.38);
+        const windSway = this.game && this.game.progression ? this.game.progression.windForce * (0.02 + (this.game.progression.stormLevel || 0) * 0.01) : 0;
+        this.carriageVelocity += (-this.carriageOffset * 0.0018) - (this.carriageVelocity * 0.01) + (manualForce * 0.38) + windSway;
         this.carriageOffset += this.carriageVelocity;
 
         if (Math.abs(this.carriageOffset) > this.maxSwing) {
@@ -406,7 +435,7 @@ class DropPlayer {
 
         this.carriageCenterX = (this.widthLimit / 2) + this.carriageOffset;
 
-        const targetLag = this.carriageVelocity * 3.5;
+        const targetLag = (this.carriageVelocity * 3.5) + (windSway * 26);
         this.loadLagVelocity += ((targetLag - this.loadLagOffset) * 0.08) - (this.loadLagVelocity * 0.12);
         this.loadLagOffset += this.loadLagVelocity;
         this.cableVelocity += ((Math.abs(this.loadLagOffset) * 0.05) - this.cableStretch) * 0.18;

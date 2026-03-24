@@ -55,8 +55,26 @@ export class Vehicle {
     this.steerState = 0;
     this.throttleState = 0;
     this.bodyRoll = 0;
+    this.bodyPitch = 0;
     this.bump = 0;
     this.trailTimer = 0;
+    this.boostBurstTimer = 0;
+    this.driftState = 0;
+    this.frontSlip = 0;
+    this.rearSlip = 0;
+    this.driftScore = 0;
+    this.pendingDriftScore = 0;
+    this.driftTime = 0;
+    this.nearMissTimer = 0;
+    this.streakBuffTimer = 0;
+    this.streakLevel = 0;
+    this.speedBonus = 0;
+    this.damageMultiplier = 1;
+    this.z = 0;
+    this.vz = 0;
+    this.airborne = false;
+    this.airTime = 0;
+    this.airRotation = 0;
     this.killChainCount = 0;
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
@@ -99,8 +117,26 @@ export class Vehicle {
     this.steerState = 0;
     this.throttleState = 0;
     this.bodyRoll = 0;
+    this.bodyPitch = 0;
     this.bump = 0;
     this.trailTimer = 0;
+    this.boostBurstTimer = 0;
+    this.driftState = 0;
+    this.frontSlip = 0;
+    this.rearSlip = 0;
+    this.driftScore = 0;
+    this.pendingDriftScore = 0;
+    this.driftTime = 0;
+    this.nearMissTimer = 0;
+    this.streakBuffTimer = 0;
+    this.streakLevel = 0;
+    this.speedBonus = 0;
+    this.damageMultiplier = 1;
+    this.z = 0;
+    this.vz = 0;
+    this.airborne = false;
+    this.airTime = 0;
+    this.airRotation = 0;
     this.killChainCount = 0;
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
@@ -138,7 +174,7 @@ export class Vehicle {
   }
 
   addBoost(amount) {
-    this.boost = Math.min(this.maxBoost, this.boost + amount);
+    this.boost = Math.min(this.maxBoost * 1.35, this.boost + amount);
   }
 
   applyDamage(amount, sourceId = null) {
@@ -178,6 +214,24 @@ export class Vehicle {
     this.clearSpecialWeapon();
     this.shieldTimer = 0;
     this.lowHealthCalled = false;
+    this.bodyPitch = 0;
+    this.driftState = 0;
+    this.frontSlip = 0;
+    this.rearSlip = 0;
+    this.driftScore = 0;
+    this.pendingDriftScore = 0;
+    this.driftTime = 0;
+    this.nearMissTimer = 0;
+    this.streakBuffTimer = 0;
+    this.streakLevel = 0;
+    this.speedBonus = 0;
+    this.damageMultiplier = 1;
+    this.boostBurstTimer = 0;
+    this.z = 0;
+    this.vz = 0;
+    this.airborne = false;
+    this.airTime = 0;
+    this.airRotation = 0;
   }
 
   respawn(spawnPoint, angle = 0) {
@@ -199,7 +253,25 @@ export class Vehicle {
     this.steerState = 0;
     this.throttleState = 0;
     this.bodyRoll = 0;
+    this.bodyPitch = 0;
     this.bump = 0;
+    this.boostBurstTimer = 0;
+    this.driftState = 0;
+    this.frontSlip = 0;
+    this.rearSlip = 0;
+    this.driftScore = 0;
+    this.pendingDriftScore = 0;
+    this.driftTime = 0;
+    this.nearMissTimer = 0;
+    this.streakBuffTimer = 0;
+    this.streakLevel = 0;
+    this.speedBonus = 0;
+    this.damageMultiplier = 1;
+    this.z = 0;
+    this.vz = 0;
+    this.airborne = false;
+    this.airTime = 0;
+    this.airRotation = 0;
   }
 
   registerKill() {
@@ -209,6 +281,14 @@ export class Vehicle {
       this.killChainCount = 1;
     }
     this.killChainTimer = 3.4;
+    this.streakLevel = Math.max(0, this.killChainCount - 1);
+    this.streakBuffTimer = PHYSICS_TUNING.streakDuration;
+  }
+
+  consumePendingDriftScore() {
+    const value = this.pendingDriftScore;
+    this.pendingDriftScore = 0;
+    return value;
   }
 
   update(dt, controls, surface, effects) {
@@ -220,6 +300,12 @@ export class Vehicle {
     if (this.killChainTimer <= 0) {
       this.killChainCount = 0;
     }
+    this.streakBuffTimer = Math.max(0, this.streakBuffTimer - dt);
+    if (this.streakBuffTimer <= 0) {
+      this.streakLevel = 0;
+    }
+    this.speedBonus = this.streakLevel * PHYSICS_TUNING.streakSpeedBonusStep;
+    this.damageMultiplier = 1 + this.streakLevel * PHYSICS_TUNING.streakDamageBonusStep;
 
     if (this.respawnTimer > 0) {
       this.respawnTimer = Math.max(0, this.respawnTimer - dt);
@@ -233,6 +319,7 @@ export class Vehicle {
     this.damageFlash = Math.max(0, this.damageFlash - dt);
     this.lastHitTimer = Math.max(0, this.lastHitTimer - dt);
     this.bump = lerp(this.bump, 0, 1 - Math.exp(-8.5 * dt));
+    this.boostBurstTimer = Math.max(0, this.boostBurstTimer - dt);
     this.lookBack = !!controls.lookBack;
 
     const forward = angleToVector(this.angle);
@@ -244,65 +331,119 @@ export class Vehicle {
     const rawThrottle = clamp((controls.accel ?? 0) - (controls.brake ?? 0), -1, 1) * stunnedFactor;
     const reverseCap = this.definition.speed * PHYSICS_TUNING.reverseSpeedFactor;
     const speedRatio = Math.min(1, Math.abs(currentForwardSpeed) / this.definition.speed);
-    const drifting = controls.brake > 0.25 && Math.abs(rawSteer) > 0.25 && Math.abs(currentForwardSpeed) > 110;
+    const driftIntent = !this.airborne
+      && controls.brake > 0.16
+      && Math.abs(rawSteer) > 0.2
+      && currentForwardSpeed > PHYSICS_TUNING.driftEntrySpeed * (1.06 - this.definition.driftControl * 0.08);
+    const driftTarget = driftIntent ? clamp(speedRatio * 0.8 + Math.abs(rawSteer) * 0.44, 0.25, 1) : 0;
 
-    this.steerState = approach(this.steerState, rawSteer, PHYSICS_TUNING.steerResponse * dt);
-    this.throttleState = approach(this.throttleState, rawThrottle, PHYSICS_TUNING.throttleResponse * dt);
+    this.steerState = approach(
+      this.steerState,
+      rawSteer,
+      (PHYSICS_TUNING.steerResponse * this.definition.steerSharpness / Math.sqrt(this.mass)) * dt,
+    );
+    this.throttleState = approach(
+      this.throttleState,
+      rawThrottle,
+      (PHYSICS_TUNING.throttleResponse * this.definition.torqueScale / Math.sqrt(this.mass)) * dt,
+    );
+    this.driftState = lerp(this.driftState, driftTarget, 1 - Math.exp(-(driftIntent ? 7.2 : PHYSICS_TUNING.tractionRecovery * 1.8) * dt));
+    const drifting = this.driftState > 0.18;
+
+    const steeringLoad = clamp(Math.abs(this.steerState) * (0.34 + speedRatio * 0.96) * (1 - this.driftState * 0.25), 0, 1.3);
+    const frontSlipTarget = clamp(
+      ((steeringLoad - PHYSICS_TUNING.understeerStart) / (1 - PHYSICS_TUNING.understeerStart))
+        * this.definition.understeerBias
+        * (1.1 - surface.traction * 0.08),
+      0,
+      1,
+    );
+    this.frontSlip = lerp(this.frontSlip, frontSlipTarget, 1 - Math.exp(-4.8 * dt));
+    this.rearSlip = lerp(
+      this.rearSlip,
+      drifting ? clamp(this.driftState + Math.abs(lateralSpeed) / 230, 0, 1.1) : 0,
+      1 - Math.exp(-(drifting ? 5.4 : 3.4) * dt),
+    );
 
     const steeringScale = this.definition.handling
-      * surface.traction
-      * (0.28 + speedRatio * 0.95 + (drifting ? PHYSICS_TUNING.driftTurnBonus : 0));
+      * this.definition.steerSharpness
+      * (this.airborne ? PHYSICS_TUNING.airControl : surface.traction)
+      * (0.24 + speedRatio * 0.84)
+      * (1 - this.frontSlip * PHYSICS_TUNING.understeerMax)
+      * (drifting ? 1 + PHYSICS_TUNING.driftTurnBonus * this.definition.driftControl : 1);
     if (Math.abs(this.steerState) > 0.01 && (Math.abs(currentForwardSpeed) > 18 || Math.abs(this.throttleState) > 0.1)) {
       const reverseSteer = currentForwardSpeed < -20 ? -0.58 : 1;
       const lateralAssist = clamp(lateralSpeed / 240, -1, 1) * PHYSICS_TUNING.counterSteerAssist;
-      this.angle += (this.steerState - lateralAssist * 0.1) * steeringScale * reverseSteer * dt;
+      const driftYaw = drifting
+        ? this.steerState * PHYSICS_TUNING.driftYawAssist * this.definition.driftControl * clamp(Math.abs(currentForwardSpeed) / 240, 0, 1)
+        : 0;
+      this.angle += ((this.steerState - lateralAssist * 0.08) * steeringScale + driftYaw) * reverseSteer * dt;
     }
 
     let driveForce = 0;
+    const accelFactor = surface.accelFactor * (surface.offroad ? this.definition.offroadSkill : 1);
     if (this.throttleState > 0) {
-      driveForce = this.definition.acceleration * surface.accelFactor * this.throttleState;
+      driveForce = this.definition.acceleration * this.definition.torqueScale * accelFactor * this.throttleState;
     } else if (this.throttleState < 0) {
-      driveForce = this.definition.acceleration * 0.7 * surface.accelFactor * this.throttleState;
+      driveForce = this.definition.acceleration * 0.68 * accelFactor * this.throttleState;
     }
 
+    const wasBoosting = this.boosting;
     this.boosting = false;
     if (controls.boost && this.boost > 0 && this.stunTimer <= 0) {
+      const startedBoost = !wasBoosting;
       this.boosting = true;
       this.boost = Math.max(0, this.boost - PHYSICS_TUNING.boostBurnRate * dt);
-      driveForce += this.definition.acceleration * 1.92;
+      if (startedBoost) {
+        this.boostBurstTimer = PHYSICS_TUNING.boostBurstDuration;
+      }
+      driveForce += this.definition.acceleration * (1.4 + this.definition.nitroKick * 0.36);
+      if (this.boostBurstTimer > 0) {
+        driveForce += this.definition.acceleration * PHYSICS_TUNING.boostBurstKick * this.definition.nitroKick;
+      }
       if (Math.random() < 0.52) {
         effects.emitBoost(this.x - forward.x * 30, this.y - forward.y * 30, this.angle, this.color);
       }
     } else {
-      this.boost = Math.min(this.maxBoost, this.boost + PHYSICS_TUNING.passiveBoostRecharge * dt * (surface.boostPad ? 1.9 : 1));
+      let recharge = PHYSICS_TUNING.passiveBoostRecharge * dt;
+      if (surface.boostPad) {
+        recharge *= 1.4;
+      }
+      if (drifting && Math.abs(lateralSpeed) > 70 && currentForwardSpeed > 140) {
+        recharge += PHYSICS_TUNING.driftRechargeRate * dt * clamp(Math.abs(lateralSpeed) / 210, 0.35, 1.1) * this.definition.driftControl;
+      }
+      this.boost = Math.min(this.maxBoost * 1.35, this.boost + recharge);
     }
 
     if (surface.boostPad) {
       driveForce += this.definition.acceleration * 0.48;
-      this.addBoost(8.5 * dt);
+      this.addBoost(PHYSICS_TUNING.boostPadRecharge * dt);
     }
 
     this.vx += forward.x * driveForce * dt;
     this.vy += forward.y * driveForce * dt;
 
     if (controls.brake > 0.2 && currentForwardSpeed > 0) {
-      this.vx -= forward.x * currentForwardSpeed * dt * (drifting ? 0.75 : 1.2);
-      this.vy -= forward.y * currentForwardSpeed * dt * (drifting ? 0.75 : 1.2);
+      const brakePower = drifting ? 0.82 : 1.36;
+      this.vx -= forward.x * currentForwardSpeed * dt * brakePower;
+      this.vy -= forward.y * currentForwardSpeed * dt * brakePower;
     }
 
     const lateralGrip = PHYSICS_TUNING.lateralGrip
       * this.definition.traction
-      * surface.traction
-      * (drifting ? PHYSICS_TUNING.driftGripFactor : 1)
+      * (this.airborne ? 0.05 : surface.traction)
+      * (drifting ? PHYSICS_TUNING.driftGripFactor * (1.08 - this.definition.driftControl * 0.16) : 1)
       * (0.92 + speedRatio * 0.18);
     this.vx -= right.x * lateralSpeed * lateralGrip * dt;
     this.vy -= right.y * lateralSpeed * lateralGrip * dt;
 
-    const snapAmount = PHYSICS_TUNING.forwardSnap * (0.3 + speedRatio * 0.7) * dt;
+    const snapAmount = PHYSICS_TUNING.forwardSnap * (this.airborne ? 0.12 : 1) * (0.3 + speedRatio * 0.7) * dt;
     this.vx = lerp(this.vx, forward.x * currentForwardSpeed + right.x * lateralSpeed * (drifting ? 0.42 : 0.18), snapAmount);
     this.vy = lerp(this.vy, forward.y * currentForwardSpeed + right.y * lateralSpeed * (drifting ? 0.42 : 0.18), snapAmount);
 
-    const drag = PHYSICS_TUNING.worldDrag * surface.dragFactor * (drifting ? 0.94 : 1);
+    const drag = (this.airborne ? PHYSICS_TUNING.airDrag : PHYSICS_TUNING.worldDrag)
+      * surface.dragFactor
+      * (drifting ? 0.95 : 1);
     this.vx -= this.vx * drag * dt;
     this.vy -= this.vy * drag * dt;
 
@@ -313,7 +454,10 @@ export class Vehicle {
       this.vy += forward.y * correction;
     }
 
-    const topSpeed = this.definition.speed * surface.speedFactor * (this.boosting ? 1.36 : 1);
+    const topSpeed = this.definition.speed
+      * (surface.speedFactor * (surface.offroad ? this.definition.offroadSkill : 1))
+      * (1 + this.speedBonus)
+      * (this.boosting ? 1.22 + this.definition.nitroKick * 0.08 : 1);
     const velocityLength = Math.hypot(this.vx, this.vy);
     if (velocityLength > topSpeed) {
       const scale = topSpeed / velocityLength;
@@ -321,19 +465,57 @@ export class Vehicle {
       this.vy *= scale;
     }
 
+    const rampLaunchSpeed = Math.hypot(this.vx, this.vy);
+    if (!this.airborne && surface.ramp && rampLaunchSpeed > PHYSICS_TUNING.jumpSpeedThreshold) {
+      this.airborne = true;
+      this.airTime = 0;
+      this.z = 1;
+      this.vz = Math.max(180, (rampLaunchSpeed - PHYSICS_TUNING.jumpSpeedThreshold) * PHYSICS_TUNING.jumpLaunchFactor);
+      this.airRotation = this.steerState * 0.08;
+      effects.emitSparks(this.x + forward.x * 10, this.y + forward.y * 10, this.angle, 7, "#ffd8a8", 1.2);
+    }
+
+    if (this.airborne) {
+      this.airTime += dt;
+      this.vz -= PHYSICS_TUNING.gravity * dt;
+      this.z = Math.max(0, this.z + this.vz * dt);
+      this.airRotation = lerp(this.airRotation, this.steerState * 0.18, 1 - Math.exp(-3.2 * dt));
+      if (this.z <= 0) {
+        const landingVelocity = Math.abs(this.vz);
+        this.airborne = false;
+        this.z = 0;
+        this.vz = 0;
+        this.bump = Math.min(1, this.bump + landingVelocity * PHYSICS_TUNING.landingCompression);
+        const cleanLanding = Math.abs(this.steerState) < PHYSICS_TUNING.cleanLandingGrace && Math.abs(lateralSpeed) < 95;
+        if (cleanLanding) {
+          this.addBoost(PHYSICS_TUNING.cleanLandingBonus);
+        } else {
+          this.addBoost(PHYSICS_TUNING.jumpBoostGain * 0.5);
+        }
+      }
+    }
+
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.speed = Math.hypot(this.vx, this.vy);
     this.forwardSpeed = dot(this.vx, this.vy, forward.x, forward.y);
     this.survivalTime += dt;
-    this.bodyRoll = lerp(this.bodyRoll, -this.steerState * (0.12 + speedRatio * 0.28) + (drifting ? this.steerState * 0.08 : 0), 1 - Math.exp(-9 * dt));
+    const lateralWeight = clamp(-this.steerState * (0.18 + speedRatio * 0.62) + this.rearSlip * this.steerState * 0.14, -1, 1);
+    const longitudinalWeight = clamp((-driveForce / Math.max(1, this.definition.acceleration * this.definition.torqueScale)) + controls.brake * 0.65, -1.1, 1.1);
+    this.bodyRoll = lerp(this.bodyRoll, lateralWeight * PHYSICS_TUNING.weightRollScale + this.airRotation, 1 - Math.exp(-PHYSICS_TUNING.suspensionResponse * dt));
+    this.bodyPitch = lerp(this.bodyPitch, longitudinalWeight * PHYSICS_TUNING.weightPitchScale + (this.airborne ? -0.16 : 0), 1 - Math.exp(-PHYSICS_TUNING.suspensionResponse * dt));
 
     this.smokeTimer -= dt;
     this.skidTimer -= dt;
     this.trailTimer -= dt;
 
-    if ((surface.offroad || this.health / this.maxHealth < 0.45) && this.speed > 150 && this.smokeTimer <= 0) {
-      effects.emitSmoke(this.x, this.y, 2, surface.offroad ? "rgba(190,180,160,0.55)" : "rgba(150,170,190,0.52)");
+    if ((surface.offroad || this.health / this.maxHealth < 0.45 || drifting) && this.speed > 150 && this.smokeTimer <= 0) {
+      const smokeColor = surface.offroad
+        ? "rgba(190,180,160,0.55)"
+        : drifting
+          ? "rgba(210,220,225,0.5)"
+          : "rgba(150,170,190,0.52)";
+      effects.emitSmoke(this.x - forward.x * 16, this.y - forward.y * 16, drifting ? 4 : 2, smokeColor);
       this.smokeTimer = 0.055;
     }
 
@@ -350,6 +532,18 @@ export class Vehicle {
       }
       this.skidTimer = 0.07;
     }
+
+    if (drifting && currentForwardSpeed > 130) {
+      this.driftTime += dt;
+      this.driftScore += (Math.abs(lateralSpeed) * 0.15 + currentForwardSpeed * 0.08) * Math.max(0.25, this.throttleState + 0.4) * dt;
+    } else if (this.driftScore > 42) {
+      this.pendingDriftScore += this.driftScore;
+      this.driftScore = 0;
+      this.driftTime = 0;
+    } else {
+      this.driftScore = 0;
+      this.driftTime = 0;
+    }
   }
 
   render(ctx) {
@@ -358,23 +552,31 @@ export class Vehicle {
     }
 
     const squash = 1 + this.bump * 0.08;
-    const lift = -this.bump * 5;
+    const lift = -this.bump * 5 - this.z * 0.28;
+    const forward = angleToVector(this.angle);
     ctx.save();
-    ctx.translate(this.x, this.y + lift);
+    ctx.translate(this.x - forward.x * this.bodyPitch * 22, this.y + lift - forward.y * this.bodyPitch * 22);
     ctx.rotate(this.angle + this.bodyRoll);
     ctx.scale(squash, 1 / squash);
 
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillStyle = `rgba(0,0,0,${this.airborne ? 0.18 : 0.3})`;
     ctx.beginPath();
-    ctx.ellipse(0, 10, this.radius * 1.05, this.radius * 0.68, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 10 + this.z * 0.08, this.radius * (this.airborne ? 0.88 : 1.05), this.radius * 0.68, 0, 0, Math.PI * 2);
     ctx.fill();
 
     if (this.boosting) {
-      ctx.fillStyle = `${this.color}aa`;
+      ctx.fillStyle = `${this.color}cc`;
       ctx.beginPath();
-      ctx.moveTo(-this.radius - 10, -8);
-      ctx.lineTo(-this.radius - 46, 0);
-      ctx.lineTo(-this.radius - 10, 8);
+      ctx.moveTo(-this.radius - 10, -9);
+      ctx.lineTo(-this.radius - 52, 0);
+      ctx.lineTo(-this.radius - 10, 9);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#fff6c7";
+      ctx.beginPath();
+      ctx.moveTo(-this.radius - 12, -5);
+      ctx.lineTo(-this.radius - 34, 0);
+      ctx.lineTo(-this.radius - 12, 5);
       ctx.closePath();
       ctx.fill();
     }
@@ -445,6 +647,11 @@ export class Vehicle {
     ctx.fillRect(barX, barY, barWidth, 7);
     ctx.fillStyle = this.health / this.maxHealth < 0.3 ? "#ff4c63" : "#45f3a8";
     ctx.fillRect(barX, barY, barWidth * (this.health / this.maxHealth), 7);
+
+    ctx.fillStyle = "rgba(0,0,0,0.48)";
+    ctx.fillRect(barX, barY + 9, barWidth, 5);
+    ctx.fillStyle = "#2ef0ff";
+    ctx.fillRect(barX, barY + 9, barWidth * Math.min(1.25, this.boost / this.maxBoost), 5);
 
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 14px Trebuchet MS";

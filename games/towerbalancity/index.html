@@ -33,14 +33,37 @@
                         <div class="indicator-weight"></div>
                     </div>
                 </div>
-                <div id="com-arrow">CENTER OF MASS <span id="com-arrow-icon">▲</span></div>
+                <div id="com-arrow">
+                    <span class="com-label">CENTER OF MASS</span>
+                    <div id="com-arrow-widget">
+                        <div id="com-arrow-trail"></div>
+                        <div id="com-arrow-vector">
+                            <span id="com-arrow-icon">▲</span>
+                        </div>
+                    </div>
+                    <span id="com-arrow-mass">LOAD 0T</span>
+                </div>
                 <div id="danger-text">STABLE</div>
             </div>
 
             <div id="weather-status" class="glass-panel">
-                <div id="wind-state" class="status-chip">WIND</div>
-                <div id="rain-state" class="status-chip">RAIN</div>
-                <div id="dark-state" class="status-chip">DARK</div>
+                <div id="wind-state" class="status-chip">
+                    <span class="chip-name">WIND</span>
+                    <span id="wind-forecast" class="chip-forecast">CALM</span>
+                </div>
+                <div id="rain-state" class="status-chip">
+                    <span class="chip-name">RAIN</span>
+                    <span id="rain-forecast" class="chip-forecast">CLEAR</span>
+                </div>
+                <div id="dark-state" class="status-chip">
+                    <span class="chip-name">DARK</span>
+                    <span id="dark-forecast" class="chip-forecast">OPEN</span>
+                </div>
+            </div>
+
+            <div id="tower-minimap-panel" class="glass-panel">
+                <div class="queue-title">LOAD MAP</div>
+                <canvas id="tower-minimap" width="140" height="220"></canvas>
             </div>
 
             <div id="piece-queue" class="glass-panel">
@@ -48,6 +71,7 @@
                 <div id="queue-0" class="queue-slot">---</div>
                 <div id="queue-1" class="queue-slot">---</div>
                 <div id="queue-2" class="queue-slot">---</div>
+                <div id="queue-tooltip" class="queue-tooltip">Stable starter floor.</div>
             </div>
 
             <!-- Flavor Text Toast -->

@@ -178,7 +178,7 @@ function segmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
 }
 
 export function resolveVehicleCollision(vehicleA, vehicleB) {
-  if (!vehicleA.isSolid() || !vehicleB.isSolid()) {
+  if (!vehicleA.isSolid() || !vehicleB.isSolid() || vehicleA.airborne || vehicleB.airborne) {
     return null;
   }
 
@@ -261,7 +261,7 @@ export function constrainVehicleToLevel(vehicle, level, extraObstacles = []) {
     severity += 80;
   }
 
-  const obstacles = [...(level.obstacles ?? []), ...extraObstacles];
+  const obstacles = vehicle.airborne ? [] : [...(level.obstacles ?? []), ...extraObstacles];
   for (const obstacle of obstacles) {
     const nearestX = clamp(vehicle.x, obstacle.x, obstacle.x + obstacle.w);
     const nearestY = clamp(vehicle.y, obstacle.y, obstacle.y + obstacle.h);

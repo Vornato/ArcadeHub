@@ -114,6 +114,7 @@ const LEVELS = [
     hazards: [
       circle(3090, 980, 120, "rgba(46,240,255,0.35)", "pulse"),
       circle(2100, 2020, 110, "rgba(255,76,99,0.35)", "damage"),
+      { kind: "laserWall", type: "pulse", axis: "y", x: 1810, y: 1380, range: 340, length: 760, thickness: 36, speed: 0.8, phase: 0.6, color: "rgba(46,240,255,0.82)" },
     ],
     obstacles: [
       rect(1270, 890, 500, 310, "#1a2037"),
@@ -180,8 +181,9 @@ const LEVELS = [
       { x: 2110, y: 1250, w: 120, h: 120, angle: 1.1 },
     ],
     hazards: [
-      circle(2180, 1000, 125, "rgba(255, 177, 66, 0.32)", "slow"),
+      circle(2180, 1000, 125, "rgba(255, 177, 66, 0.32)", "sand"),
       circle(3120, 1700, 130, "rgba(255, 76, 99, 0.3)", "damage"),
+      circle(1300, 1880, 140, "rgba(255, 209, 102, 0.28)", "sand"),
     ],
     obstacles: [
       rect(1640, 980, 360, 340, "#4a301b"),
@@ -316,8 +318,9 @@ const LEVELS = [
     ],
     hazards: [
       circle(1900, 1260, 180, "rgba(255,76,99,0.38)", "damage"),
-      circle(1200, 620, 110, "rgba(255, 177, 66, 0.28)", "slow"),
+      circle(1200, 620, 110, "rgba(255, 177, 66, 0.28)", "sand"),
       circle(2600, 1910, 110, "rgba(46,240,255,0.28)", "pulse"),
+      { kind: "laserWall", type: "damage", axis: "x", x: 1900, y: 1260, range: 760, length: 920, thickness: 42, speed: 0.7, phase: 0.2, color: "rgba(255,76,99,0.88)" },
     ],
     obstacles: [
       rect(1060, 930, 360, 250, "#43352a"),
@@ -388,6 +391,7 @@ const LEVELS = [
       circle(1600, 1100, 150, "rgba(46,240,255,0.3)", "pulse"),
       circle(800, 1100, 90, "rgba(255,76,99,0.26)", "damage"),
       circle(2400, 1100, 90, "rgba(255,76,99,0.26)", "damage"),
+      { kind: "laserWall", type: "pulse", axis: "y", x: 1600, y: 1100, range: 420, length: 820, thickness: 34, speed: 0.95, phase: 1.3, color: "rgba(46,240,255,0.84)" },
     ],
     obstacles: [
       rect(1160, 710, 220, 300, "#49506b"),
@@ -460,7 +464,8 @@ const LEVELS = [
     hazards: [
       circle(2360, 980, 120, "rgba(46,240,255,0.28)", "pulse"),
       circle(2980, 1980, 125, "rgba(255,76,99,0.32)", "damage"),
-      circle(1420, 1960, 115, "rgba(255, 177, 66, 0.28)", "slow"),
+      circle(1420, 1960, 115, "rgba(255, 177, 66, 0.28)", "sand"),
+      { kind: "laserWall", type: "damage", axis: "x", x: 2240, y: 1460, range: 640, length: 980, thickness: 38, speed: 0.75, phase: 0.4, color: "rgba(255,76,99,0.82)" },
     ],
     obstacles: [
       rect(1700, 940, 430, 320, "#253149"),
@@ -532,6 +537,7 @@ const LEVELS = [
       circle(1800, 1240, 170, "rgba(110,200,255,0.26)", "pulse"),
       circle(1180, 650, 100, "rgba(255,76,99,0.25)", "damage"),
       circle(2420, 1830, 100, "rgba(255,76,99,0.25)", "damage"),
+      { kind: "laserWall", type: "pulse", axis: "x", x: 1800, y: 1240, range: 620, length: 980, thickness: 34, speed: 0.82, phase: 2.1, color: "rgba(110,200,255,0.88)" },
     ],
     obstacles: [
       rect(1300, 760, 260, 300, "#4f3f5a"),
@@ -630,6 +636,30 @@ function drawTrack(ctx, level) {
   }
 }
 
+function resolveHazardState(hazard, time = 0) {
+  if (hazard.kind !== "laserWall") {
+    return hazard;
+  }
+
+  const offset = Math.sin(time * (hazard.speed ?? 0.6) + (hazard.phase ?? 0)) * (hazard.range ?? 0);
+  return {
+    ...hazard,
+    activeX: hazard.axis === "x" ? hazard.x + offset : hazard.x,
+    activeY: hazard.axis === "y" ? hazard.y + offset : hazard.y,
+  };
+}
+
+function pointInLaserWall(x, y, hazardState) {
+  const centerX = hazardState.activeX ?? hazardState.x;
+  const centerY = hazardState.activeY ?? hazardState.y;
+  const halfLength = (hazardState.length ?? 0) * 0.5;
+  const halfThickness = (hazardState.thickness ?? 0) * 0.5;
+  if (hazardState.axis === "x") {
+    return Math.abs(y - centerY) <= halfThickness && x >= centerX - halfLength && x <= centerX + halfLength;
+  }
+  return Math.abs(x - centerX) <= halfThickness && y >= centerY - halfLength && y <= centerY + halfLength;
+}
+
 function drawPads(ctx, level, time) {
   for (const pad of level.boostPads ?? []) {
     ctx.save();
@@ -674,15 +704,53 @@ function drawPads(ctx, level, time) {
 
 function drawHazards(ctx, level, time) {
   for (const hazard of level.hazards ?? []) {
+    const hazardState = resolveHazardState(hazard, time);
+    if (hazard.kind === "laserWall") {
+      const centerX = hazardState.activeX;
+      const centerY = hazardState.activeY;
+      const halfLength = hazard.length * 0.5;
+      const halfThickness = hazard.thickness * 0.5;
+      const blink = 0.45 + Math.sin(time * 12 + (hazard.phase ?? 0) * 7) * 0.2;
+      const minX = hazard.axis === "x" ? centerX - halfLength : centerX - halfThickness;
+      const minY = hazard.axis === "y" ? centerY - halfLength : centerY - halfThickness;
+      const width = hazard.axis === "x" ? hazard.length : hazard.thickness;
+      const height = hazard.axis === "y" ? hazard.length : hazard.thickness;
+
+      ctx.fillStyle = `rgba(255, 76, 99, ${0.1 + blink * 0.1})`;
+      ctx.fillRect(minX - 18, minY - 18, width + 36, height + 36);
+      ctx.fillStyle = `rgba(255, 76, 99, ${0.6 + blink * 0.18})`;
+      ctx.fillRect(minX, minY, width, height);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([18, 12]);
+      if (hazard.axis === "x") {
+        ctx.beginPath();
+        ctx.moveTo(centerX - halfLength, centerY - halfThickness - 10);
+        ctx.lineTo(centerX + halfLength, centerY - halfThickness - 10);
+        ctx.moveTo(centerX - halfLength, centerY + halfThickness + 10);
+        ctx.lineTo(centerX + halfLength, centerY + halfThickness + 10);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(centerX - halfThickness - 10, centerY - halfLength);
+        ctx.lineTo(centerX - halfThickness - 10, centerY + halfLength);
+        ctx.moveTo(centerX + halfThickness + 10, centerY - halfLength);
+        ctx.lineTo(centerX + halfThickness + 10, centerY + halfLength);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      continue;
+    }
+
     const pulse = 0.4 + Math.sin(time * 4 + hazard.x * 0.01) * 0.2;
-    ctx.fillStyle = hazard.color;
+    ctx.fillStyle = hazardState.color;
     ctx.beginPath();
-    ctx.arc(hazard.x, hazard.y, hazard.r + pulse * 20, 0, Math.PI * 2);
+    ctx.arc(hazardState.x, hazardState.y, hazardState.r + pulse * 20, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.24)";
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(hazard.x, hazard.y, hazard.r, 0, Math.PI * 2);
+    ctx.arc(hazardState.x, hazardState.y, hazardState.r, 0, Math.PI * 2);
     ctx.stroke();
   }
 }
@@ -755,6 +823,109 @@ function drawProp(ctx, propState, time) {
   ctx.restore();
 }
 
+function drawCityBackdrop(ctx, level, time) {
+  ctx.fillStyle = "rgba(46,240,255,0.08)";
+  for (let index = 0; index < 15; index += 1) {
+    const x = index * 320 + ((time * 12) % 180);
+    const height = 240 + (index % 5) * 80;
+    ctx.fillRect(x, 170, 180, height);
+    ctx.fillRect(x + 26, 120, 40, 44);
+    ctx.fillRect(x + 110, 90, 32, 74);
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    for (let row = 0; row < 8; row += 1) {
+      ctx.fillRect(x + 18, 196 + row * 32, 144, 8);
+    }
+    ctx.fillStyle = "rgba(46,240,255,0.08)";
+  }
+
+  ctx.strokeStyle = "rgba(255, 107, 45, 0.14)";
+  ctx.lineWidth = 3;
+  for (let lane = 0; lane < 10; lane += 1) {
+    const y = 340 + lane * 220;
+    ctx.beginPath();
+    ctx.moveTo(0, y + Math.sin(time * 1.5 + lane) * 12);
+    ctx.lineTo(level.world.width, y - 24 + Math.cos(time * 1.2 + lane) * 12);
+    ctx.stroke();
+  }
+}
+
+function drawDesertBackdrop(ctx, level, time) {
+  ctx.fillStyle = "rgba(255, 209, 102, 0.18)";
+  for (let ridge = 0; ridge < 8; ridge += 1) {
+    const baseY = 300 + ridge * 280;
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    for (let x = 0; x <= level.world.width; x += 180) {
+      const y = baseY + Math.sin((x * 0.0024) + time * 0.3 + ridge) * 55 + Math.cos((x * 0.0012) + ridge * 0.6) * 40;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(level.world.width, level.world.height);
+    ctx.lineTo(0, level.world.height);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = "rgba(255, 214, 146, 0.18)";
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.arc(level.world.width * 0.36, level.world.height * 0.33, 220, Math.PI * 0.15, Math.PI * 0.82);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(level.world.width * 0.72, level.world.height * 0.52, 180, Math.PI * 0.2, Math.PI * 0.88);
+  ctx.stroke();
+}
+
+function drawIndustrialBackdrop(ctx, level, time) {
+  ctx.fillStyle = "rgba(255,255,255,0.05)";
+  for (let stack = 0; stack < 12; stack += 1) {
+    const x = 180 + stack * 330;
+    const base = 160 + (stack % 3) * 26;
+    ctx.fillRect(x, base, 86, 310);
+    ctx.fillRect(x + 110, base + 40, 34, 220);
+    ctx.fillRect(x + 160, base - 30, 180, 16);
+    ctx.beginPath();
+    ctx.moveTo(x + 250, base - 30);
+    ctx.lineTo(x + 310, base - 140);
+    ctx.lineTo(x + 340, base - 140);
+    ctx.lineTo(x + 280, base - 30);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  for (let puff = 0; puff < 16; puff += 1) {
+    const x = 220 + puff * 250 + Math.sin(time * 0.4 + puff) * 24;
+    const y = 110 + Math.cos(time * 0.5 + puff * 0.7) * 16;
+    ctx.fillStyle = "rgba(160,170,180,0.12)";
+    ctx.beginPath();
+    ctx.arc(x, y, 36 + (puff % 3) * 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawIceBackdrop(ctx, level, time) {
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  ctx.lineWidth = 2;
+  for (let crack = 0; crack < 30; crack += 1) {
+    const startX = (crack * 137) % level.world.width;
+    const startY = (crack * 83) % level.world.height;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(startX + Math.sin(time + crack) * 48 + 120, startY + 90);
+    ctx.lineTo(startX + 180, startY + 180 + Math.cos(time * 0.6 + crack) * 22);
+    ctx.stroke();
+  }
+}
+
+function drawVaultBackdrop(ctx, level, time) {
+  ctx.strokeStyle = "rgba(157,233,255,0.12)";
+  ctx.lineWidth = 3;
+  for (let ring = 0; ring < 10; ring += 1) {
+    ctx.beginPath();
+    ctx.arc(level.world.width * 0.5, level.world.height * 0.5, 260 + ring * 160 + Math.sin(time * 0.5 + ring) * 12, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function drawBackdrop(ctx, level, time) {
   const { ground, offroad, accent } = level.palette;
   ctx.fillStyle = ground;
@@ -775,6 +946,18 @@ function drawBackdrop(ctx, level, time) {
     ctx.moveTo(0, lineY + Math.sin(time + index) * 18);
     ctx.lineTo(level.world.width, lineY + Math.cos(time * 0.8 + index) * 18);
     ctx.stroke();
+  }
+
+  if (level.id.includes("neon")) {
+    drawCityBackdrop(ctx, level, time);
+  } else if (level.id.includes("desert")) {
+    drawDesertBackdrop(ctx, level, time);
+  } else if (level.id.includes("shipyards") || level.id.includes("iron")) {
+    drawIndustrialBackdrop(ctx, level, time);
+  } else if (level.id.includes("whiteout")) {
+    drawIceBackdrop(ctx, level, time);
+  } else if (level.id.includes("vault")) {
+    drawVaultBackdrop(ctx, level, time);
   }
 }
 
@@ -806,7 +989,7 @@ export function getCheckpoint(level, index) {
   return level.checkpoints[index % level.checkpoints.length];
 }
 
-export function sampleSurface(level, x, y) {
+export function sampleSurface(level, x, y, time = 0) {
   const surface = {
     onRoad: level.category === "arena",
     traction: level.surface.roadTraction,
@@ -861,16 +1044,24 @@ export function sampleSurface(level, x, y) {
   }
 
   for (const hazard of level.hazards ?? []) {
-    if (!pointInCircle(x, y, hazard)) {
+    const hazardState = resolveHazardState(hazard, time);
+    const inside = hazard.kind === "laserWall"
+      ? pointInLaserWall(x, y, hazardState)
+      : pointInCircle(x, y, hazardState);
+    if (!inside) {
       continue;
     }
 
-    surface.hazard = hazard;
-    if (hazard.type === "slow") {
+    surface.hazard = hazardState;
+    if (hazardState.type === "slow") {
       surface.speedFactor *= 0.82;
       surface.traction *= 0.92;
-    } else if (hazard.type === "icePulse") {
+    } else if (hazardState.type === "icePulse") {
       surface.traction *= 0.7;
+    } else if (hazardState.type === "sand") {
+      surface.speedFactor *= 0.76;
+      surface.accelFactor *= 0.72;
+      surface.traction *= 0.86;
     }
   }
 
@@ -915,11 +1106,13 @@ export function renderProps(ctx, props, time) {
   props.forEach((propState) => drawProp(ctx, propState, time));
 }
 
-export function renderMinimap(ctx, level, x, y, width, height, participants, focusId) {
+export function renderMinimap(ctx, level, x, y, width, height, participants, focusId, options = {}) {
   const padding = 8;
   const scale = Math.min((width - padding * 2) / level.world.width, (height - padding * 2) / level.world.height);
   const offsetX = x + (width - level.world.width * scale) * 0.5;
   const offsetY = y + (height - level.world.height * scale) * 0.5;
+  const focusParticipant = participants.find((participant) => participant.id === focusId);
+  const rotation = options.rotateWithFocus && focusParticipant ? -focusParticipant.vehicle.angle + Math.PI * 0.5 : 0;
 
   ctx.save();
   ctx.fillStyle = "rgba(5,7,13,0.72)";
@@ -928,8 +1121,10 @@ export function renderMinimap(ctx, level, x, y, width, height, participants, foc
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
   ctx.strokeRect(x, y, width, height);
 
-  ctx.translate(offsetX, offsetY);
+  ctx.translate(x + width * 0.5, y + height * 0.5);
+  ctx.rotate(rotation);
   ctx.scale(scale, scale);
+  ctx.translate(-(level.world.width * 0.5), -(level.world.height * 0.5));
 
   if (level.trackPath.length) {
     ctx.strokeStyle = "rgba(255,255,255,0.14)";
@@ -947,6 +1142,32 @@ export function renderMinimap(ctx, level, x, y, width, height, participants, foc
     ctx.strokeStyle = "rgba(255,255,255,0.16)";
     ctx.lineWidth = 14;
     ctx.strokeRect(0, 0, level.world.width, level.world.height);
+  }
+
+  for (const hazard of level.hazards ?? []) {
+    const hazardState = resolveHazardState(hazard, options.time ?? 0);
+    ctx.fillStyle = hazard.kind === "laserWall" ? "rgba(255,76,99,0.28)" : "rgba(255,255,255,0.14)";
+    if (hazard.kind === "laserWall") {
+      const centerX = hazardState.activeX;
+      const centerY = hazardState.activeY;
+      const widthWorld = hazard.axis === "x" ? hazard.length : hazard.thickness;
+      const heightWorld = hazard.axis === "y" ? hazard.length : hazard.thickness;
+      ctx.fillRect(centerX - widthWorld * 0.5, centerY - heightWorld * 0.5, widthWorld, heightWorld);
+    } else {
+      ctx.beginPath();
+      ctx.arc(hazardState.x, hazardState.y, hazardState.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  for (const pickup of options.pickups ?? []) {
+    if (!pickup.active) {
+      continue;
+    }
+    ctx.fillStyle = "rgba(183,255,59,0.95)";
+    ctx.beginPath();
+    ctx.arc(pickup.x, pickup.y, 18, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   for (const participant of participants) {

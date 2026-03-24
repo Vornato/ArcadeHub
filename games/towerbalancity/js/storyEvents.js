@@ -48,8 +48,11 @@ class StoryEventManager {
                     progression.windTarget = 0;
                     progression.stormLevel = 0;
                     progression.lightningFlash = 0;
+                    progression.thunderTimer = 0;
                     progression.isDark = false;
                     progression.isRaining = false;
+                    progression.rainTarget = 0;
+                    progression.darknessTarget = 0;
                     this.activeChains.hadStormWarning = false;
                     return { msg: "The weather calmed down... for now.", type: "relief" };
                 }
@@ -64,6 +67,7 @@ class StoryEventManager {
                     progression.windTarget = Utils.random(2, 5) * Utils.choose([-1, 1]) * sens;
                     progression.stormDirection = Math.sign(progression.windTarget) || Utils.choose([-1, 1]);
                     progression.stormLevel = Utils.random(0.6, 1.2);
+                    progression.rainTarget = 0.55;
                     this.activeChains.hadStormWarning = true;
                     return { msg: "A heavy rainstorm begins!", type: "warning" };
                 }
@@ -78,6 +82,9 @@ class StoryEventManager {
                     progression.stormDirection = Utils.choose([-1, 1]);
                     progression.stormLevel = Utils.random(1.2, 2.2);
                     progression.lightningFlash = 0.8;
+                    progression.thunderTimer = Utils.randomInt(18, 44);
+                    progression.rainTarget = 0.82;
+                    progression.darknessTarget = 0.62;
                     return { msg: "A violent thunderstorm rolls across the tower!", type: "dramatic" };
                 }
             },

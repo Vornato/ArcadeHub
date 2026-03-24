@@ -257,6 +257,7 @@ export class Game {
     this.announcer.reset();
     this.effects.reset();
     this.weaponSystem.reset();
+    this.audio.clearDynamicState();
     this.pickupSystem.reset(this.level, this.modeId);
     this.props = createMatchProps(this.level);
     this.participants = [];
@@ -292,6 +293,15 @@ export class Game {
       levelName: this.level.name,
       elapsed: 0,
       participants: this.participants,
+      driftLeadScore: 0,
+      safeZone: this.modeId === "survival"
+        ? {
+          x: this.level.world.width * 0.5,
+          y: this.level.world.height * 0.5,
+          radius: Math.min(this.level.world.width, this.level.world.height) * 0.48,
+          minRadius: 260,
+        }
+        : null,
     };
 
     this.phase = "playing";
@@ -350,7 +360,7 @@ export class Game {
   }
 
   getSpawnAngle(spawn) {
-    const target = this.modeId === "combatRace" && this.level.checkpoints.length
+    const target = (this.modeId === "combatRace" || this.modeId === "driftAttack") && this.level.checkpoints.length
       ? getCheckpoint(this.level, 1)
       : { x: this.level.world.width * 0.5, y: this.level.world.height * 0.5 };
     return Math.atan2(target.y - spawn.y, target.x - spawn.x);
@@ -372,7 +382,7 @@ export class Game {
         continue;
       }
 
-      const surface = sampleSurface(this.level, vehicle.x, vehicle.y);
+      const surface = sampleSurface(this.level, vehicle.x, vehicle.y, this.time);
       participant.surface = surface;
       vehicle.update(dt, controls, surface, this.effects);
 
@@ -393,9 +403,11 @@ export class Game {
 
       this.applyHazardDamage(vehicle, surface, dt);
       this.updateRaceProgress(vehicle);
-      this.audio.setEngineState(vehicle.id, vehicle.speed / vehicle.definition.speed, vehicle.boosting);
+      this.updateModeScoring(participant, dt);
+      this.audio.setEngineState(vehicle.id, vehicle.speed / vehicle.definition.speed, vehicle.boosting || vehicle.airborne);
     }
 
+    this.updateModeState(dt);
     this.resolveVehicleImpacts();
     this.resolvePropContacts();
     this.handleCombatEvents(this.weaponSystem.update(dt, this.participants, this.level, this.props, this.effects, this.audio));
@@ -431,6 +443,7 @@ export class Game {
     const healthRatio = vehicle.health / vehicle.maxHealth;
     if (healthRatio < PHYSICS_TUNING.lowHealthThreshold && !vehicle.lowHealthCalled) {
       vehicle.lowHealthCalled = true;
+      this.audio.playSfx("warning", 0.18);
       this.announcer.push("LOW HEALTH", {
         duration: 1.3,
         priority: 3,
@@ -445,7 +458,7 @@ export class Game {
   resolvePropContacts() {
     for (const participant of this.participants) {
       const vehicle = participant.vehicle;
-      if (!vehicle.isAlive()) {
+      if (!vehicle.isAlive() || vehicle.airborne) {
         continue;
       }
 
@@ -502,10 +515,10 @@ export class Game {
         this.effects.emitImpactBurst(impact.x, impact.y, Math.atan2(impact.ny, impact.nx), "#ffd8a8", 1);
         this.shakeCamerasNear(impact.x, impact.y, 8);
 
-        if (a.applyDamage(damage / b.mass, this.participants[j].id)) {
+        if (a.applyDamage((damage / b.mass) * b.damageMultiplier, this.participants[j].id)) {
           this.handleDestroyEvent({ sourceId: this.participants[j].id, targetId: this.participants[i].id, x: a.x, y: a.y });
         }
-        if (b.applyDamage(damage / a.mass, this.participants[i].id)) {
+        if (b.applyDamage((damage / a.mass) * a.damageMultiplier, this.participants[i].id)) {
           this.handleDestroyEvent({ sourceId: this.participants[i].id, targetId: this.participants[j].id, x: b.x, y: b.y });
         }
       }
@@ -552,10 +565,20 @@ export class Game {
           ...ANNOUNCER_STYLES.hype,
         });
       }
+      if (sourceParticipant.vehicle.streakLevel > 0) {
+        this.announcer.push("OVERDRIVE", {
+          duration: 1.2,
+          priority: 3,
+          subtext: `${sourceParticipant.label} speed + damage`,
+          ...ANNOUNCER_STYLES.warning,
+        });
+      }
     }
 
     const permanent = !this.match.mode.respawn;
-    const respawnDelay = this.modeId === "combatRace" ? PHYSICS_TUNING.raceRespawnDelay : PHYSICS_TUNING.respawnDelay;
+    const respawnDelay = this.modeId === "combatRace" || this.modeId === "driftAttack"
+      ? PHYSICS_TUNING.raceRespawnDelay
+      : PHYSICS_TUNING.respawnDelay;
     targetVehicle.destroy(respawnDelay, permanent);
     this.effects.emitExplosion(event.x, event.y, targetParticipant.color, 1.1);
     this.shakeCamerasNear(event.x, event.y, 16);
@@ -586,6 +609,8 @@ export class Game {
     const def = PROP_DEFS[propState.type];
     if (def.explosiveRadius > 0) {
       this.effects.emitExplosion(propState.x, propState.y, def.color, 0.9);
+      this.effects.emitShockwave(propState.x, propState.y, def.color, def.explosiveRadius);
+      this.effects.emitSmoke(propState.x, propState.y, 10, "rgba(90,95,100,0.65)");
       this.shakeCamerasNear(propState.x, propState.y, 10);
       for (const participant of this.participants) {
         const vehicle = participant.vehicle;
@@ -608,10 +633,15 @@ export class Game {
         }
       }
     }
+    if (propState.type === "tower") {
+      this.effects.emitPropBurst(propState.x, propState.y, def.color, 1.6);
+      this.effects.emitSmoke(propState.x, propState.y, 12, "rgba(100,110,120,0.68)");
+    }
   }
 
   updateRaceProgress(vehicle) {
-    if (this.modeId !== "combatRace" || !vehicle.isAlive() || !this.level.checkpoints.length || vehicle.finished) {
+    const raceLikeMode = this.modeId === "combatRace" || this.modeId === "driftAttack";
+    if (!raceLikeMode || !vehicle.isAlive() || !this.level.checkpoints.length || vehicle.finished) {
       return;
     }
 
@@ -621,7 +651,7 @@ export class Game {
       vehicle.nextCheckpoint = (vehicle.nextCheckpoint + 1) % this.level.checkpoints.length;
       if (vehicle.lastCheckpoint === 0) {
         vehicle.lap += 1;
-        if (vehicle.lap === this.match.mode.laps - 1 && !vehicle.finalLapCalled) {
+        if (this.modeId === "combatRace" && vehicle.lap === this.match.mode.laps - 1 && !vehicle.finalLapCalled) {
           vehicle.finalLapCalled = true;
           this.announcer.push("FINAL LAP", {
             duration: 1.5,
@@ -630,7 +660,7 @@ export class Game {
             ...ANNOUNCER_STYLES.warning,
           });
         }
-        if (vehicle.lap >= this.match.mode.laps) {
+        if (this.modeId === "combatRace" && vehicle.lap >= this.match.mode.laps) {
           vehicle.finished = true;
           vehicle.finishTime = this.match.elapsed;
         }
@@ -642,6 +672,130 @@ export class Game {
     const toNextY = nextCheckpoint.y - vehicle.y;
     const len = Math.hypot(toNextX, toNextY) || 1;
     vehicle.wrongWay = dot(forward.x, forward.y, toNextX / len, toNextY / len) < -0.25 && vehicle.speed > 120;
+  }
+
+  updateModeScoring(participant, dt) {
+    const vehicle = participant.vehicle;
+    if (!vehicle.isAlive()) {
+      return;
+    }
+
+    if (this.modeId === "driftAttack") {
+      const driftAward = vehicle.consumePendingDriftScore();
+      if (driftAward > 0) {
+        const award = Math.round(driftAward);
+        vehicle.score += award;
+        if (vehicle.score > this.match.driftLeadScore) {
+          this.match.driftLeadScore = vehicle.score;
+          this.announcer.push("NEW RECORD", {
+            duration: 1.2,
+            priority: 3,
+            subtext: `${participant.label} ${vehicle.score}`,
+            ...ANNOUNCER_STYLES.hype,
+          });
+        }
+      }
+      this.awardNearMiss(participant, dt);
+    }
+  }
+
+  awardNearMiss(participant, dt) {
+    const vehicle = participant.vehicle;
+    vehicle.nearMissTimer = Math.max(0, (vehicle.nearMissTimer ?? 0) - dt);
+    if (vehicle.nearMissTimer > 0 || vehicle.speed < 220 || !vehicle.isAlive()) {
+      return;
+    }
+
+    let nearMiss = false;
+    for (const propState of this.props) {
+      if (!propState.active) {
+        continue;
+      }
+      const currentDistance = distance(vehicle.x, vehicle.y, propState.x, propState.y);
+      const threshold = vehicle.radius + propState.radius + PHYSICS_TUNING.nearMissDistance;
+      if (currentDistance < threshold && currentDistance > vehicle.radius + propState.radius + 10) {
+        nearMiss = true;
+        break;
+      }
+    }
+
+    if (!nearMiss) {
+      for (const other of this.participants) {
+        if (other.id === participant.id || !other.vehicle.isAlive()) {
+          continue;
+        }
+        const currentDistance = distance(vehicle.x, vehicle.y, other.vehicle.x, other.vehicle.y);
+        const threshold = vehicle.radius + other.vehicle.radius + PHYSICS_TUNING.nearMissDistance;
+        if (currentDistance < threshold && currentDistance > vehicle.radius + other.vehicle.radius + 12) {
+          nearMiss = true;
+          break;
+        }
+      }
+    }
+
+    if (!nearMiss) {
+      return;
+    }
+
+    const bonus = Math.round(vehicle.speed * 0.16 + (vehicle.driftState > 0.2 ? 48 : 20));
+    vehicle.score += bonus;
+    this.match.driftLeadScore = Math.max(this.match.driftLeadScore, vehicle.score);
+    vehicle.nearMissTimer = 0.75;
+    if (participant.human) {
+      this.announcer.push("NEAR MISS", {
+        duration: 0.9,
+        priority: 2,
+        subtext: `${participant.label} +${bonus}`,
+        ...ANNOUNCER_STYLES.warning,
+      });
+    }
+  }
+
+  updateModeState(dt) {
+    if (this.modeId !== "survival" || !this.match.safeZone) {
+      return;
+    }
+
+    const safeZone = this.match.safeZone;
+    if (this.match.elapsed > PHYSICS_TUNING.stormStartDelay) {
+      safeZone.radius = Math.max(safeZone.minRadius, safeZone.radius - PHYSICS_TUNING.stormShrinkRate * dt);
+    }
+
+    for (const participant of this.participants) {
+      const vehicle = participant.vehicle;
+      if (!vehicle.isAlive()) {
+        continue;
+      }
+      const currentDistance = distance(vehicle.x, vehicle.y, safeZone.x, safeZone.y);
+      if (currentDistance <= safeZone.radius) {
+        continue;
+      }
+      if (vehicle.applyDamage(PHYSICS_TUNING.stormDamagePerSecond * dt, null)) {
+        this.handleDestroyEvent({ sourceId: null, targetId: vehicle.id, x: vehicle.x, y: vehicle.y });
+      }
+    }
+  }
+
+  renderModeWorldOverlay(ctx) {
+    if (this.modeId !== "survival" || !this.match.safeZone) {
+      return;
+    }
+
+    const safeZone = this.match.safeZone;
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 76, 99, 0.08)";
+    ctx.fillRect(-220, -220, this.level.world.width + 440, this.level.world.height + 440);
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(safeZone.x, safeZone.y, safeZone.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(255, 76, 99, 0.72)";
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(safeZone.x, safeZone.y, safeZone.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   handleRespawns() {
@@ -657,7 +811,7 @@ export class Game {
   }
 
   getRespawnPoint(participant) {
-    if (this.modeId === "combatRace" && this.level.checkpoints.length) {
+    if ((this.modeId === "combatRace" || this.modeId === "driftAttack") && this.level.checkpoints.length) {
       const checkpoint = getCheckpoint(this.level, participant.vehicle.lastCheckpoint);
       return { x: checkpoint.x + participant.spawnIndex * 16, y: checkpoint.y + participant.spawnIndex * 16 };
     }
@@ -684,6 +838,14 @@ export class Game {
         const bScore = bVehicle.lap * 100000 + bVehicle.lastCheckpoint * 12000 - distance(bVehicle.x, bVehicle.y, bNext.x, bNext.y);
         return bScore - aScore;
       });
+      standings.forEach((participant, index) => {
+        participant.vehicle.place = index + 1;
+      });
+      return;
+    }
+
+    if (this.modeId === "driftAttack") {
+      const standings = [...this.participants].sort((a, b) => b.vehicle.score - a.vehicle.score);
       standings.forEach((participant, index) => {
         participant.vehicle.place = index + 1;
       });
@@ -740,6 +902,13 @@ export class Game {
       return;
     }
 
+    if (this.modeId === "driftAttack") {
+      if (this.match.elapsed >= mode.timeLimit) {
+        this.finishMatch();
+      }
+      return;
+    }
+
     if (this.modeId === "survival") {
       const aliveHumans = this.humanParticipants.filter((participant) => participant.vehicle.isAlive()).length;
       const aliveVehicles = this.participants.filter((participant) => participant.vehicle.isAlive()).length;
@@ -767,6 +936,9 @@ export class Game {
           return 1;
         }
         return a.vehicle.place - b.vehicle.place;
+      }
+      if (this.modeId === "driftAttack") {
+        return b.vehicle.score - a.vehicle.score;
       }
       if (this.modeId === "survival") {
         return b.vehicle.survivalTime - a.vehicle.survivalTime;
@@ -798,6 +970,9 @@ export class Game {
     }
     if (this.modeId === "survival") {
       return `Survived ${formatTime(vehicle.survivalTime)}`;
+    }
+    if (this.modeId === "driftAttack") {
+      return `${Math.round(vehicle.score)} drift pts`;
     }
     return `${vehicle.kills} K / ${vehicle.deaths} D`;
   }
@@ -865,6 +1040,7 @@ export class Game {
 
       participant.camera.begin(ctx, viewport);
       renderLevel(ctx, this.level, this.time);
+      this.renderModeWorldOverlay(ctx);
       renderProps(ctx, this.props, this.time);
       this.effects.renderWorld(ctx);
       this.pickupSystem.render(ctx, this.time);
@@ -880,7 +1056,7 @@ export class Game {
         this.time,
       );
       this.ui.renderViewportFrame(ctx, viewport, participant);
-      this.ui.renderHud(ctx, viewport, participant, this.match, this.level);
+      this.ui.renderHud(ctx, viewport, participant, this.match, this.level, this.pickupSystem.pickups);
     });
 
     this.effects.renderScreenFlashes(ctx, this.width, this.height);
@@ -897,6 +1073,16 @@ export class Game {
       ctx.font = "16px Trebuchet MS";
       ctx.textAlign = "center";
       ctx.fillText(`Three-lap combat race. Stay armed, stay ahead.`, this.width * 0.5, 90);
+    } else if (this.modeId === "driftAttack") {
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "16px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText(`Chain drifts and near misses for score before time runs out.`, this.width * 0.5, 90);
+    } else if (this.modeId === "survival") {
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "16px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText(`Storm is closing. Stay inside the safe ring.`, this.width * 0.5, 90);
     }
   }
 }

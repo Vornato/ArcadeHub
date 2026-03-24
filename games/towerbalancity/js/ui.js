@@ -38,14 +38,25 @@ class UIManager {
 
         this.scoreDisp = document.getElementById('score-display');
         this.heightDisp = document.getElementById('height-display');
+        this.balanceMeterContainer = document.getElementById('balance-meter-container');
+        this.balanceBg = document.getElementById('balance-bg');
         this.balIndicator = document.getElementById('balance-indicator');
         this.dangerText = document.getElementById('danger-text');
         this.comArrow = document.getElementById('com-arrow');
+        this.comArrowTrail = document.getElementById('com-arrow-trail');
+        this.comArrowVector = document.getElementById('com-arrow-vector');
         this.comArrowIcon = document.getElementById('com-arrow-icon');
+        this.comArrowMass = document.getElementById('com-arrow-mass');
         this.windState = document.getElementById('wind-state');
         this.rainState = document.getElementById('rain-state');
         this.darkState = document.getElementById('dark-state');
+        this.windForecast = document.getElementById('wind-forecast');
+        this.rainForecast = document.getElementById('rain-forecast');
+        this.darkForecast = document.getElementById('dark-forecast');
         this.actionCallout = document.getElementById('action-callout');
+        this.minimap = document.getElementById('tower-minimap');
+        this.minimapCtx = this.minimap ? this.minimap.getContext('2d') : null;
+        this.queueTooltip = document.getElementById('queue-tooltip');
         
         this.finalScoreItem = document.getElementById('final-score');
         this.finalHeightItem = document.getElementById('final-height');
@@ -157,8 +168,12 @@ class UIManager {
     }
 
     setWeather(isRaining, isDark) {
-        this.weatherOverlay.style.opacity = isRaining ? '1' : '0';
-        this.darknessOverlay.style.opacity = isDark ? '1' : '0';
+        const rainLevel = typeof isRaining === 'number' ? Utils.clamp(isRaining, 0, 1) : (isRaining ? 1 : 0);
+        const darkLevel = typeof isDark === 'number' ? Utils.clamp(isDark, 0, 1) : (isDark ? 1 : 0);
+        this.weatherOverlay.style.opacity = `${rainLevel}`;
+        this.weatherOverlay.style.filter = `blur(${rainLevel * 0.6}px)`;
+        this.darknessOverlay.style.opacity = `${darkLevel}`;
+        this.gameContainer.style.setProperty('--exposure-size', `${Utils.lerp(68, 26, darkLevel)}%`);
     }
 
     showFlavorText(msg, type = "playful") {
@@ -206,13 +221,13 @@ class UIManager {
                     mapping.innerHTML = 'Move: ← →  |  Drop: Enter';
                 } else {
                     // Inside Player - keyboard slot 1
-                    mapping.innerHTML = 'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Class: Q/E';
+                    mapping.innerHTML = 'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Brace: Q/E';
                 }
             } else if (inputType === 'gamepad') {
                 if (slotId === 0) {
                     mapping.innerHTML = 'Move: D-Pad/Stick  |  Drop: A / Cross';
                 } else {
-                    mapping.innerHTML = 'Jump: A  |  Grab: X  |  Throw: B<br>Class: LB/RB  |  Pause: Start';
+                    mapping.innerHTML = 'Jump: A  |  Grab: X  |  Throw: B<br>Brace: LB/RB  |  Pause: Start';
                 }
             } else {
                 mapping.innerHTML = 'AI Controlled';
@@ -267,7 +282,7 @@ class UIManager {
         this.heightDisp.innerText = height + "m";
     }
 
-    updateBalance(balanceValue, dangerLevel, comOffset = 0) {
+    updateBalance(balanceValue, dangerLevel, comState = 0) {
         let percent = 50 + (balanceValue / 2);
         this.balIndicator.style.left = `${percent}%`;
         
@@ -276,24 +291,148 @@ class UIManager {
         this.dangerText.innerText = this.dangerLabels[dangerLevel];
         this.dangerText.style.color = this.dangerColors[dangerLevel];
 
-        const comNorm = Utils.clamp(comOffset / 180, -1, 1);
-        const arrowHue = Math.abs(comNorm) > 0.55 ? '#ff9f43' : '#8ad8ff';
-        this.comArrowIcon.style.transform = `translateX(${comNorm * 30}px) rotate(${comNorm * 28}deg)`;
-        this.comArrowIcon.style.color = arrowHue;
-        this.comArrow.style.opacity = `${0.75 + (Math.abs(comNorm) * 0.25)}`;
+        const data = typeof comState === 'object'
+            ? comState
+            : { horizontalOffset: comState, verticalOffset: 0, totalMass: 0, dangerRatio: 0 };
+        const horizontalNorm = Utils.clamp((data.horizontalOffset || 0) / 180, -1, 1);
+        const verticalNorm = Utils.clamp((data.verticalOffset || 0) / 260, -1, 1);
+        const vectorAngle = Math.atan2(-verticalNorm, horizontalNorm || 0.001);
+        const vectorLength = Utils.lerp(42, 104, Utils.clamp((data.massRatio !== undefined ? data.massRatio : (data.totalMass || 0) / 9000), 0, 1));
+        const dangerRatio = Utils.clamp(data.dangerRatio !== undefined ? data.dangerRatio : (Math.abs(balanceValue) / 100), 0, 1);
+        const trailLength = Utils.lerp(28, 112, dangerRatio);
+        const arrowColor = dangerRatio > 0.82 ? '#ff4757' : (dangerRatio > 0.55 ? '#ff9f43' : '#8ad8ff');
+
+        if (this.comArrowVector) {
+            this.comArrowVector.style.width = `${vectorLength}px`;
+            this.comArrowVector.style.transform = `translate(-50%, -50%) rotate(${vectorAngle}rad)`;
+            this.comArrowVector.style.background = `linear-gradient(90deg, rgba(117,183,255,0.18) 0%, ${arrowColor} 88%, rgba(255,255,255,0.95) 100%)`;
+            this.comArrowVector.style.boxShadow = `0 0 ${10 + (dangerRatio * 22)}px ${arrowColor}`;
+        }
+        if (this.comArrowTrail) {
+            this.comArrowTrail.style.width = `${trailLength}px`;
+            this.comArrowTrail.style.opacity = `${0.18 + (dangerRatio * 0.7)}`;
+            this.comArrowTrail.style.transform = `translate(-50%, -50%) rotate(${vectorAngle}rad)`;
+        }
+        this.comArrowIcon.style.color = arrowColor;
+        this.comArrow.style.opacity = `${0.75 + (dangerRatio * 0.25)}`;
+        if (this.comArrowMass) {
+            const tons = (data.totalMass || 0) / 1000;
+            this.comArrowMass.textContent = `LOAD ${tons.toFixed(1)}T`;
+        }
+
+        this.balanceMeterContainer.classList.toggle('critical', dangerLevel >= 2 || dangerRatio > 0.72);
+        if (this.balanceBg) {
+            this.balanceBg.style.opacity = `${0.42 + (dangerRatio * 0.46)}`;
+        }
 
         if (dangerLevel === 3) this.dangerText.classList.add('shake');
         else this.dangerText.classList.remove('shake');
     }
 
-    updateWeatherStates(windForce, isRaining, isDark) {
-        const windy = Math.abs(windForce) > 0.75;
+    updateWeatherStates(weatherState, isRaining, isDark) {
+        const state = typeof weatherState === 'object'
+            ? weatherState
+            : {
+                windForce: weatherState || 0,
+                rainIntensity: isRaining ? 1 : 0,
+                darkness: isDark ? 1 : 0,
+                forecastWind: Math.abs(weatherState || 0) / 8,
+                forecastRain: isRaining ? 1 : 0,
+                forecastDark: isDark ? 1 : 0
+            };
+        const windy = Math.abs(state.windForce || 0) > 0.75;
+        const raining = (state.rainIntensity || 0) > 0.15;
+        const dark = (state.darkness || 0) > 0.15;
         this.windState.classList.toggle('active', windy);
         this.windState.classList.toggle('wind', windy);
-        this.rainState.classList.toggle('active', isRaining);
-        this.rainState.classList.toggle('rain', isRaining);
-        this.darkState.classList.toggle('active', isDark);
-        this.darkState.classList.toggle('dark', isDark);
+        this.rainState.classList.toggle('active', raining);
+        this.rainState.classList.toggle('rain', raining);
+        this.darkState.classList.toggle('active', dark);
+        this.darkState.classList.toggle('dark', dark);
+
+        if (this.windForecast) this.windForecast.textContent = this.describeForecast(state.forecastWind, state.windTrend, 'CALM', 'RISING');
+        if (this.rainForecast) this.rainForecast.textContent = this.describeForecast(state.forecastRain, state.rainTrend, 'CLEAR', 'WET');
+        if (this.darkForecast) this.darkForecast.textContent = this.describeForecast(state.forecastDark, state.darkTrend, 'OPEN', 'DIM');
+    }
+
+    describeForecast(level, trend, calmLabel, intenseLabel) {
+        const strength = Utils.clamp(level || 0, 0, 1);
+        const prefix = trend > 0.08 ? 'UP' : (trend < -0.08 ? 'DOWN' : 'HOLD');
+        if (strength < 0.18) return `${prefix} ${calmLabel}`;
+        if (strength < 0.55) return `${prefix} MID`;
+        return `${prefix} ${intenseLabel}`;
+    }
+
+    updateMinimap(floors, players, objects, towerCenterX, comState = null) {
+        if (!this.minimapCtx || !this.minimap) return;
+
+        const ctx = this.minimapCtx;
+        const width = this.minimap.width;
+        const height = this.minimap.height;
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.fillStyle = 'rgba(11, 21, 38, 0.92)';
+        ctx.fillRect(0, 0, width, height);
+
+        if (!floors || floors.length === 0) return;
+
+        const foundation = floors[0];
+        const topFloor = floors[floors.length - 1];
+        const minY = topFloor.y - 120;
+        const maxY = foundation.y + foundation.h;
+        const rangeY = Math.max(240, maxY - minY);
+        const centerX = width / 2;
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX, 12);
+        ctx.lineTo(centerX, height - 12);
+        ctx.stroke();
+
+        const mapX = (worldX) => centerX + Utils.clamp(((worldX - towerCenterX) / 280) * (width * 0.42), -width * 0.42, width * 0.42);
+        const mapY = (worldY) => 12 + (((worldY - minY) / rangeY) * (height - 24));
+
+        for (let floor of floors) {
+            const y = mapY(floor.y + floor.h * 0.5);
+            const left = mapX(floor.x);
+            const right = mapX(floor.x + floor.w);
+            ctx.strokeStyle = floor.archetype && floor.archetype.isSeesaw ? 'rgba(255,208,98,0.9)' : 'rgba(138,216,255,0.72)';
+            ctx.lineWidth = floor.isFoundation ? 5 : 3;
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+            ctx.stroke();
+        }
+
+        for (let obj of objects) {
+            if (obj.heldBy || obj.mass < 60) continue;
+            ctx.fillStyle = obj.mass >= 120 ? '#ff4757' : '#ff9f43';
+            ctx.beginPath();
+            ctx.arc(mapX(obj.x + obj.w / 2), mapY(obj.y + obj.h / 2), obj.mass >= 120 ? 4 : 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const playerColors = ['#f39c12', '#3498db', '#2ecc71', '#9b59b6'];
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            ctx.fillStyle = playerColors[(p.slot - 1 + playerColors.length) % playerColors.length] || '#ffffff';
+            ctx.fillRect(mapX(p.x + p.w / 2) - 3, mapY(p.y + p.h) - 3, 6, 6);
+        }
+
+        if (comState) {
+            const comX = comState.centerX !== undefined ? comState.centerX : (towerCenterX + (comState.horizontalOffset || 0));
+            const comY = comState.centerY !== undefined ? comState.centerY : ((minY + maxY) / 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.beginPath();
+            ctx.arc(mapX(comX), mapY(comY), 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(mapX(comX), mapY(comY), 4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     }
 
     showActionCallout(text, type = 'perfect') {
@@ -320,6 +459,16 @@ class UIManager {
             } else {
                 el.innerText = '---';
                 el.style.color = '#7f8c8d';
+            }
+        }
+
+        if (this.queueTooltip) {
+            const nextPiece = upcomingPieces && upcomingPieces[0];
+            if (nextPiece) {
+                const material = nextPiece.material ? ` ${nextPiece.material.toUpperCase()}.` : '';
+                this.queueTooltip.textContent = `${nextPiece.tooltip || 'Balanced floor segment.'}${material}`;
+            } else {
+                this.queueTooltip.textContent = 'Stable starter floor.';
             }
         }
     }

@@ -18,6 +18,14 @@ class ProgressionManager {
         this.stormDirection = 1;
         this.stormPulse = 0;
         this.lightningFlash = 0;
+        this.thunderTimer = 0;
+        this.rainIntensity = 0;
+        this.darkness = 0;
+        this.rainTarget = 0;
+        this.darknessTarget = 0;
+        this.forecastWind = 0;
+        this.forecastRain = 0;
+        this.forecastDark = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -48,6 +56,14 @@ class ProgressionManager {
         this.stormDirection = 1;
         this.stormPulse = 0;
         this.lightningFlash = 0;
+        this.thunderTimer = 0;
+        this.rainIntensity = 0;
+        this.darkness = 0;
+        this.rainTarget = 0;
+        this.darknessTarget = 0;
+        this.forecastWind = 0;
+        this.forecastRain = 0;
+        this.forecastDark = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -69,10 +85,12 @@ class ProgressionManager {
         const weatherDamping = this.isRaining ? 0.035 : 0.025;
         if (this.stormLevel > 0) {
             this.stormPulse += 0.03 + (this.stormLevel * 0.01);
-            const stormWave = Math.sin(this.stormPulse) * 0.55;
-            this.windTarget += ((this.stormDirection * (2 + (this.stormLevel * 2.5)) * stormWave) - this.windTarget) * 0.02;
+            const stormWave = (Math.sin(this.stormPulse) * 0.55) + (Math.sin(this.stormPulse * 0.42) * 0.25);
+            const gust = (0.7 + (Math.sin(this.stormPulse * 1.7) * 0.3));
+            this.windTarget += ((this.stormDirection * (2 + (this.stormLevel * 2.5)) * stormWave * gust) - this.windTarget) * 0.02;
             if (Math.random() < 0.0025 * this.stormLevel) {
                 this.lightningFlash = 1;
+                this.thunderTimer = Utils.randomInt(18, 58);
             }
             if (Math.random() < 0.001) {
                 this.stormDirection *= -1;
@@ -84,10 +102,32 @@ class ProgressionManager {
         this.windTarget *= this.isRaining ? 0.998 : 0.994;
         this.windForce *= 0.999;
         this.lightningFlash *= 0.85;
+        this.rainTarget = this.isRaining ? Utils.clamp(0.35 + (this.stormLevel * 0.4), 0.18, 1) : 0;
+        this.darknessTarget = this.isDark ? Utils.clamp(0.28 + (this.stormLevel * 0.2), 0.18, 0.92) : 0;
+        this.rainIntensity = Utils.lerp(this.rainIntensity, this.rainTarget, 0.04);
+        this.darkness = Utils.lerp(this.darkness, this.darknessTarget, 0.035);
+        this.forecastWind = Utils.clamp(Math.abs(this.windTarget) / 8, 0, 1);
+        this.forecastRain = Utils.clamp(Math.max(this.rainTarget, this.stormLevel * 0.45), 0, 1);
+        this.forecastDark = Utils.clamp(Math.max(this.darknessTarget, (this.stormLevel - 0.4) * 0.5), 0, 1);
+        this.thunderTimer = Math.max(0, this.thunderTimer - 1);
 
         if (Math.abs(this.windTarget) < 0.02) this.windTarget = 0;
         if (Math.abs(this.windForce) < 0.01) this.windForce = 0;
         if (this.lightningFlash < 0.02) this.lightningFlash = 0;
+    }
+
+    getWeatherState() {
+        return {
+            windForce: this.windForce,
+            rainIntensity: this.rainIntensity,
+            darkness: this.darkness,
+            forecastWind: this.forecastWind,
+            forecastRain: this.forecastRain,
+            forecastDark: this.forecastDark,
+            windTrend: this.forecastWind - Utils.clamp(Math.abs(this.windForce) / 8, 0, 1),
+            rainTrend: this.forecastRain - this.rainIntensity,
+            darkTrend: this.forecastDark - this.darkness
+        };
     }
 
     onFloorDropped() {

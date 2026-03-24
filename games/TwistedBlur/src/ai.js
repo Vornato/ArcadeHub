@@ -44,6 +44,17 @@ function nearestPickup(vehicle, pickupSystem) {
   return best;
 }
 
+function racingGoal(level, vehicle) {
+  const current = getCheckpoint(level, vehicle.nextCheckpoint);
+  const next = getCheckpoint(level, vehicle.nextCheckpoint + 1);
+  return {
+    x: current.x * 0.64 + next.x * 0.36,
+    y: current.y * 0.64 + next.y * 0.36,
+    current,
+    next,
+  };
+}
+
 export class BotController {
   constructor(difficultyIndex = 1) {
     this.difficulty = BOT_DIFFICULTIES[difficultyIndex] ?? BOT_DIFFICULTIES[1];
@@ -86,8 +97,8 @@ export class BotController {
     const pickup = nearestPickup(vehicle, pickupSystem);
     const healthRatio = vehicle.health / vehicle.maxHealth;
 
-    if (modeId === "combatRace" && level.checkpoints.length) {
-      primaryGoal = getCheckpoint(level, vehicle.nextCheckpoint);
+    if ((modeId === "combatRace" || modeId === "driftAttack") && level.checkpoints.length) {
+      primaryGoal = racingGoal(level, vehicle);
       if (!vehicle.specialWeaponId && pickup && distance(vehicle.x, vehicle.y, pickup.x, pickup.y) < 360 + this.difficulty.chase * 80) {
         primaryGoal = pickup;
       } else if (
@@ -98,6 +109,13 @@ export class BotController {
         primaryGoal = attackTarget;
       }
     } else {
+      if (modeId === "survival" && game.match?.safeZone) {
+        const safeZone = game.match.safeZone;
+        const distanceFromCenter = distance(vehicle.x, vehicle.y, safeZone.x, safeZone.y);
+        if (distanceFromCenter > safeZone.radius * 0.82) {
+          primaryGoal = { x: safeZone.x, y: safeZone.y };
+        }
+      }
       if ((!vehicle.specialWeaponId || healthRatio < 0.42) && pickup && distance(vehicle.x, vehicle.y, pickup.x, pickup.y) < 420) {
         primaryGoal = pickup;
       } else {
@@ -117,11 +135,20 @@ export class BotController {
     const angleError = signedAngleToTarget(vehicle.angle, vehicle.x, vehicle.y, primaryGoal.x, primaryGoal.y) + Math.sin(game.time * 0.8 + this.wobble) * 0.035;
     const steer = clamp(angleError * 1.9, -1, 1);
     const distanceToGoal = distance(vehicle.x, vehicle.y, primaryGoal.x, primaryGoal.y);
-    const hardTurn = Math.abs(angleError) > 1.05;
-    const mediumTurn = Math.abs(angleError) > 0.55;
+    const speedRatio = vehicle.speed / vehicle.definition.speed;
+    const nextGoal = level.checkpoints.length ? getCheckpoint(level, vehicle.nextCheckpoint + 1) : primaryGoal;
+    const exitAngle = signedAngleToTarget(vehicle.angle, vehicle.x, vehicle.y, nextGoal.x, nextGoal.y);
+    const cornerSeverity = clamp(Math.abs(angleError) * 0.78 + Math.abs(exitAngle) * 0.42 + speedRatio * 0.25, 0, 1.4);
+    const hardTurn = cornerSeverity > 0.98;
+    const mediumTurn = cornerSeverity > 0.56;
 
-    let accel = hardTurn ? 0.25 : mediumTurn ? 0.66 : this.difficulty.throttle;
-    let brake = hardTurn ? 0.78 : 0;
+    let accel = hardTurn ? 0.22 : mediumTurn ? 0.6 : this.difficulty.throttle;
+    let brake = hardTurn ? 0.78 * this.difficulty.brakeSense : 0;
+
+    if (cornerSeverity > 0.44 && vehicle.speed > vehicle.definition.speed * (0.54 + this.difficulty.brakeSense * 0.06)) {
+      brake = Math.max(brake, clamp(cornerSeverity * 0.72 * this.difficulty.brakeSense, 0, 1));
+      accel = Math.min(accel, 0.72);
+    }
 
     if (this.stuckTimer > this.difficulty.recovery * 1.45) {
       accel = 0;
@@ -163,7 +190,7 @@ export class BotController {
 
     const shouldBoostForChase = attackTarget && targetDistance > 280 && targetDistance < 700 && targetAngle < 0.25;
     const boost = vehicle.boost > 32
-      && !hardTurn
+      && cornerSeverity < 0.46
       && vehicle.forwardSpeed > 120
       && (distanceToGoal > 280 || shouldBoostForChase)
       && Math.random() < this.difficulty.boostUse;
@@ -171,7 +198,7 @@ export class BotController {
     return {
       steer,
       accel,
-      brake,
+      brake: vehicle.forwardSpeed > 150 && Math.abs(steer) > 0.5 ? Math.max(brake, 0.16) : brake,
       fire,
       firePressed: fire,
       alt: altPressed,

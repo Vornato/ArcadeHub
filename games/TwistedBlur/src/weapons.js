@@ -67,7 +67,7 @@ export class WeaponSystem {
       vy: direction.y * 1160 + vehicle.vy * 0.22,
       ttl: 0.62,
       radius: 8,
-      damage: 6,
+      damage: 6 * vehicle.damageMultiplier,
       color: "#fff6c7",
     });
 
@@ -101,7 +101,7 @@ export class WeaponSystem {
         vy: forward.y * 720 + vehicle.vy * 0.35,
         ttl: 2.6,
         radius: 12,
-        damage: 26,
+        damage: 26 * vehicle.damageMultiplier,
         splash: 150,
         color: def.color,
       });
@@ -118,11 +118,11 @@ export class WeaponSystem {
         y,
         prevX: x,
         prevY: y,
-        vx: forward.x * 620 + vehicle.vx * 0.2,
-        vy: forward.y * 620 + vehicle.vy * 0.2,
-        ttl: 3.1,
+        vx: forward.x * 540 + vehicle.vx * 0.18,
+        vy: forward.y * 540 + vehicle.vy * 0.18,
+        ttl: 3.6,
         radius: 12,
-        damage: 22,
+        damage: 22 * vehicle.damageMultiplier,
         splash: 135,
         targetId: target?.id ?? null,
         color: def.color,
@@ -143,9 +143,9 @@ export class WeaponSystem {
         vy: vehicle.vy * 0.1,
         ttl: 16,
         radius: 18,
-        damage: 24,
+        damage: 24 * vehicle.damageMultiplier,
         splash: 160,
-        armedTimer: 0.55,
+        armedTimer: 0.42,
         color: def.color,
       });
       audio.playSfx("mine", 0.32);
@@ -162,8 +162,8 @@ export class WeaponSystem {
         if (currentDistance > radius) {
           continue;
         }
-        target.stunTimer = Math.max(target.stunTimer, 1.7);
-        const destroyed = target.applyDamage(8, vehicle.id);
+        target.stunTimer = Math.max(target.stunTimer, 2.35);
+        const destroyed = target.applyDamage(10 * vehicle.damageMultiplier, vehicle.id);
         const impulseScale = clamp(1 - currentDistance / radius, 0.2, 1);
         const awayX = (target.x - vehicle.x) / (currentDistance || 1);
         const awayY = (target.y - vehicle.y) / (currentDistance || 1);
@@ -186,7 +186,7 @@ export class WeaponSystem {
         if (currentDistance > radius) {
           continue;
         }
-        const destroyed = target.applyDamage(12, vehicle.id);
+        const destroyed = target.applyDamage(12 * vehicle.damageMultiplier, vehicle.id);
         const awayX = (target.x - vehicle.x) / (currentDistance || 1);
         const awayY = (target.y - vehicle.y) / (currentDistance || 1);
         target.vx += awayX * 420;
@@ -216,7 +216,7 @@ export class WeaponSystem {
           continue;
         }
         target.stunTimer = Math.max(target.stunTimer, 0.45);
-        const destroyed = target.applyDamage(26, vehicle.id);
+        const destroyed = target.applyDamage(26 * vehicle.damageMultiplier, vehicle.id);
         if (destroyed) {
           events.push({ type: "destroyed", sourceId: vehicle.id, targetId: target.id, x: target.x, y: target.y });
         }
@@ -247,7 +247,7 @@ export class WeaponSystem {
           vy: direction.y * randomRange(480, 620) + vehicle.vy * 0.22,
           ttl: randomRange(0.5, 0.82),
           radius: 10,
-          damage: 11,
+          damage: 11 * vehicle.damageMultiplier,
           splash: 70,
           color: def.color,
         });
@@ -258,7 +258,7 @@ export class WeaponSystem {
       const targets = arcTargets(vehicle, participants, 390, 0.58, 3);
       let arcFrom = { x: vehicle.x, y: vehicle.y };
       targets.forEach((target, index) => {
-        const damage = 18 - index * 3;
+        const damage = (18 - index * 3) * vehicle.damageMultiplier;
         target.stunTimer = Math.max(target.stunTimer, 1.0 - index * 0.15);
         const destroyed = target.applyDamage(damage, vehicle.id);
         effects.emitBeam(arcFrom.x, arcFrom.y, target.x, target.y, def.color);
@@ -307,9 +307,10 @@ export class WeaponSystem {
           const speed = Math.hypot(projectile.vx, projectile.vy);
           const currentAngle = Math.atan2(projectile.vy, projectile.vx);
           const delta = Math.atan2(Math.sin(desiredAngle - currentAngle), Math.cos(desiredAngle - currentAngle));
-          const nextAngle = currentAngle + clamp(delta, -0.09, 0.09);
-          projectile.vx = Math.cos(nextAngle) * speed;
-          projectile.vy = Math.sin(nextAngle) * speed;
+          const nextAngle = currentAngle + clamp(delta, -0.055, 0.055);
+          const nextSpeed = Math.min(740, speed + dt * 65);
+          projectile.vx = Math.cos(nextAngle) * nextSpeed;
+          projectile.vy = Math.sin(nextAngle) * nextSpeed;
         }
       }
 
@@ -393,7 +394,11 @@ export class WeaponSystem {
         if (!vehicle || !vehicle.isAlive() || vehicle.id === projectile.ownerId) {
           continue;
         }
-        if (distance(projectile.x, projectile.y, vehicle.x, vehicle.y) <= vehicle.radius + projectile.radius) {
+        if (vehicle.airborne) {
+          continue;
+        }
+        if (distance(projectile.x, projectile.y, vehicle.x, vehicle.y) <= vehicle.radius + projectile.radius + 12) {
+          effects.emitShockwave(projectile.x, projectile.y, projectile.color, projectile.splash ?? 120);
           this.explode(projectile, participants, props, effects, audio, events);
           return true;
         }
@@ -411,6 +416,7 @@ export class WeaponSystem {
   explode(projectile, participants, props, effects, audio, events) {
     const radius = projectile.splash ?? 120;
     effects.emitExplosion(projectile.x, projectile.y, projectile.color, projectile.kind === "rocket" ? 1.1 : 1);
+    effects.emitShockwave(projectile.x, projectile.y, projectile.color, radius);
     audio.playSfx("explosion", 0.45);
 
     for (const participant of participants) {
@@ -461,6 +467,11 @@ export class WeaponSystem {
   render(ctx) {
     for (const projectile of this.projectiles) {
       if (projectile.kind === "mine") {
+        ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.5)" : "#ff4c63";
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, projectile.radius + 10 + Math.sin(performance.now() * 0.01) * 3, 0, Math.PI * 2);
+        ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.12)" : "rgba(255,76,99,0.22)";
+        ctx.fill();
         ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.5)" : "#ff4c63";
         ctx.beginPath();
         ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);

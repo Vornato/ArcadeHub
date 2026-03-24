@@ -21,20 +21,28 @@ export class Camera {
   update(target, dt, viewport, level) {
     const lookDirection = angleToVector(target.angle + (target.lookBack ? Math.PI : 0));
     const lookDistance = 120 + Math.min(200, target.speed * 0.22);
-    const desiredX = target.x + lookDirection.x * lookDistance;
-    const desiredY = target.y + lookDirection.y * lookDistance;
+    const lateralDirection = { x: -lookDirection.y, y: lookDirection.x };
+    const lateralLead = target.steerState * CAMERA_TUNING.lateralLead;
+    const desiredX = target.x + lookDirection.x * lookDistance + lateralDirection.x * lateralLead;
+    const desiredY = target.y + lookDirection.y * lookDistance + lateralDirection.y * lateralLead;
     const smoothing = 1 - Math.exp(-CAMERA_TUNING.smoothing * dt);
 
     this.x = lerp(this.x, desiredX, smoothing);
     this.y = lerp(this.y, desiredY, smoothing);
 
     const desiredZoom = clamp(
-      CAMERA_TUNING.baseZoom - target.speed * CAMERA_TUNING.speedZoomFactor + (viewport.w < 540 ? -0.04 : 0),
+      CAMERA_TUNING.baseZoom
+        - target.speed * CAMERA_TUNING.speedZoomFactor
+        + (target.airborne ? -CAMERA_TUNING.airborneZoomOut : 0)
+        + (viewport.w < 540 ? -0.04 : 0),
       CAMERA_TUNING.minZoom,
       CAMERA_TUNING.maxZoom,
     );
     this.zoom = lerp(this.zoom, desiredZoom, smoothing);
     this.shake = lerp(this.shake, 0, 1 - Math.exp(-CAMERA_TUNING.shakeDamping * dt));
+    if (target.boosting) {
+      this.addShake(CAMERA_TUNING.boostShake * dt * 60);
+    }
 
     const halfWorldWidth = viewport.w / (2 * this.zoom);
     const halfWorldHeight = viewport.h / (2 * this.zoom);

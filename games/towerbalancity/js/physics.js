@@ -139,6 +139,10 @@ class PhysicsEngine {
         const centerOfMassX = totalMass > 0 ? (weightedX / totalMass) : towerCenterX;
         const centerOfMassY = totalMass > 0 ? (weightedY / totalMass) : 0;
         const centerOfMassOffset = centerOfMassX - towerCenterX;
+        const towerTopY = floors.length > 0 ? floors[floors.length - 1].y : centerOfMassY;
+        const towerBaseY = floors.length > 0 ? floors[0].y + floors[0].h : centerOfMassY;
+        const towerMidY = (towerTopY + towerBaseY) / 2;
+        const centerOfMassVerticalOffset = towerMidY - centerOfMassY;
         const structuralTorque = totalTorque * exaggeration;
         
         if (windForce) {
@@ -151,6 +155,7 @@ class PhysicsEngine {
             centerOfMassX,
             centerOfMassY,
             centerOfMassOffset,
+            centerOfMassVerticalOffset,
             structuralTorque,
             windTorque: totalTorque - structuralTorque,
             torque: totalTorque

@@ -7,6 +7,7 @@ export class AudioSystem {
     this.musicStep = 0;
     this.enabled = false;
     this.engineState = new Map();
+    this.enginePulse = new Map();
   }
 
   ensureContext() {
@@ -41,6 +42,11 @@ export class AudioSystem {
     this.musicTimer = 0;
   }
 
+  clearDynamicState() {
+    this.engineState.clear();
+    this.enginePulse.clear();
+  }
+
   setEngineState(id, rpm, boosting) {
     this.engineState.set(id, { rpm, boosting });
   }
@@ -48,6 +54,23 @@ export class AudioSystem {
   update(dt) {
     if (!this.context || this.context.state !== "running" || !this.enabled) {
       return;
+    }
+
+    for (const [id, state] of this.engineState.entries()) {
+      const nextTimer = (this.enginePulse.get(id) ?? 0) - dt;
+      if (nextTimer <= 0) {
+        const rpm = Math.max(0, Math.min(1.25, state.rpm ?? 0));
+        const boosting = !!state.boosting;
+        this.beep(
+          72 + rpm * 168 + (boosting ? 36 : 0),
+          boosting ? 0.08 : 0.06,
+          boosting ? "sawtooth" : "triangle",
+          0.0025 + rpm * (boosting ? 0.01 : 0.006),
+        );
+        this.enginePulse.set(id, Math.max(0.04, 0.18 - rpm * 0.1 - (boosting ? 0.03 : 0)));
+      } else {
+        this.enginePulse.set(id, nextTimer);
+      }
     }
 
     this.musicTimer -= dt;
@@ -91,6 +114,7 @@ export class AudioSystem {
       this.beep(120, 0.06, "square", 0.018 * intensity);
     } else if (name === "explosion") {
       this.beep(70, 0.18, "sawtooth", 0.035 * intensity);
+      this.beep(120, 0.1, "triangle", 0.014 * intensity, 0.015);
     } else if (name === "emp") {
       this.beep(320, 0.18, "triangle", 0.024 * intensity);
     } else if (name === "shockwave") {
@@ -105,6 +129,15 @@ export class AudioSystem {
     } else if (name === "arc") {
       this.beep(460, 0.12, "triangle", 0.018 * intensity);
       this.beep(620, 0.09, "square", 0.01 * intensity, 0.025);
+    } else if (name === "repair") {
+      this.beep(520, 0.12, "sine", 0.018 * intensity);
+      this.beep(680, 0.08, "triangle", 0.012 * intensity, 0.035);
+    } else if (name === "turbo") {
+      this.beep(180, 0.08, "sawtooth", 0.02 * intensity);
+      this.beep(360, 0.12, "triangle", 0.012 * intensity, 0.02);
+    } else if (name === "warning") {
+      this.beep(880, 0.05, "square", 0.012 * intensity);
+      this.beep(660, 0.05, "square", 0.01 * intensity, 0.08);
     }
   }
 

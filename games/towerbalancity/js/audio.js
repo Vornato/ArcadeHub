@@ -14,6 +14,9 @@ class AudioSystem {
         this.masterGain = null;
         this.sfxGain = null;
         this.musicGain = null;
+        this.tensionRumbleGain = null;
+        this.tensionCreakGain = null;
+        this.windAmbienceGain = null;
     }
 
     init() {
@@ -29,10 +32,70 @@ class AudioSystem {
             
             this.musicGain = this.ctx.createGain();
             this.musicGain.connect(this.masterGain);
+
+            this.setupAmbience();
             
             this.updateVolumes();
             this.enabled = true;
         }
+    }
+
+    setupAmbience() {
+        if (!this.ctx || this.tensionRumbleGain) return;
+
+        this.tensionRumbleGain = this.ctx.createGain();
+        this.tensionRumbleGain.gain.value = 0;
+        this.tensionRumbleGain.connect(this.sfxGain);
+
+        const rumbleLow = this.ctx.createOscillator();
+        rumbleLow.type = 'sine';
+        rumbleLow.frequency.value = 28;
+        rumbleLow.connect(this.tensionRumbleGain);
+        rumbleLow.start();
+
+        const rumbleMid = this.ctx.createOscillator();
+        rumbleMid.type = 'triangle';
+        rumbleMid.frequency.value = 42;
+        rumbleMid.connect(this.tensionRumbleGain);
+        rumbleMid.start();
+
+        this.tensionCreakGain = this.ctx.createGain();
+        this.tensionCreakGain.gain.value = 0;
+        const creakFilter = this.ctx.createBiquadFilter();
+        creakFilter.type = 'bandpass';
+        creakFilter.frequency.value = 140;
+        creakFilter.Q.value = 0.6;
+        this.tensionCreakGain.connect(creakFilter);
+        creakFilter.connect(this.sfxGain);
+
+        const creakOsc = this.ctx.createOscillator();
+        creakOsc.type = 'sawtooth';
+        creakOsc.frequency.value = 88;
+        creakOsc.connect(this.tensionCreakGain);
+        creakOsc.start();
+
+        this.windAmbienceGain = this.ctx.createGain();
+        this.windAmbienceGain.gain.value = 0;
+        const windFilter = this.ctx.createBiquadFilter();
+        windFilter.type = 'highpass';
+        windFilter.frequency.value = 240;
+        this.windAmbienceGain.connect(windFilter);
+        windFilter.connect(this.sfxGain);
+        this.playNoiseBed(this.windAmbienceGain);
+    }
+
+    playNoiseBed(outputGain) {
+        if (!this.ctx || !outputGain) return;
+        const bufferSize = this.ctx.sampleRate * 2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(outputGain);
+        source.start();
     }
 
     setVolumes(master, sfx, music, reduced) {
@@ -48,6 +111,19 @@ class AudioSystem {
         this.masterGain.gain.value = this.masterVol;
         this.sfxGain.gain.value = this.sfxVol;
         this.musicGain.gain.value = this.musicVol;
+    }
+
+    updateTension(balanceStress = 0, stormLevel = 0, rainLevel = 0) {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        const intensity = this.reducedIntensity ? 0.55 : 1.0;
+        const rumbleTarget = Utils.clamp((balanceStress * 0.16) + (stormLevel * 0.02), 0, 0.18) * intensity;
+        const creakTarget = Utils.clamp(Math.max(0, balanceStress - 0.28) * 0.11, 0, 0.12) * intensity;
+        const windTarget = Utils.clamp((stormLevel * 0.035) + (rainLevel * 0.025), 0, 0.09) * intensity;
+
+        if (this.tensionRumbleGain) this.tensionRumbleGain.gain.setTargetAtTime(rumbleTarget, now, 0.12);
+        if (this.tensionCreakGain) this.tensionCreakGain.gain.setTargetAtTime(creakTarget, now, 0.18);
+        if (this.windAmbienceGain) this.windAmbienceGain.gain.setTargetAtTime(windTarget, now, 0.2);
     }
 
     play(soundName, mass = 10, vel = 1) {
@@ -148,6 +224,16 @@ class AudioSystem {
                 l.gain.gain.setValueAtTime(0.45 * intensity, now);
                 l.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
                 l.osc.start(now); l.osc.stop(now + 0.35);
+                break;
+
+            case 'thunder':
+                this.playNoise(now, 0.9, 0.65 * intensity);
+                let th = createSynth('sine');
+                th.osc.frequency.setValueAtTime(90, now);
+                th.osc.frequency.exponentialRampToValueAtTime(24, now + 0.9);
+                th.gain.gain.setValueAtTime(0.45 * intensity, now);
+                th.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
+                th.osc.start(now); th.osc.stop(now + 0.9);
                 break;
 
             case 'meteor':

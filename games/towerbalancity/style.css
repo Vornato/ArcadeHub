@@ -15,6 +15,7 @@
     --p2-color: #3498db;
     --p3-color: #2ecc71;
     --p4-color: #9b59b6;
+    --exposure-size: 68%;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -35,7 +36,7 @@ canvas { display: block; width: 100%; height: 100%; position: absolute; z-index:
 #weather-overlay, #darkness-overlay {
     position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 15; pointer-events: none; transition: opacity 2s; opacity: 0;
 }
-#darkness-overlay { background: radial-gradient(circle at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.95) 100%); }
+#darkness-overlay { background: radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.24) var(--exposure-size), rgba(0,0,0,0.96) 100%); }
 #weather-overlay { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="40"><rect width="1" height="20" fill="rgba(255,255,255,0.3)"/></svg>') repeat; animation: rain 0.3s linear infinite; }
 
 @keyframes rain { from { background-position: 0 0; } to { background-position: -20px 40px; } }
@@ -124,12 +125,52 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 #balance-meter-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
 .meter-label { font-weight: bold; color: #fff; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
 #balance-meter { width: 500px; height: 40px; border-radius: 20px; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; }
-#balance-bg { position: absolute; width: 100%; height: 100%; background: linear-gradient(90deg, rgba(255,71,87,0.8) 0%, rgba(255,165,2,0.8) 25%, rgba(46,213,115,0.8) 45%, rgba(46,213,115,0.8) 55%, rgba(255,165,2,0.8) 75%, rgba(255,71,87,0.8) 100%); opacity: 0.5; }
+#balance-bg { position: absolute; width: 100%; height: 100%; background: linear-gradient(90deg, rgba(255,71,87,0.8) 0%, rgba(255,165,2,0.8) 25%, rgba(46,213,115,0.8) 45%, rgba(46,213,115,0.8) 55%, rgba(255,165,2,0.8) 75%, rgba(255,71,87,0.8) 100%); opacity: 0.5; transform-origin: center; }
 #balance-center { position: absolute; left: 50%; top: -5px; width: 6px; height: 50px; background: #fff; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 #balance-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 50px; transition: left 0.1s ease-out; }
 .indicator-weight { width: 30px; height: 30px; background: #fff; border: 4px solid #222; border-radius: 50%; box-shadow: 0 5px 10px rgba(0,0,0,0.5); position: absolute; top: 10px; left: 0; }
-#com-arrow { font-size: 0.85rem; letter-spacing: 1px; color: #dfe6e9; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
-#com-arrow-icon { display: inline-block; color: #8ad8ff; font-size: 1.1rem; transition: transform 0.15s ease-out, color 0.15s ease-out; }
+#balance-meter-container.critical { animation: hudStressShake 0.32s infinite linear; }
+#balance-meter-container.critical #balance-bg { animation: dangerGradientPulse 0.95s ease-in-out infinite; }
+#com-arrow { font-size: 0.82rem; letter-spacing: 1px; color: #dfe6e9; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+.com-label, #com-arrow-mass { min-width: 110px; font-weight: bold; }
+.com-label { text-align: right; }
+#com-arrow-mass { text-align: left; color: rgba(255,255,255,0.84); }
+#com-arrow-widget { position: relative; width: 128px; height: 34px; display: flex; align-items: center; justify-content: center; }
+#com-arrow-trail {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 36px;
+    height: 12px;
+    border-radius: 999px;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(90deg, rgba(117,183,255,0.2) 0%, rgba(255,165,2,0.4) 58%, rgba(255,71,87,0.9) 100%);
+    filter: blur(6px);
+    opacity: 0.2;
+    transition: transform 0.16s ease-out, width 0.16s ease-out, opacity 0.16s ease-out;
+}
+#com-arrow-vector {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 84px;
+    height: 4px;
+    border-radius: 999px;
+    transform-origin: 12px 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(90deg, rgba(117,183,255,0.18) 0%, rgba(138,216,255,0.95) 55%, rgba(255,255,255,0.92) 100%);
+    box-shadow: 0 0 10px rgba(117,183,255,0.28);
+    transition: transform 0.16s ease-out, width 0.16s ease-out, background 0.16s ease-out, box-shadow 0.16s ease-out;
+}
+#com-arrow-icon {
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translate(50%, -50%) rotate(90deg);
+    color: #8ad8ff;
+    font-size: 1.15rem;
+    transition: color 0.16s ease-out;
+}
 
 #danger-text { font-size: 2rem; font-family: 'Fredoka One', cursive; text-shadow: 0 4px 6px rgba(0,0,0,0.8); transition: all 0.2s; }
 
@@ -143,7 +184,7 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
     padding: 8px 10px;
 }
 .status-chip {
-    min-width: 64px;
+    min-width: 78px;
     padding: 8px 10px;
     border-radius: 999px;
     font-size: 0.78rem;
@@ -153,7 +194,13 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.08);
     transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
 }
+.chip-name { line-height: 1; }
+.chip-forecast { font-size: 0.56rem; letter-spacing: 0.8px; opacity: 0.7; }
 .status-chip.active {
     color: #fff;
     background: rgba(255,255,255,0.18);
@@ -162,6 +209,25 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
 .status-chip.wind.active { box-shadow: 0 0 18px rgba(138,216,255,0.25); color: #8ad8ff; }
 .status-chip.rain.active { box-shadow: 0 0 18px rgba(117,183,255,0.25); color: #75b7ff; }
 .status-chip.dark.active { box-shadow: 0 0 18px rgba(196,155,255,0.2); color: #c49bff; }
+
+#tower-minimap-panel {
+    position: absolute;
+    top: 20px;
+    right: 190px;
+    width: 170px;
+    padding: 14px 14px 12px;
+    text-align: center;
+}
+#tower-minimap {
+    width: 100%;
+    height: 220px;
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 50% 15%, rgba(255,255,255,0.1), rgba(255,255,255,0.02) 45%, transparent 70%),
+        linear-gradient(180deg, rgba(6,14,30,0.78), rgba(9,20,39,0.92));
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 0 24px rgba(0,0,0,0.32);
+}
 
 #action-callout {
     position: absolute;
@@ -216,6 +282,16 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
     text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     transition: color 0.2s;
 }
+.queue-tooltip {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: rgba(223,230,233,0.84);
+    text-align: left;
+    min-height: 60px;
+}
 
 /* Animations */
 @keyframes shakeHeavy {
@@ -230,6 +306,18 @@ button:disabled { background: #555; box-shadow: 0 6px 0px #333; cursor: not-allo
     80% { transform: translate(-3px, -2px) rotate(2deg); }
     90% { transform: translate(3px, 4px) rotate(0deg); }
     100% { transform: translate(3px, -4px) rotate(-2deg); }
+}
+@keyframes hudStressShake {
+    0% { transform: translateX(-50%) translate(0px, 0px); }
+    25% { transform: translateX(-50%) translate(0.9px, -0.6px); }
+    50% { transform: translateX(-50%) translate(-0.8px, 0.9px); }
+    75% { transform: translateX(-50%) translate(1px, 0.4px); }
+    100% { transform: translateX(-50%) translate(0px, 0px); }
+}
+@keyframes dangerGradientPulse {
+    0% { opacity: 0.45; filter: saturate(1); }
+    50% { opacity: 0.9; filter: saturate(1.35) brightness(1.08); }
+    100% { opacity: 0.45; filter: saturate(1); }
 }
 .shake { animation: shakeHeavy 0.4s infinite; color: var(--danger-color) !important; }
 .danger-pulse { animation: dangerBg 2s infinite; }

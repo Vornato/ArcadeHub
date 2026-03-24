@@ -59,6 +59,7 @@ class Game {
         this.centerOfMassX = this.towerCenterX;
         this.centerOfMassY = 0;
         this.centerOfMassOffset = 0;
+        this.centerOfMassVerticalOffset = 0;
         this.totalMass = 0;
         this.quakeImpulseX = 0;
         this.quakeImpulseY = 0;
@@ -207,6 +208,7 @@ class Game {
         this.centerOfMassX = this.towerCenterX;
         this.centerOfMassY = 0;
         this.centerOfMassOffset = 0;
+        this.centerOfMassVerticalOffset = 0;
         this.totalMass = 0;
         this.quakeImpulseX = 0;
         this.quakeImpulseY = 0;
@@ -296,6 +298,7 @@ class Game {
     stopReal() {
         this.isRunning = false;
         this.music.stop();
+        this.audio.updateTension(0, 0, 0);
         this.ui.hideHUD();
 
         const xpGained = this.meta.endRun(this.height);
@@ -323,6 +326,7 @@ class Game {
         if (!this.isRunning) return;
         this.isPaused = !this.isPaused;
         if (this.isPaused) {
+            this.audio.updateTension(0, 0, 0);
             this.ui.showPause();
         } else {
             this.lastFrameTime = 0;
@@ -476,13 +480,16 @@ class Game {
 
     getSupportingFloor(entity) {
         const feetY = entity.y + entity.h;
+        const centerX = entity.x + entity.w / 2;
         for (let i = this.floors.length - 1; i >= 0; i--) {
             const floor = this.floors[i];
-            const floorTop = floor.colliders[0] ? floor.colliders[0].y : (floor.y + floor.h - 20);
+            const floorTop = typeof floor.getSurfaceYAt === 'function'
+                ? floor.getSurfaceYAt(centerX)
+                : (floor.colliders[0] ? floor.colliders[0].y : (floor.y + floor.h - 20));
             if (
                 entity.x + entity.w > floor.x &&
                 entity.x < floor.x + floor.w &&
-                Math.abs(feetY - floorTop) < 14
+                Math.abs(feetY - floorTop) < 16
             ) {
                 return floor;
             }
@@ -624,7 +631,7 @@ class Game {
         // Teleport players to the dropping floor
         for (let p of this.players) {
             p.x = x + w / 2 - p.w / 2 + Utils.random(-10, 10);
-            p.y = newFloor.y + newFloor.h - newFloor.wallL - p.h - 1;
+            p.y = newFloor.getSurfaceYAt(p.x + p.w / 2) - p.h - 1;
             p.vx = 0;
             p.vy = 0;
             this.particles.emitImpactDust(p.x + p.w / 2, p.y + p.h, 5);
@@ -749,9 +756,16 @@ class Game {
     updateStatics() {
         this.statics = [];
         for (let f of this.floors) {
-            if (f.colliders && f.colliders[0]) {
-                let rainFriction = this.progression.isRaining ? 1.12 : 1.0;
-                f.colliders[0].frictionModifier = Utils.clamp(f.baseFloorFriction * rainFriction, 0.78, 1.12);
+            if (typeof f.rebuildColliders === 'function') {
+                f.rebuildColliders();
+            }
+            if (f.colliders) {
+                const rainSlip = (this.progression.rainIntensity || 0) * 0.18;
+                const slopeSlip = Math.abs((f.localSlope || 0) + (f.seesawAngle || 0)) * 0.45;
+                for (let collider of f.colliders) {
+                    if (!collider.isFloor) continue;
+                    collider.frictionModifier = Utils.clamp(f.baseFloorFriction + rainSlip + slopeSlip, 0.72, 1.08);
+                }
             }
             this.statics = this.statics.concat(f.colliders);
         }
@@ -769,6 +783,11 @@ class Game {
         }
 
         this.progression.updateEnvironment();
+        for (let f of this.floors) {
+            if (typeof f.updateDynamicState === 'function') {
+                f.updateDynamicState(this);
+            }
+        }
         this.updateStatics();
         if (this.slowMoTimer > 0) this.slowMoTimer--;
         const targetTimeScale = this.slowMoTimer > 0 ? 0.45 : 1;
@@ -919,7 +938,8 @@ class Game {
                 const supportFloor = this.getSupportingFloor(obj);
                 const dynamicTilt = tilt + (Math.abs(this.towerAngularVelocity) * 1.8) + (this.motionStress * 0.02);
                 if (obj.onGround) {
-                    const floorSlope = supportFloor ? Math.abs(supportFloor.localSlope || 0) : 0;
+                    const sampledSlope = supportFloor ? supportFloor.getLocalSlopeAt(obj.x + obj.w / 2) : 0;
+                    const floorSlope = Math.abs(sampledSlope);
                     const totalTilt = dynamicTilt + floorSlope;
                     if (totalTilt > obj.slideThreshold) {
                         const slideRatio = Utils.clamp(
@@ -928,7 +948,7 @@ class Game {
                             1
                         );
                         obj.slideTimer = Math.min(1, obj.slideTimer + (0.06 + slideRatio * 0.04));
-                        const localDir = supportFloor && supportFloor.localSlope ? Math.sign(supportFloor.localSlope) : downhillDir;
+                        const localDir = sampledSlope ? Math.sign(sampledSlope) : downhillDir;
                         obj.vx += localDir * obj.slideAccel * (0.18 + slideRatio + obj.slideTimer) * (1 + Math.abs(this.towerAngularVelocity) * 6);
                         obj.visualTiltTarget = downhillDir * Math.min(0.22, 0.05 + slideRatio * 0.16);
                     } else if (totalTilt > obj.slideThreshold * 0.58) {
@@ -977,7 +997,7 @@ class Game {
         for (let p of this.players) {
             if (p.y > this.canvas.height + Math.abs(this.cameraDirector.y) + 300) {
                 p.x = this.towerCenterX;
-                p.y = this.floors[this.floors.length - 1].y - 80;
+                p.y = this.floors[this.floors.length - 1].getSurfaceYAt(this.towerCenterX) - 80;
                 p.vx = 0;
                 p.vy = 0;
                 this.triggerShake(5, 10);
@@ -1009,6 +1029,7 @@ class Game {
         this.centerOfMassX = massState.centerOfMassX;
         this.centerOfMassY = massState.centerOfMassY;
         this.centerOfMassOffset = massState.centerOfMassOffset;
+        this.centerOfMassVerticalOffset = massState.centerOfMassVerticalOffset;
         this.totalMass = massState.totalMass;
 
         const chapterShrink = (this.progression.currentChapter - 1) * 1000;
@@ -1045,13 +1066,35 @@ class Game {
             this.ui.showActionCallout('HEROIC SAVE!', 'heroic');
         }
 
-        this.ui.updateBalance(this.balance, this.dangerLevel, this.centerOfMassOffset);
-        this.ui.updateWeatherStates(this.progression.windForce, this.progression.isRaining, this.progression.isDark);
+        const balanceState = {
+            horizontalOffset: this.centerOfMassOffset,
+            verticalOffset: this.centerOfMassVerticalOffset,
+            totalMass: this.totalMass,
+            massRatio: Utils.clamp(this.totalMass / 9000, 0, 1),
+            dangerRatio: Utils.clamp(Math.abs(this.torqueRatio), 0, 1)
+        };
+        this.ui.updateBalance(this.balance, this.dangerLevel, balanceState);
+        this.ui.updateWeatherStates(this.progression.getWeatherState());
+        const showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
+        this.ui.setWeather(showWeather ? (this.progression.rainIntensity || 0) : 0, showWeather ? (this.progression.darkness || 0) : 0);
+        this.ui.updateMinimap(this.floors, this.players, this.objects, this.towerCenterX, {
+            horizontalOffset: this.centerOfMassOffset,
+            centerX: this.centerOfMassX,
+            centerY: this.centerOfMassY
+        });
+        this.audio.updateTension(this.motionStress, this.progression.stormLevel || 0, this.progression.rainIntensity || 0);
 
         if (this.progression.lightningFlash > 0.9 && this.lastLightningFlash <= 0.9) {
             this.audio.play('lightning');
         }
+        if (this.progression.thunderTimer === 1) {
+            this.audio.play('thunder');
+        }
         this.lastLightningFlash = this.progression.lightningFlash;
+
+        if (this.motionStress > 0.72 && Math.random() < 0.08) {
+            this.triggerShake(1.5, 4);
+        }
 
         if (this.dangerLevel === 3) {
             this.dangerTimer++;

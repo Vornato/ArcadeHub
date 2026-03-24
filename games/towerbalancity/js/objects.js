@@ -2,15 +2,19 @@
 // Thematic Floors and Heavy Furniture
 
 const FloorArchetypes = {
-    'normal': { w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal', name: 'Standard Floor' },
-    'wide': { w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide', name: 'Wide Floor' },
-    'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor' },
-    'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor' },
-    'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor' },
-    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor' },
-    'hex': { w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck' },
-    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.14, id: 'ramp-left', name: 'Ramp Left' },
-    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.14, id: 'ramp-right', name: 'Ramp Right' }
+    'normal': { w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal', name: 'Standard Floor', material: 'wood', tooltip: 'Reliable wooden span with neutral balance.' },
+    'wide': { w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide', name: 'Wide Floor', material: 'metal', tooltip: 'Broad metal deck with extra reach and higher mass.' },
+    'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor', material: 'wood', tooltip: 'Slim platform that punishes crowded stacks.' },
+    'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor', material: 'wood', tooltip: 'Built thick on the left side. Counter-weight it early.' },
+    'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor', material: 'wood', tooltip: 'Built thick on the right side. Counter-weight it early.' },
+    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor', material: 'metal', tooltip: 'Center pillar breaks movement and load paths.' },
+    'hex': { w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck', material: 'metal', tooltip: 'Tapered edges narrow the safe payload lane.' },
+    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.14, id: 'ramp-left', name: 'Ramp Left', material: 'wood', tooltip: 'Slides cargo left. Brace or stumble downhill.' },
+    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.14, id: 'ramp-right', name: 'Ramp Right', material: 'wood', tooltip: 'Slides cargo right. Brace or stumble downhill.' },
+    'curve-left': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 18, curveBias: -0.45, surfaceSegments: 7, id: 'curve-left', name: 'Curved Left', material: 'metal', tooltip: 'Curved deck collects weight on the left pocket.' },
+    'curve-right': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 18, curveBias: 0.45, surfaceSegments: 7, id: 'curve-right', name: 'Curved Right', material: 'metal', tooltip: 'Curved deck collects weight on the right pocket.' },
+    'circular': { w: 340, h: 108, massMult: 1.12, wallLeft: 22, wallRight: 22, curveDepth: -16, surfaceSegments: 8, id: 'circular', name: 'Circular Deck', material: 'ice', tooltip: 'Convex circular floor sheds loads toward the sides.' },
+    'seesaw': { w: 340, h: 96, massMult: 0.95, wallLeft: 18, wallRight: 18, isSeesaw: true, seesawRange: 0.16, surfaceSegments: 8, id: 'seesaw', name: 'Seesaw Deck', material: 'wood', tooltip: 'Pivoting floor feeds occupant torque back into the tower.' }
 };
 
 class Floor {
@@ -69,31 +73,130 @@ class Floor {
         this.rotation = 0;
         this.localSlope = this.archetype.localSlope || 0;
         this.edgeInset = this.archetype.edgeInset || 0;
+        this.curveDepth = this.archetype.curveDepth || 0;
+        this.curveBias = this.archetype.curveBias || 0;
+        this.surfaceSegments = isFoundation ? 1 : (this.archetype.surfaceSegments || (this.curveDepth !== 0 || this.archetype.isSeesaw ? 7 : 1));
+        this.isSeesaw = !!this.archetype.isSeesaw;
+        this.seesawRange = this.archetype.seesawRange || 0.14;
+        this.seesawAngle = 0;
+        this.seesawVelocity = 0;
+        this.material = this.resolveMaterial();
         this.demolitionProgress = 0;
 
         const winTop = 40;
         const winH = 80;
 
-        this.baseFloorFriction = this.isSlippery ? 0.98 : 0.8; // default friction is 0.8 in physics.js
+        this.baseFloorFriction = this.getMaterialFriction(this.material);
+        this.winTop = winTop;
+        this.winH = winH;
+        this.colliders = [];
+        this.rebuildColliders();
+    }
 
-        // Bottom floor collider
-        this.colliders = [
-            { x: this.x, y: this.y + this.h - this.wallL, w: this.w, h: this.wallL, isFloor: true, frictionModifier: this.baseFloorFriction }
-        ];
+    resolveMaterial() {
+        if (this.isSlippery) return 'ice';
+        if (this.archetype.material) return this.archetype.material;
+        if (!this.projectTheme) return 'wood';
+        if (this.projectTheme.id === 'industrial' || this.projectTheme.id === 'glass') return 'metal';
+        return this.projectTheme.id === 'cheap' ? 'wood' : 'wood';
+    }
 
-        if (!isFoundation) {
-            // Left Wall
-            this.colliders.push({ x: this.x, y: this.y + winTop + winH, w: this.wallL, h: this.h - winTop - winH - 20 });
-            this.colliders.push({ x: this.x, y: this.y, w: this.wallL, h: winTop });
-            // Right Wall
-            this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y + winTop + winH, w: this.wallR, h: this.h - winTop - winH - 20 });
-            this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y, w: this.wallR, h: winTop });
-            
-            // Center Pillar
+    getMaterialFriction(material) {
+        if (material === 'ice') return 0.98;
+        if (material === 'metal') return 0.86;
+        return 0.78;
+    }
+
+    getInnerBounds() {
+        const innerX = this.x + this.wallL;
+        const innerW = this.w - this.wallL - this.wallR;
+        return { innerX, innerW };
+    }
+
+    getSurfaceBaseY() {
+        return this.y + this.h - Math.max(18, Math.round((this.wallL + this.wallR) * 0.5));
+    }
+
+    getProfileShift(localNorm) {
+        const { innerW } = this.getInnerBounds();
+        const slopeShift = (this.localSlope || 0) * localNorm * (innerW * 0.2);
+        const shiftedNorm = Utils.clamp(localNorm - this.curveBias, -1.1, 1.1);
+        const curveShift = this.curveDepth !== 0 ? this.curveDepth * (1 - Math.min(1, shiftedNorm * shiftedNorm)) : 0;
+        const seesawShift = this.isSeesaw ? localNorm * this.seesawAngle * innerW * 0.32 : 0;
+        return slopeShift + curveShift + seesawShift;
+    }
+
+    getSurfaceYAt(worldX) {
+        const { innerX, innerW } = this.getInnerBounds();
+        const clampedX = Utils.clamp(worldX, innerX, innerX + innerW);
+        const localNorm = innerW > 0 ? (((clampedX - innerX) / innerW) * 2) - 1 : 0;
+        return this.getSurfaceBaseY() + this.getProfileShift(localNorm);
+    }
+
+    getLocalSlopeAt(worldX) {
+        const sample = 14;
+        const left = this.getSurfaceYAt(worldX - sample);
+        const right = this.getSurfaceYAt(worldX + sample);
+        return Utils.clamp((right - left) / 40, -0.24, 0.24);
+    }
+
+    rebuildColliders() {
+        this.colliders = [];
+        const { innerX, innerW } = this.getInnerBounds();
+        const segmentCount = Math.max(1, this.surfaceSegments);
+        const segW = innerW / segmentCount;
+
+        for (let i = 0; i < segmentCount; i++) {
+            const segX = innerX + (i * segW);
+            const sampleX = segX + (segW / 2);
+            const segY = this.getSurfaceYAt(sampleX);
+            this.colliders.push({
+                x: segX,
+                y: segY,
+                w: segW + 1,
+                h: Math.max(18, (this.y + this.h) - segY),
+                isFloor: true,
+                floorRef: this,
+                surfaceSlope: this.getLocalSlopeAt(sampleX),
+                frictionModifier: this.baseFloorFriction
+            });
+        }
+
+        if (!this.isFoundation) {
+            this.colliders.push({ x: this.x, y: this.y + this.winTop + this.winH, w: this.wallL, h: this.h - this.winTop - this.winH - 20 });
+            this.colliders.push({ x: this.x, y: this.y, w: this.wallL, h: this.winTop });
+            this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y + this.winTop + this.winH, w: this.wallR, h: this.h - this.winTop - this.winH - 20 });
+            this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y, w: this.wallR, h: this.winTop });
+
             if (this.archetype.centerPillar) {
-                this.colliders.push({ x: this.x + this.w/2 - 15, y: this.y, w: 30, h: this.h - 20 });
+                this.colliders.push({ x: this.x + this.w / 2 - 15, y: this.y, w: 30, h: this.h - 20 });
             }
         }
+    }
+
+    updateDynamicState(game) {
+        if (!this.isSeesaw || !game) return;
+
+        const center = this.x + this.w / 2;
+        let occupantTorque = 0;
+        const applyEntity = (entity, mass) => {
+            if (game.getSupportingFloor(entity) !== this) return;
+            occupantTorque += ((entity.x + entity.w / 2) - center) * mass;
+        };
+
+        for (let obj of game.objects) {
+            if (!obj.heldBy) applyEntity(obj, obj.mass);
+        }
+        for (let player of game.players) {
+            applyEntity(player, player.mass + (player.heldObject ? player.heldObject.mass * 0.35 : 0));
+        }
+
+        const targetAngle = Utils.clamp(occupantTorque / 12500, -this.seesawRange, this.seesawRange);
+        this.seesawVelocity += (targetAngle - this.seesawAngle) * 0.08;
+        this.seesawVelocity *= 0.82;
+        this.seesawAngle += this.seesawVelocity;
+        this.intrinsicTorqueOffset = this.seesawAngle * 180;
+        this.rebuildColliders();
     }
 
     draw(ctx) {
@@ -172,6 +275,42 @@ class Floor {
             }
             ctx.closePath();
             ctx.fill();
+        } else if (this.curveDepth !== 0 || this.isSeesaw) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i <= 8; i++) {
+                const sampleX = innerX + (innerW * (i / 8));
+                const sampleY = this.getSurfaceYAt(sampleX) - 3;
+                if (i === 0) ctx.moveTo(sampleX, sampleY);
+                else ctx.lineTo(sampleX, sampleY);
+            }
+            ctx.stroke();
+        }
+
+        if (this.material === 'wood') {
+            ctx.fillStyle = 'rgba(255,228,185,0.12)';
+            for (let i = 10; i < innerW - 10; i += 24) {
+                ctx.fillRect(innerX + i, this.y + 12, 2, this.h - 36);
+            }
+        } else if (this.material === 'metal') {
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 2;
+            for (let i = -20; i < innerW + 20; i += 24) {
+                ctx.beginPath();
+                ctx.moveTo(innerX + i, this.y + this.h - 18);
+                ctx.lineTo(innerX + i + 14, this.y + this.h - 32);
+                ctx.stroke();
+            }
+        } else if (this.material === 'ice') {
+            ctx.fillStyle = 'rgba(190,236,255,0.16)';
+            ctx.beginPath();
+            ctx.moveTo(innerX + 12, this.y + this.h - 24);
+            ctx.lineTo(innerX + innerW - 24, this.y + this.h - 32);
+            ctx.lineTo(innerX + innerW - 10, this.y + this.h - 18);
+            ctx.lineTo(innerX + 28, this.y + this.h - 10);
+            ctx.closePath();
+            ctx.fill();
         }
 
         ctx.fillStyle = 'rgba(255,255,255,0.38)';
@@ -243,6 +382,15 @@ class Floor {
             ctx.fillRect(this.x + this.w / 2 - 10, this.y + 14, 20, 3);
         }
 
+        if (this.isSeesaw) {
+            ctx.fillStyle = '#ffd166';
+            ctx.beginPath();
+            ctx.arc(this.x + this.w / 2, this.y + this.h - 10, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(this.x + this.w / 2 - 3, this.y + this.h - 26, 6, 12);
+        }
+
         const sideGrad = ctx.createLinearGradient(this.x + this.w, this.y, this.x + this.w + this.depthW, this.y + this.h);
         sideGrad.addColorStop(0, Utils.adjustColor(this.baseColor, -8));
         sideGrad.addColorStop(1, Utils.adjustColor(this.baseColor, -42));
@@ -291,15 +439,9 @@ class Floor {
             nextY = x;
             nextX = this.x;
         }
-
-        let dx = nextX - this.x;
-        let dy = nextY - this.y;
         this.x = nextX;
         this.y = nextY;
-        for (let c of this.colliders) {
-            c.x += dx;
-            c.y += dy;
-        }
+        this.rebuildColliders();
     }
 }
 

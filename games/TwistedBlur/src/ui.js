@@ -194,7 +194,7 @@ export class UIRenderer {
     ctx.fillText("Modes Online", width - 384, height - 208);
     ctx.font = "18px Trebuchet MS";
     ctx.fillText("Combat Race  |  Arena Deathmatch", width - 384, height - 164);
-    ctx.fillText("Survival  |  Quick Battle", width - 384, height - 132);
+    ctx.fillText("Survival  |  Drift Attack  |  Quick Battle", width - 384, height - 132);
     ctx.fillStyle = UI_COLORS.dim;
     ctx.fillText("Original vehicles, pickups, bots, and maps", width - 384, height - 102);
 
@@ -362,12 +362,14 @@ export class UIRenderer {
   }
 
   renderGlobalMatchBanner(ctx, width, height, match) {
-    drawCutPanel(ctx, width * 0.5 - 180, 12, 360, 62, UI_COLORS.accentHot, 0.88);
+    const bannerWidth = match.mode.id === "driftAttack" ? 500 : 360;
+    drawCutPanel(ctx, width * 0.5 - bannerWidth * 0.5, 12, bannerWidth, 62, UI_COLORS.accentHot, 0.88);
     ctx.fillStyle = UI_COLORS.text;
     ctx.font = "bold 18px Trebuchet MS";
     ctx.textAlign = "center";
     const timer = match.mode.timeLimit >= 999 ? formatTime(match.elapsed) : formatTime(Math.max(0, match.mode.timeLimit - match.elapsed));
-    ctx.fillText(`${match.mode.name}  |  ${timer}`, width * 0.5, 50);
+    const suffix = match.mode.id === "driftAttack" ? `  |  Lead ${Math.round(match.driftLeadScore ?? 0)}` : "";
+    ctx.fillText(`${match.mode.name}  |  ${timer}${suffix}`, width * 0.5, 50);
   }
 
   renderViewportFrame(ctx, viewport, participant) {
@@ -383,7 +385,7 @@ export class UIRenderer {
     ctx.restore();
   }
 
-  renderHud(ctx, viewport, participant, match, level) {
+  renderHud(ctx, viewport, participant, match, level, pickups = []) {
     const vehicle = participant.vehicle;
     const x = viewport.x;
     const y = viewport.y;
@@ -410,7 +412,11 @@ export class UIRenderer {
     ctx.fillStyle = healthRatio < 0.3 ? UI_COLORS.danger : UI_COLORS.good;
     ctx.fillRect(x + 28, y + 72, barWidth * healthRatio, 11);
     ctx.fillStyle = UI_COLORS.accentCyan;
-    ctx.fillRect(x + 28, y + 98, barWidth * boostRatio, 11);
+    ctx.fillRect(x + 28, y + 98, barWidth * Math.min(1, boostRatio), 11);
+    if (boostRatio > 1) {
+      ctx.fillStyle = UI_COLORS.accentHot;
+      ctx.fillRect(x + 28 + barWidth, y + 98, Math.min(barWidth * 0.35, barWidth * (boostRatio - 1)), 11);
+    }
 
     ctx.fillStyle = UI_COLORS.text;
     ctx.textAlign = "right";
@@ -427,6 +433,10 @@ export class UIRenderer {
       ctx.fillText(`Lap ${Math.min(match.mode.laps, vehicle.lap + 1)}/${match.mode.laps}`, x + w - rightWidth + 4, y + 60);
       ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "Race Line", x + w - rightWidth + 4, y + 82);
       ctx.fillText(`Kills ${vehicle.kills}`, x + w - rightWidth + 4, y + 104);
+    } else if (match.mode.id === "driftAttack") {
+      ctx.fillText(`Score ${Math.round(vehicle.score)}`, x + w - rightWidth + 4, y + 60);
+      ctx.fillText(`Drift ${Math.round(vehicle.driftScore)}`, x + w - rightWidth + 4, y + 82);
+      ctx.fillText(`Chain x${Math.max(1, vehicle.streakLevel + 1)}`, x + w - rightWidth + 4, y + 104);
     } else {
       ctx.fillText(`Kills ${vehicle.kills}`, x + w - rightWidth + 4, y + 60);
       ctx.fillText(`Deaths ${vehicle.deaths}`, x + w - rightWidth + 4, y + 82);
@@ -434,7 +444,16 @@ export class UIRenderer {
     }
 
     if (!compact) {
-      renderMinimap(ctx, level, x + w - 204, y + h - 166, 190, 152, match.participants, participant.id);
+      renderMinimap(ctx, level, x + w - 204, y + h - 166, 190, 152, match.participants, participant.id, {
+        rotateWithFocus: true,
+        time: match.elapsed,
+        pickups,
+      });
+    }
+
+    if (vehicle.streakLevel > 0) {
+      drawCutPanel(ctx, x + 20, y + h - 68, compact ? 136 : 156, 42, UI_COLORS.warning, 0.82);
+      fillTextGlow(ctx, `OVERDRIVE x${vehicle.streakLevel + 1}`, x + (compact ? 88 : 98), y + h - 40, compact ? 13 : 14, UI_COLORS.warning);
     }
 
     if (!vehicle.isAlive() && !vehicle.eliminated) {
