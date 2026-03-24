@@ -340,4 +340,43 @@ export class InputManager {
       pause: this.wasKeyPressed(layout.pause),
     };
   }
+
+  getBindingMenuActions(binding) {
+    if (!binding) {
+      return {
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        accept: false,
+        back: false,
+      };
+    }
+
+    if (binding.type === "gamepad") {
+      const index = binding.gamepadIndex;
+      const axisX = deadzone(this.axisValue(index, 0), 0.45);
+      const axisY = deadzone(this.axisValue(index, 1), 0.45);
+      const prevAxisX = deadzone(this.previousGamepads[index]?.axes?.[0] ?? 0, 0.45);
+      const prevAxisY = deadzone(this.previousGamepads[index]?.axes?.[1] ?? 0, 0.45);
+      return {
+        left: (axisX < -0.45 && prevAxisX >= -0.45) || this.buttonPressed(index, 14),
+        right: (axisX > 0.45 && prevAxisX <= 0.45) || this.buttonPressed(index, 15),
+        up: (axisY < -0.45 && prevAxisY >= -0.45) || this.buttonPressed(index, 12),
+        down: (axisY > 0.45 && prevAxisY <= 0.45) || this.buttonPressed(index, 13),
+        accept: this.buttonPressed(index, 0) || this.buttonPressed(index, 9),
+        back: this.buttonPressed(index, 1),
+      };
+    }
+
+    const layout = KEYBOARD_LAYOUTS[binding.schemeIndex] ?? KEYBOARD_LAYOUTS[0];
+    return {
+      left: this.wasKeyPressed(layout.steerLeft),
+      right: this.wasKeyPressed(layout.steerRight),
+      up: this.wasKeyPressed(layout.accel),
+      down: this.wasKeyPressed(layout.brake),
+      accept: this.wasKeyPressed(layout.fire),
+      back: this.wasKeyPressed(layout.alt) || this.wasKeyPressed(layout.pause),
+    };
+  }
 }

@@ -75,7 +75,7 @@ class Floor {
         this.edgeInset = this.archetype.edgeInset || 0;
         this.curveDepth = this.archetype.curveDepth || 0;
         this.curveBias = this.archetype.curveBias || 0;
-        this.surfaceSegments = isFoundation ? 1 : (this.archetype.surfaceSegments || (this.curveDepth !== 0 || this.archetype.isSeesaw ? 7 : 1));
+        this.surfaceSegments = isFoundation ? 1 : (this.archetype.surfaceSegments || ((this.localSlope !== 0 || this.curveDepth !== 0 || this.archetype.isSeesaw) ? 7 : 1));
         this.isSeesaw = !!this.archetype.isSeesaw;
         this.seesawRange = this.archetype.seesawRange || 0.14;
         this.seesawAngle = 0;
@@ -113,23 +113,32 @@ class Floor {
         return { innerX, innerW };
     }
 
+    getSupportBounds() {
+        const insetL = Math.max(this.wallL, this.edgeInset || 0);
+        const insetR = Math.max(this.wallR, this.edgeInset || 0);
+        return {
+            supportX: this.x + insetL,
+            supportW: Math.max(24, this.w - insetL - insetR)
+        };
+    }
+
     getSurfaceBaseY() {
         return this.y + this.h - Math.max(18, Math.round((this.wallL + this.wallR) * 0.5));
     }
 
     getProfileShift(localNorm) {
-        const { innerW } = this.getInnerBounds();
-        const slopeShift = (this.localSlope || 0) * localNorm * (innerW * 0.2);
+        const { supportW } = this.getSupportBounds();
+        const slopeShift = (this.localSlope || 0) * localNorm * (supportW * 0.2);
         const shiftedNorm = Utils.clamp(localNorm - this.curveBias, -1.1, 1.1);
         const curveShift = this.curveDepth !== 0 ? this.curveDepth * (1 - Math.min(1, shiftedNorm * shiftedNorm)) : 0;
-        const seesawShift = this.isSeesaw ? localNorm * this.seesawAngle * innerW * 0.32 : 0;
+        const seesawShift = this.isSeesaw ? localNorm * this.seesawAngle * supportW * 0.32 : 0;
         return slopeShift + curveShift + seesawShift;
     }
 
     getSurfaceYAt(worldX) {
-        const { innerX, innerW } = this.getInnerBounds();
-        const clampedX = Utils.clamp(worldX, innerX, innerX + innerW);
-        const localNorm = innerW > 0 ? (((clampedX - innerX) / innerW) * 2) - 1 : 0;
+        const { supportX, supportW } = this.getSupportBounds();
+        const clampedX = Utils.clamp(worldX, supportX, supportX + supportW);
+        const localNorm = supportW > 0 ? (((clampedX - supportX) / supportW) * 2) - 1 : 0;
         return this.getSurfaceBaseY() + this.getProfileShift(localNorm);
     }
 
@@ -142,12 +151,12 @@ class Floor {
 
     rebuildColliders() {
         this.colliders = [];
-        const { innerX, innerW } = this.getInnerBounds();
+        const { supportX, supportW } = this.getSupportBounds();
         const segmentCount = Math.max(1, this.surfaceSegments);
-        const segW = innerW / segmentCount;
+        const segW = supportW / segmentCount;
 
         for (let i = 0; i < segmentCount; i++) {
-            const segX = innerX + (i * segW);
+            const segX = supportX + (i * segW);
             const sampleX = segX + (segW / 2);
             const segY = this.getSurfaceYAt(sampleX);
             this.colliders.push({

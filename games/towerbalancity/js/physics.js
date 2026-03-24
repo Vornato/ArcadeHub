@@ -29,6 +29,9 @@ class PhysicsEngine {
         
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
+                if (s.isFloor && (entity.y + entity.h) <= (s.y + 10)) {
+                    continue;
+                }
                 if (entity.vx > 0) {
                     entity.x = s.x - entity.w; 
                 } else if (entity.vx < 0) {
@@ -50,27 +53,43 @@ class PhysicsEngine {
         let groundFriction = this.friction;
         let groundCollider = null;
 
+        const collisionsY = [];
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
-                if (entity.vy > 0) {
-                    entity.y = s.y - entity.h; 
-                    if (entity.restitutionY && Math.abs(attemptedVY) > (entity.bounceThreshold || 3) && !entity.isPlayer) {
-                        entity.vy = -attemptedVY * entity.restitutionY;
-                    } else {
-                        entity.onGround = true;
-                        entity.vy = 0;
-                        groundCollider = s;
-                    }
-                } else if (entity.vy < 0) {
-                    entity.y = s.y + s.h;      
-                    if (entity.restitutionY && !entity.isPlayer) {
-                        entity.vy = -attemptedVY * entity.restitutionY * 0.4;
-                    } else {
-                        entity.vy = 0;
+                collisionsY.push(s);
+            }
+        }
+
+        if (collisionsY.length > 0) {
+            collideY = true;
+            if (entity.vy > 0) {
+                const floorHits = collisionsY.filter(s => s.isFloor);
+                const landingCollider = (floorHits.length > 0 ? floorHits : collisionsY).reduce((best, candidate) => {
+                    if (!best || candidate.y < best.y) return candidate;
+                    return best;
+                }, null);
+                entity.y = landingCollider.y - entity.h;
+                if (entity.restitutionY && Math.abs(attemptedVY) > (entity.bounceThreshold || 3) && !entity.isPlayer) {
+                    entity.vy = -attemptedVY * entity.restitutionY;
+                } else {
+                    entity.onGround = true;
+                    entity.vy = 0;
+                    groundCollider = landingCollider;
+                    if (landingCollider.frictionModifier !== undefined) {
+                        groundFriction = landingCollider.frictionModifier;
                     }
                 }
-                collideY = true;
-                if (s.frictionModifier !== undefined) groundFriction = s.frictionModifier;
+            } else if (entity.vy < 0) {
+                const headCollider = collisionsY.reduce((best, candidate) => {
+                    if (!best || (candidate.y + candidate.h) > (best.y + best.h)) return candidate;
+                    return best;
+                }, null);
+                entity.y = headCollider.y + headCollider.h;
+                if (entity.restitutionY && !entity.isPlayer) {
+                    entity.vy = -attemptedVY * entity.restitutionY * 0.4;
+                } else {
+                    entity.vy = 0;
+                }
             }
         }
 

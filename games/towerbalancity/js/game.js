@@ -483,12 +483,15 @@ class Game {
         const centerX = entity.x + entity.w / 2;
         for (let i = this.floors.length - 1; i >= 0; i--) {
             const floor = this.floors[i];
+            const supportBounds = typeof floor.getSupportBounds === 'function'
+                ? floor.getSupportBounds()
+                : { supportX: floor.x, supportW: floor.w };
             const floorTop = typeof floor.getSurfaceYAt === 'function'
                 ? floor.getSurfaceYAt(centerX)
                 : (floor.colliders[0] ? floor.colliders[0].y : (floor.y + floor.h - 20));
             if (
-                entity.x + entity.w > floor.x &&
-                entity.x < floor.x + floor.w &&
+                entity.x + entity.w > supportBounds.supportX &&
+                entity.x < supportBounds.supportX + supportBounds.supportW &&
                 Math.abs(feetY - floorTop) < 16
             ) {
                 return floor;

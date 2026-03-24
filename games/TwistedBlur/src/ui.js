@@ -284,10 +284,13 @@ export class UIRenderer {
       ctx.font = "16px Trebuchet MS";
       ctx.fillText(player.type === "gamepad" ? `Pad ${player.gamepadIndex + 1}` : `Keyboard ${player.schemeIndex + 1}`, 604, rowY + 28);
       ctx.fillText(vehicle.description, 860, rowY + 2);
-      ctx.fillText(vehicle.archetype, 860, rowY + 28);
+      ctx.fillText(`${vehicle.archetype}  |  ${player.ready ? "READY" : "EDITING"}`, 860, rowY + 28);
     });
 
-    fillTextGlow(ctx, "UP / DOWN selects driver, LEFT / RIGHT changes vehicle", width * 0.5, height - 76, 20, UI_COLORS.dim);
+    const prompt = menu.areAllPlayersReady()
+      ? "ALL DRIVERS LOCKED. ADVANCING..."
+      : "Each driver uses steer to swap, fire / A to lock, alt / B to unlock.";
+    fillTextGlow(ctx, prompt, width * 0.5, height - 76, 20, menu.areAllPlayersReady() ? UI_COLORS.warning : UI_COLORS.dim);
   }
 
   renderModeSelect(ctx, width, height, menu) {
@@ -325,7 +328,40 @@ export class UIRenderer {
     fillTextGlow(ctx, `${level.category.toUpperCase()} MAP`, width * 0.5, 312, 18, UI_COLORS.accentHot);
 
     renderMinimap(ctx, level, width * 0.5 - 300, 360, 600, 230, [], null);
-    fillTextGlow(ctx, "LEFT / RIGHT changes map. ENTER launches the match.", width * 0.5, height - 76, 22, UI_COLORS.dim);
+    fillTextGlow(ctx, "LEFT / RIGHT changes map. ENTER opens the ready check.", width * 0.5, height - 76, 22, UI_COLORS.dim);
+  }
+
+  renderLaunchConfirm(ctx, width, height, menu) {
+    const level = getLevel(menu.selectedLevelId);
+    const mode = MODE_DEFS[menu.modeId];
+    drawBackground(ctx, width, height, 0.45, UI_COLORS.accentHot, UI_COLORS.accentLime);
+    fillTextGlow(ctx, "MATCH READY", width * 0.5, 90, 54, UI_COLORS.accentHot);
+
+    drawCutPanel(ctx, width * 0.5 - 430, 150, 860, 238, UI_COLORS.accentHot, 0.9);
+    fillTextGlow(ctx, mode.name, width * 0.5, 220, 40, "#f4f8ff");
+    fillTextGlow(ctx, level.name, width * 0.5, 264, 24, UI_COLORS.accentCyan);
+    fillTextGlow(ctx, mode.description, width * 0.5, 306, 20, UI_COLORS.dim);
+    fillTextGlow(ctx, level.intro, width * 0.5, 340, 18, UI_COLORS.dim);
+
+    drawPanel(ctx, width * 0.5 - 430, 420, 860, 200, UI_COLORS.accentCyan, 0.84);
+    menu.players.forEach((player, index) => {
+      const cardWidth = 190;
+      const gap = 18;
+      const totalWidth = menu.players.length * cardWidth + Math.max(0, menu.players.length - 1) * gap;
+      const x = width * 0.5 - totalWidth * 0.5 + index * (cardWidth + gap);
+      drawCutPanel(ctx, x, 454, cardWidth, 120, player.ready ? player.color : "rgba(255,255,255,0.16)", player.ready ? 0.9 : 0.55);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.font = "bold 24px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText(player.label, x + cardWidth * 0.5, 492);
+      ctx.font = "16px Trebuchet MS";
+      ctx.fillText(player.ready ? "READY" : "WAITING", x + cardWidth * 0.5, 526);
+      const vehicle = VEHICLE_DEFS.find((entry) => entry.id === player.vehicleId) ?? VEHICLE_DEFS[0];
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.fillText(vehicle.name, x + cardWidth * 0.5, 554);
+    });
+
+    fillTextGlow(ctx, "All drivers confirm with fire / A. Alt / B cancels your check-in.", width * 0.5, height - 78, 20, UI_COLORS.dim);
   }
 
   renderPause(ctx, width, height, modeName, pauseIndex) {
@@ -391,60 +427,74 @@ export class UIRenderer {
     const y = viewport.y;
     const w = viewport.w;
     const h = viewport.h;
-    const compact = w < 520 || h < 320;
-    const leftWidth = compact ? 234 : 274;
+    const hudScale = Math.max(0.72, Math.min(1, Math.min(w / 760, h / 430)));
+    const compact = hudScale < 0.94;
+    const ultraCompact = hudScale < 0.82;
+    const pad = Math.round(14 * hudScale);
+    const leftWidth = Math.round((ultraCompact ? 220 : compact ? 244 : 274) * hudScale);
+    const rightWidth = Math.round((ultraCompact ? 136 : compact ? 156 : 186) * hudScale);
+    const panelHeight = Math.round((compact ? 118 : 132) * hudScale);
+    const leftX = x + pad;
+    const topY = y + pad;
+    const rightX = x + w - rightWidth - pad;
+    const labelX = leftX + Math.round(14 * hudScale);
 
-    drawPanel(ctx, x + 14, y + 14, leftWidth, compact ? 118 : 132, participant.color, 0.78);
+    drawPanel(ctx, leftX, topY, leftWidth, panelHeight, participant.color, 0.78);
     ctx.fillStyle = UI_COLORS.text;
-    ctx.font = compact ? "bold 16px Trebuchet MS" : "bold 18px Trebuchet MS";
+    ctx.font = `bold ${Math.round((compact ? 16 : 18) * hudScale)}px Trebuchet MS`;
     ctx.textAlign = "left";
-    ctx.fillText(`${participant.label}  ${vehicle.definition.name}`, x + 28, y + 38);
+    ctx.fillText(`${participant.label}  ${vehicle.definition.name}`, labelX, topY + Math.round(24 * hudScale));
     ctx.fillStyle = UI_COLORS.dim;
-    ctx.font = compact ? "13px Trebuchet MS" : "14px Trebuchet MS";
-    ctx.fillText(`${vehicle.definition.archetype}  |  ${Math.round(vehicle.speed)} u/s`, x + 28, y + 58);
+    ctx.font = `${Math.round((compact ? 13 : 14) * hudScale)}px Trebuchet MS`;
+    ctx.fillText(`${vehicle.definition.archetype}  |  ${Math.round(vehicle.speed)} u/s`, labelX, topY + Math.round(42 * hudScale));
 
     const healthRatio = vehicle.health / vehicle.maxHealth;
     const boostRatio = vehicle.boost / vehicle.maxBoost;
-    const barWidth = leftWidth - 56;
+    const barWidth = leftWidth - Math.round(28 * hudScale);
+    const barX = labelX;
+    const healthY = topY + Math.round(56 * hudScale);
+    const boostY = topY + Math.round(78 * hudScale);
+    const barHeight = Math.max(8, Math.round(11 * hudScale));
     ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(x + 28, y + 72, barWidth, 11);
-    ctx.fillRect(x + 28, y + 98, barWidth, 11);
+    ctx.fillRect(barX, healthY, barWidth, barHeight);
+    ctx.fillRect(barX, boostY, barWidth, barHeight);
     ctx.fillStyle = healthRatio < 0.3 ? UI_COLORS.danger : UI_COLORS.good;
-    ctx.fillRect(x + 28, y + 72, barWidth * healthRatio, 11);
+    ctx.fillRect(barX, healthY, barWidth * healthRatio, barHeight);
     ctx.fillStyle = UI_COLORS.accentCyan;
-    ctx.fillRect(x + 28, y + 98, barWidth * Math.min(1, boostRatio), 11);
+    ctx.fillRect(barX, boostY, barWidth * Math.min(1, boostRatio), barHeight);
     if (boostRatio > 1) {
       ctx.fillStyle = UI_COLORS.accentHot;
-      ctx.fillRect(x + 28 + barWidth, y + 98, Math.min(barWidth * 0.35, barWidth * (boostRatio - 1)), 11);
+      ctx.fillRect(barX + barWidth, boostY, Math.min(barWidth * 0.35, barWidth * (boostRatio - 1)), barHeight);
     }
 
     ctx.fillStyle = UI_COLORS.text;
     ctx.textAlign = "right";
-    ctx.fillText(vehicle.specialWeaponId ? `${vehicle.specialWeaponId.toUpperCase()} x${vehicle.specialAmmo}` : "AUTOCANNON", x + leftWidth - 24, y + 58);
+    ctx.fillText(vehicle.specialWeaponId ? `${vehicle.specialWeaponId.toUpperCase()} x${vehicle.specialAmmo}` : "AUTOCANNON", leftX + leftWidth - Math.round(12 * hudScale), topY + Math.round(42 * hudScale));
 
-    const rightWidth = compact ? 152 : 186;
-    drawPanel(ctx, x + w - rightWidth - 14, y + 14, rightWidth, compact ? 118 : 132, UI_COLORS.accentCyan, 0.76);
+    drawPanel(ctx, rightX, topY, rightWidth, panelHeight, UI_COLORS.accentCyan, 0.76);
     ctx.fillStyle = UI_COLORS.text;
     ctx.textAlign = "left";
-    ctx.font = compact ? "bold 16px Trebuchet MS" : "bold 18px Trebuchet MS";
-    ctx.fillText(`#${vehicle.place}`, x + w - rightWidth + 4, y + 38);
-    ctx.font = compact ? "13px Trebuchet MS" : "15px Trebuchet MS";
+    ctx.font = `bold ${Math.round((compact ? 16 : 18) * hudScale)}px Trebuchet MS`;
+    ctx.fillText(`#${vehicle.place}`, rightX + Math.round(14 * hudScale), topY + Math.round(24 * hudScale));
+    ctx.font = `${Math.round((compact ? 13 : 15) * hudScale)}px Trebuchet MS`;
     if (match.mode.id === "combatRace") {
-      ctx.fillText(`Lap ${Math.min(match.mode.laps, vehicle.lap + 1)}/${match.mode.laps}`, x + w - rightWidth + 4, y + 60);
-      ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "Race Line", x + w - rightWidth + 4, y + 82);
-      ctx.fillText(`Kills ${vehicle.kills}`, x + w - rightWidth + 4, y + 104);
+      ctx.fillText(`Lap ${Math.min(match.mode.laps, vehicle.lap + 1)}/${match.mode.laps}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
+      ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "Race Line", rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
+      ctx.fillText(`Kills ${vehicle.kills}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
     } else if (match.mode.id === "driftAttack") {
-      ctx.fillText(`Score ${Math.round(vehicle.score)}`, x + w - rightWidth + 4, y + 60);
-      ctx.fillText(`Drift ${Math.round(vehicle.driftScore)}`, x + w - rightWidth + 4, y + 82);
-      ctx.fillText(`Chain x${Math.max(1, vehicle.streakLevel + 1)}`, x + w - rightWidth + 4, y + 104);
+      ctx.fillText(`Score ${Math.round(vehicle.score)}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
+      ctx.fillText(`Drift ${Math.round(vehicle.driftScore)}`, rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
+      ctx.fillText(`Combo x${Math.max(1, vehicle.driftCombo)}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
     } else {
-      ctx.fillText(`Kills ${vehicle.kills}`, x + w - rightWidth + 4, y + 60);
-      ctx.fillText(`Deaths ${vehicle.deaths}`, x + w - rightWidth + 4, y + 82);
-      ctx.fillText(`Score ${vehicle.score}`, x + w - rightWidth + 4, y + 104);
+      ctx.fillText(`Kills ${vehicle.kills}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
+      ctx.fillText(`Deaths ${vehicle.deaths}`, rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
+      ctx.fillText(`Score ${vehicle.score}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
     }
 
-    if (!compact) {
-      renderMinimap(ctx, level, x + w - 204, y + h - 166, 190, 152, match.participants, participant.id, {
+    if (!ultraCompact && w >= 520 && h >= 330) {
+      const minimapW = Math.round(190 * hudScale);
+      const minimapH = Math.round(152 * hudScale);
+      renderMinimap(ctx, level, x + w - minimapW - pad, y + h - minimapH - pad, minimapW, minimapH, match.participants, participant.id, {
         rotateWithFocus: true,
         time: match.elapsed,
         pickups,
@@ -452,8 +502,39 @@ export class UIRenderer {
     }
 
     if (vehicle.streakLevel > 0) {
-      drawCutPanel(ctx, x + 20, y + h - 68, compact ? 136 : 156, 42, UI_COLORS.warning, 0.82);
-      fillTextGlow(ctx, `OVERDRIVE x${vehicle.streakLevel + 1}`, x + (compact ? 88 : 98), y + h - 40, compact ? 13 : 14, UI_COLORS.warning);
+      const streakWidth = Math.round((compact ? 138 : 158) * hudScale);
+      const streakHeight = Math.round(42 * hudScale);
+      drawCutPanel(ctx, x + Math.round(20 * hudScale), y + h - streakHeight - Math.round(26 * hudScale), streakWidth, streakHeight, UI_COLORS.warning, 0.82);
+      fillTextGlow(
+        ctx,
+        `OVERDRIVE x${vehicle.streakLevel + 1}`,
+        x + Math.round(20 * hudScale) + streakWidth * 0.5,
+        y + h - Math.round(28 * hudScale),
+        Math.max(12, Math.round((compact ? 13 : 14) * hudScale)),
+        UI_COLORS.warning,
+      );
+    }
+
+    if (match.mode.id === "driftAttack" && vehicle.driftScore > 10) {
+      const comboWidth = Math.round((ultraCompact ? 150 : 190) * hudScale);
+      const comboHeight = Math.round(42 * hudScale);
+      const comboX = x + w * 0.5 - comboWidth * 0.5;
+      const comboY = y + h - comboHeight - Math.round(18 * hudScale);
+      drawCutPanel(ctx, comboX, comboY, comboWidth, comboHeight, UI_COLORS.accentCyan, 0.84);
+      fillTextGlow(ctx, `Drift +${Math.round(vehicle.driftScore)}`, comboX + comboWidth * 0.5, comboY + Math.round(20 * hudScale), Math.max(12, Math.round(15 * hudScale)), UI_COLORS.text);
+      fillTextGlow(ctx, `Combo x${Math.max(1, vehicle.driftCombo)}`, comboX + comboWidth * 0.5, comboY + Math.round(36 * hudScale), Math.max(10, Math.round(11 * hudScale)), UI_COLORS.dim);
+    }
+
+    if (vehicle.hudMessageTimer > 0) {
+      const toastWidth = Math.round((ultraCompact ? 190 : 230) * hudScale);
+      const toastHeight = Math.round((vehicle.hudDetail ? 54 : 38) * hudScale);
+      const toastX = x + w * 0.5 - toastWidth * 0.5;
+      const toastY = y + h * 0.68;
+      drawCutPanel(ctx, toastX, toastY, toastWidth, toastHeight, vehicle.hudMessageAccent, 0.86);
+      fillTextGlow(ctx, vehicle.hudMessage, toastX + toastWidth * 0.5, toastY + Math.round(20 * hudScale), Math.max(12, Math.round(15 * hudScale)), vehicle.hudMessageColor);
+      if (vehicle.hudDetail) {
+        fillTextGlow(ctx, vehicle.hudDetail, toastX + toastWidth * 0.5, toastY + Math.round(40 * hudScale), Math.max(10, Math.round(11 * hudScale)), UI_COLORS.dim);
+      }
     }
 
     if (!vehicle.isAlive() && !vehicle.eliminated) {

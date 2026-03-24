@@ -44,6 +44,7 @@ export class MenuFlow {
       schemeIndex,
       gamepadIndex: null,
       vehicleId: VEHICLE_DEFS[schemeIndex % VEHICLE_DEFS.length].id,
+      ready: false,
       label: "",
       color: PLAYER_COLORS[schemeIndex % PLAYER_COLORS.length],
     };
@@ -56,6 +57,7 @@ export class MenuFlow {
       schemeIndex: null,
       gamepadIndex,
       vehicleId: VEHICLE_DEFS[(this.players.length + gamepadIndex) % VEHICLE_DEFS.length].id,
+      ready: false,
       label: "",
       color: PLAYER_COLORS[this.players.length % PLAYER_COLORS.length],
     };
@@ -66,6 +68,7 @@ export class MenuFlow {
     this.players.forEach((player, index) => {
       player.label = PLAYER_LABELS[index] ?? `P${index + 1}`;
       player.color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+      player.ready = !!player.ready;
     });
     this.vehicleCursor = clamp(this.vehicleCursor, 0, Math.max(0, this.players.length - 1));
     this.ensureLevelValid();
@@ -149,6 +152,7 @@ export class MenuFlow {
     const currentIndex = VEHICLE_DEFS.findIndex((vehicle) => vehicle.id === player.vehicleId);
     const nextIndex = (currentIndex + direction + VEHICLE_DEFS.length) % VEHICLE_DEFS.length;
     player.vehicleId = VEHICLE_DEFS[nextIndex].id;
+    player.ready = false;
   }
 
   cycleMode(direction) {
@@ -188,5 +192,28 @@ export class MenuFlow {
 
   getBotDifficulty() {
     return BOT_DIFFICULTIES[this.botDifficulty];
+  }
+
+  clearReadyStates() {
+    this.players.forEach((player) => {
+      player.ready = false;
+    });
+  }
+
+  setPlayerReady(playerIndex, ready) {
+    const player = this.players[playerIndex];
+    if (!player) {
+      return false;
+    }
+    player.ready = ready;
+    return true;
+  }
+
+  hasAnyReadyPlayer() {
+    return this.players.some((player) => player.ready);
+  }
+
+  areAllPlayersReady() {
+    return this.players.length > 0 && this.players.every((player) => player.ready);
   }
 }

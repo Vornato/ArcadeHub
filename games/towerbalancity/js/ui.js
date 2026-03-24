@@ -65,7 +65,6 @@ class UIManager {
         // Progression Elements
         this.flavorToast = document.getElementById('flavor-toast');
         this.flavorText = document.getElementById('flavor-text');
-        this.weatherText = document.getElementById('weather-text'); // Added
         this.bossBanner = document.getElementById('boss-banner'); // Added
         this.bossBannerTitle = document.getElementById('boss-banner-title'); // Added
         this.bossBannerFlavor = document.getElementById('boss-banner-flavor'); // Added
@@ -296,33 +295,36 @@ class UIManager {
             : { horizontalOffset: comState, verticalOffset: 0, totalMass: 0, dangerRatio: 0 };
         const horizontalNorm = Utils.clamp((data.horizontalOffset || 0) / 180, -1, 1);
         const verticalNorm = Utils.clamp((data.verticalOffset || 0) / 260, -1, 1);
-        const vectorAngle = Math.atan2(-verticalNorm, horizontalNorm || 0.001);
-        const vectorLength = Utils.lerp(42, 104, Utils.clamp((data.massRatio !== undefined ? data.massRatio : (data.totalMass || 0) / 9000), 0, 1));
+        const vectorMagnitude = Utils.clamp(Math.hypot(horizontalNorm, verticalNorm), 0, 1);
+        const massRatio = Utils.clamp((data.massRatio !== undefined ? data.massRatio : (data.totalMass || 0) / 9000), 0, 1);
         const dangerRatio = Utils.clamp(data.dangerRatio !== undefined ? data.dangerRatio : (Math.abs(balanceValue) / 100), 0, 1);
-        const trailLength = Utils.lerp(28, 112, dangerRatio);
-        const arrowColor = dangerRatio > 0.82 ? '#ff4757' : (dangerRatio > 0.55 ? '#ff9f43' : '#8ad8ff');
+        const instabilitySignal = Utils.clamp(Math.max(dangerRatio, (vectorMagnitude * 0.78) + (massRatio * 0.22)), 0, 1);
+        const vectorAngle = Math.atan2(-verticalNorm, horizontalNorm || 0.001);
+        const vectorLength = Utils.lerp(42, 104, Utils.clamp((vectorMagnitude * 0.58) + (massRatio * 0.42), 0, 1));
+        const trailLength = Utils.lerp(28, 112, Utils.clamp((instabilitySignal * 0.72) + (massRatio * 0.28), 0, 1));
+        const arrowColor = instabilitySignal > 0.82 ? '#ff4757' : (instabilitySignal > 0.55 ? '#ff9f43' : '#8ad8ff');
 
         if (this.comArrowVector) {
             this.comArrowVector.style.width = `${vectorLength}px`;
             this.comArrowVector.style.transform = `translate(-50%, -50%) rotate(${vectorAngle}rad)`;
             this.comArrowVector.style.background = `linear-gradient(90deg, rgba(117,183,255,0.18) 0%, ${arrowColor} 88%, rgba(255,255,255,0.95) 100%)`;
-            this.comArrowVector.style.boxShadow = `0 0 ${10 + (dangerRatio * 22)}px ${arrowColor}`;
+            this.comArrowVector.style.boxShadow = `0 0 ${10 + (instabilitySignal * 22)}px ${arrowColor}`;
         }
         if (this.comArrowTrail) {
             this.comArrowTrail.style.width = `${trailLength}px`;
-            this.comArrowTrail.style.opacity = `${0.18 + (dangerRatio * 0.7)}`;
+            this.comArrowTrail.style.opacity = `${0.18 + (instabilitySignal * 0.7)}`;
             this.comArrowTrail.style.transform = `translate(-50%, -50%) rotate(${vectorAngle}rad)`;
         }
-        this.comArrowIcon.style.color = arrowColor;
-        this.comArrow.style.opacity = `${0.75 + (dangerRatio * 0.25)}`;
+        if (this.comArrowIcon) this.comArrowIcon.style.color = arrowColor;
+        if (this.comArrow) this.comArrow.style.opacity = `${0.72 + (instabilitySignal * 0.28)}`;
         if (this.comArrowMass) {
             const tons = (data.totalMass || 0) / 1000;
             this.comArrowMass.textContent = `LOAD ${tons.toFixed(1)}T`;
         }
 
-        this.balanceMeterContainer.classList.toggle('critical', dangerLevel >= 2 || dangerRatio > 0.72);
+        this.balanceMeterContainer.classList.toggle('critical', dangerLevel >= 2 || instabilitySignal > 0.72);
         if (this.balanceBg) {
-            this.balanceBg.style.opacity = `${0.42 + (dangerRatio * 0.46)}`;
+            this.balanceBg.style.opacity = `${0.42 + (instabilitySignal * 0.46)}`;
         }
 
         if (dangerLevel === 3) this.dangerText.classList.add('shake');
@@ -350,16 +352,28 @@ class UIManager {
         this.darkState.classList.toggle('active', dark);
         this.darkState.classList.toggle('dark', dark);
 
-        if (this.windForecast) this.windForecast.textContent = this.describeForecast(state.forecastWind, state.windTrend, 'CALM', 'RISING');
-        if (this.rainForecast) this.rainForecast.textContent = this.describeForecast(state.forecastRain, state.rainTrend, 'CLEAR', 'WET');
-        if (this.darkForecast) this.darkForecast.textContent = this.describeForecast(state.forecastDark, state.darkTrend, 'OPEN', 'DIM');
+        if (this.windForecast) this.windForecast.textContent = this.describeWindForecast(state);
+        if (this.rainForecast) this.rainForecast.textContent = this.describeForecast(state.forecastRain, state.rainTrend, 'CLEAR', 'SHOWERS', 'SQUALL');
+        if (this.darkForecast) this.darkForecast.textContent = this.describeForecast(state.forecastDark, state.darkTrend, 'OPEN', 'DIM', 'BLACKOUT');
     }
 
-    describeForecast(level, trend, calmLabel, intenseLabel) {
+    describeWindForecast(state) {
+        const strength = Utils.clamp(state.forecastWind || 0, 0, 1);
+        const trend = state.windTrend || 0;
+        const dirSource = state.forecastWindDirection !== undefined
+            ? state.forecastWindDirection
+            : (state.windForce || 0);
+        const dirLabel = dirSource < -0.08 ? 'L' : (dirSource > 0.08 ? 'R' : '0');
+        const pace = trend > 0.08 ? 'UP' : (trend < -0.08 ? 'DN' : 'ST');
+        const tier = strength < 0.18 ? 'CALM' : (strength < 0.55 ? 'GUST' : 'GALE');
+        return dirLabel === '0' ? `${pace} ${tier}` : `${pace} ${dirLabel}-${tier}`;
+    }
+
+    describeForecast(level, trend, calmLabel, midLabel, intenseLabel) {
         const strength = Utils.clamp(level || 0, 0, 1);
         const prefix = trend > 0.08 ? 'UP' : (trend < -0.08 ? 'DOWN' : 'HOLD');
         if (strength < 0.18) return `${prefix} ${calmLabel}`;
-        if (strength < 0.55) return `${prefix} MID`;
+        if (strength < 0.55) return `${prefix} ${midLabel}`;
         return `${prefix} ${intenseLabel}`;
     }
 

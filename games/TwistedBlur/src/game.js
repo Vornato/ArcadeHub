@@ -27,6 +27,12 @@ function findVehicleDef(vehicleId) {
   return VEHICLE_DEFS.find((entry) => entry.id === vehicleId) ?? VEHICLE_DEFS[0];
 }
 
+function bindingForMenuPlayer(player) {
+  return player.type === "gamepad"
+    ? { type: "gamepad", gamepadIndex: player.gamepadIndex }
+    : { type: "keyboard", schemeIndex: player.schemeIndex };
+}
+
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
@@ -156,28 +162,40 @@ export class Game {
         this.phase = "title";
       }
       if (actions.accept) {
+        this.menu.clearReadyStates();
         this.phase = "vehicleSelect";
       }
       return;
     }
 
     if (this.phase === "vehicleSelect") {
-      if (actions.up) {
-        this.menu.vehicleCursor = Math.max(0, this.menu.vehicleCursor - 1);
-      }
-      if (actions.down) {
-        this.menu.vehicleCursor = Math.min(this.menu.players.length - 1, this.menu.vehicleCursor + 1);
-      }
-      if (actions.left) {
-        this.menu.cycleVehicle(this.menu.vehicleCursor, -1);
-      }
-      if (actions.right) {
-        this.menu.cycleVehicle(this.menu.vehicleCursor, 1);
-      }
+      this.menu.players.forEach((player, index) => {
+        const playerActions = this.input.getBindingMenuActions(bindingForMenuPlayer(player));
+        if (playerActions.left && !player.ready) {
+          this.menu.vehicleCursor = index;
+          this.menu.cycleVehicle(index, -1);
+        }
+        if (playerActions.right && !player.ready) {
+          this.menu.vehicleCursor = index;
+          this.menu.cycleVehicle(index, 1);
+        }
+        if (playerActions.accept) {
+          this.menu.vehicleCursor = index;
+          this.menu.setPlayerReady(index, true);
+        }
+        if (playerActions.back && player.ready) {
+          this.menu.setPlayerReady(index, false);
+        }
+      });
       if (actions.back) {
-        this.phase = "lobby";
+        if (this.menu.hasAnyReadyPlayer()) {
+          this.menu.clearReadyStates();
+        } else {
+          this.phase = "lobby";
+        }
       }
-      if (actions.accept) {
+      if (this.menu.areAllPlayersReady()) {
+        this.menu.clearReadyStates();
         this.phase = "modeSelect";
       }
       return;
@@ -210,6 +228,26 @@ export class Game {
         this.phase = "modeSelect";
       }
       if (actions.accept) {
+        this.menu.clearReadyStates();
+        this.phase = "launchConfirm";
+      }
+      return;
+    }
+
+    if (this.phase === "launchConfirm") {
+      this.menu.players.forEach((player, index) => {
+        const playerActions = this.input.getBindingMenuActions(bindingForMenuPlayer(player));
+        if (playerActions.accept) {
+          this.menu.setPlayerReady(index, true);
+        }
+        if (playerActions.back && player.ready) {
+          this.menu.setPlayerReady(index, false);
+        }
+      });
+      if (actions.back && !this.menu.hasAnyReadyPlayer()) {
+        this.phase = "mapSelect";
+      }
+      if (this.menu.areAllPlayersReady()) {
         this.startMatch();
       }
       return;
@@ -217,6 +255,7 @@ export class Game {
 
     if (this.phase === "results") {
       if (actions.accept || actions.back || actions.pause) {
+        this.menu.clearReadyStates();
         this.phase = "lobby";
         this.audio.playMusic("menu");
       }
@@ -253,6 +292,7 @@ export class Game {
     this.level = getLevel(this.menu.selectedLevelId);
     this.modeId = this.menu.modeId;
     const mode = MODE_DEFS[this.modeId];
+    this.menu.clearReadyStates();
 
     this.announcer.reset();
     this.effects.reset();
@@ -550,6 +590,11 @@ export class Game {
       sourceParticipant.vehicle.kills += 1;
       sourceParticipant.vehicle.score += 1;
       sourceParticipant.vehicle.registerKill();
+      if (sourceParticipant.human) {
+        const chainCount = Math.max(1, sourceParticipant.vehicle.killChainCount);
+        const chainLabel = chainCount >= 3 ? "TRIPLE KILL" : chainCount === 2 ? "DOUBLE KILL" : "WRECKED";
+        sourceParticipant.vehicle.queueHudMessage(chainLabel, `${targetParticipant.label}  Chain x${chainCount}`, "#ffd166", 1.2);
+      }
       if (sourceParticipant.vehicle.killChainCount === 2) {
         this.announcer.push("DOUBLE KILL", {
           duration: 1.4,
@@ -682,9 +727,21 @@ export class Game {
 
     if (this.modeId === "driftAttack") {
       const driftAward = vehicle.consumePendingDriftScore();
-      if (driftAward > 0) {
-        const award = Math.round(driftAward);
+      if (driftAward?.score > 0) {
+        const award = Math.round(driftAward.score);
         vehicle.score += award;
+        if (participant.human) {
+          const label = driftAward.cleanExit ? "CLEAN DRIFT" : "DRIFT BANKED";
+          vehicle.queueHudMessage(label, `+${award}  Combo x${Math.max(1, driftAward.combo ?? 1)}`, driftAward.cleanExit ? "#ffd166" : participant.color, 1.4);
+          if (driftAward.cleanExit) {
+            this.announcer.push("CLEAN DRIFT", {
+              duration: 1.05,
+              priority: 2,
+              subtext: `${participant.label} +${award}`,
+              ...ANNOUNCER_STYLES.warning,
+            });
+          }
+        }
         if (vehicle.score > this.match.driftLeadScore) {
           this.match.driftLeadScore = vehicle.score;
           this.announcer.push("NEW RECORD", {
@@ -999,6 +1056,10 @@ export class Game {
     }
     if (this.phase === "mapSelect") {
       this.ui.renderMapSelect(ctx, this.width, this.height, this.menu);
+      return;
+    }
+    if (this.phase === "launchConfirm") {
+      this.ui.renderLaunchConfirm(ctx, this.width, this.height, this.menu);
       return;
     }
     if (this.phase === "results") {

@@ -124,6 +124,7 @@ class ProgressionManager {
             forecastWind: this.forecastWind,
             forecastRain: this.forecastRain,
             forecastDark: this.forecastDark,
+            forecastWindDirection: Math.sign(this.windTarget || this.windForce || this.stormDirection || 0),
             windTrend: this.forecastWind - Utils.clamp(Math.abs(this.windForce) / 8, 0, 1),
             rainTrend: this.forecastRain - this.rainIntensity,
             darkTrend: this.forecastDark - this.darkness

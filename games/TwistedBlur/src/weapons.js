@@ -127,6 +127,10 @@ export class WeaponSystem {
         targetId: target?.id ?? null,
         color: def.color,
       });
+      if (target?.isHuman) {
+        target.queueWarning("MISSILE LOCK", "Boost or break line", def.color, 1.1);
+        audio.playSfx("warning", 0.22);
+      }
       effects.emitSparks(x, y, vehicle.angle, 7, def.color);
       audio.playSfx("homing", 0.35);
     } else if (weaponId === "mine") {
@@ -467,11 +471,19 @@ export class WeaponSystem {
   render(ctx) {
     for (const projectile of this.projectiles) {
       if (projectile.kind === "mine") {
+        const minePulse = Math.sin(performance.now() * 0.01) * 3;
         ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.5)" : "#ff4c63";
         ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, projectile.radius + 10 + Math.sin(performance.now() * 0.01) * 3, 0, Math.PI * 2);
+        ctx.arc(projectile.x, projectile.y, projectile.radius + 10 + minePulse, 0, Math.PI * 2);
         ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.12)" : "rgba(255,76,99,0.22)";
         ctx.fill();
+        if (projectile.armedTimer <= 0) {
+          ctx.strokeStyle = "rgba(255,76,99,0.45)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, (projectile.splash ?? 140) * 0.55, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.fillStyle = projectile.armedTimer > 0 ? "rgba(255,76,99,0.5)" : "#ff4c63";
         ctx.beginPath();
         ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
@@ -492,6 +504,16 @@ export class WeaponSystem {
         ctx.fillRect(-projectile.radius, -projectile.radius * 0.4, projectile.radius * 2.2, projectile.radius * 0.8);
       }
       ctx.restore();
+
+      if (projectile.kind === "homing") {
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,209,102,0.42)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, projectile.radius + 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 }

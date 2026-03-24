@@ -55,6 +55,13 @@ function racingGoal(level, vehicle) {
   };
 }
 
+function predictTarget(target, leadSeconds = 0.55) {
+  return {
+    x: target.x + target.vx * leadSeconds,
+    y: target.y + target.vy * leadSeconds,
+  };
+}
+
 export class BotController {
   constructor(difficultyIndex = 1) {
     this.difficulty = BOT_DIFFICULTIES[difficultyIndex] ?? BOT_DIFFICULTIES[1];
@@ -106,7 +113,7 @@ export class BotController {
         && distance(vehicle.x, vehicle.y, attackTarget.x, attackTarget.y) < 300 + this.difficulty.aggression * 160
         && this.difficulty.aggression > 0.62
       ) {
-        primaryGoal = attackTarget;
+        primaryGoal = predictTarget(attackTarget, 0.45 + this.difficulty.aim * 0.2);
       }
     } else {
       if (modeId === "survival" && game.match?.safeZone) {
@@ -119,7 +126,9 @@ export class BotController {
       if ((!vehicle.specialWeaponId || healthRatio < 0.42) && pickup && distance(vehicle.x, vehicle.y, pickup.x, pickup.y) < 420) {
         primaryGoal = pickup;
       } else {
-        primaryGoal = attackTarget ?? { x: level.world.width * 0.5, y: level.world.height * 0.5 };
+        primaryGoal = attackTarget
+          ? predictTarget(attackTarget, 0.5 + this.difficulty.aim * 0.22)
+          : { x: level.world.width * 0.5, y: level.world.height * 0.5 };
       }
     }
 
@@ -141,13 +150,22 @@ export class BotController {
     const cornerSeverity = clamp(Math.abs(angleError) * 0.78 + Math.abs(exitAngle) * 0.42 + speedRatio * 0.25, 0, 1.4);
     const hardTurn = cornerSeverity > 0.98;
     const mediumTurn = cornerSeverity > 0.56;
+    const driftWindow = vehicle.speed > vehicle.definition.speed * 0.46
+      && Math.abs(steer) > 0.48
+      && cornerSeverity > 0.72
+      && !vehicle.airborne;
 
-    let accel = hardTurn ? 0.22 : mediumTurn ? 0.6 : this.difficulty.throttle;
-    let brake = hardTurn ? 0.78 * this.difficulty.brakeSense : 0;
+    let accel = hardTurn ? 0.28 : mediumTurn ? 0.68 : this.difficulty.throttle;
+    let brake = hardTurn ? 0.82 * this.difficulty.brakeSense : 0;
 
     if (cornerSeverity > 0.44 && vehicle.speed > vehicle.definition.speed * (0.54 + this.difficulty.brakeSense * 0.06)) {
       brake = Math.max(brake, clamp(cornerSeverity * 0.72 * this.difficulty.brakeSense, 0, 1));
       accel = Math.min(accel, 0.72);
+    }
+
+    if (driftWindow) {
+      brake = Math.max(brake, 0.24 + cornerSeverity * 0.28);
+      accel = Math.max(accel, 0.54);
     }
 
     if (this.stuckTimer > this.difficulty.recovery * 1.45) {
@@ -190,15 +208,15 @@ export class BotController {
 
     const shouldBoostForChase = attackTarget && targetDistance > 280 && targetDistance < 700 && targetAngle < 0.25;
     const boost = vehicle.boost > 32
-      && cornerSeverity < 0.46
+      && cornerSeverity < 0.54
       && vehicle.forwardSpeed > 120
       && (distanceToGoal > 280 || shouldBoostForChase)
-      && Math.random() < this.difficulty.boostUse;
+      && (driftWindow ? Math.random() < this.difficulty.boostUse * 0.45 : Math.random() < this.difficulty.boostUse);
 
     return {
       steer,
       accel,
-      brake: vehicle.forwardSpeed > 150 && Math.abs(steer) > 0.5 ? Math.max(brake, 0.16) : brake,
+      brake: vehicle.forwardSpeed > 150 && Math.abs(steer) > 0.5 ? Math.max(brake, driftWindow ? 0.24 : 0.16) : brake,
       fire,
       firePressed: fire,
       alt: altPressed,

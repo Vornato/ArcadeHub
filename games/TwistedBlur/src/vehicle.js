@@ -79,6 +79,18 @@ export class Vehicle {
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
     this.finalLapCalled = false;
+    this.driftCombo = 1;
+    this.pendingDriftMeta = null;
+    this.hudMessage = "";
+    this.hudDetail = "";
+    this.hudMessageTimer = 0;
+    this.hudMessageAccent = this.color;
+    this.hudMessageColor = "#f4f8ff";
+    this.warningCooldown = 0;
+    this.repairRemaining = 0;
+    this.repairRate = 0;
+    this.repairTimer = 0;
+    this.repairSlowTimer = 0;
   }
 
   resetForMatch(spawnPoint, angle = 0) {
@@ -141,6 +153,18 @@ export class Vehicle {
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
     this.finalLapCalled = false;
+    this.driftCombo = 1;
+    this.pendingDriftMeta = null;
+    this.hudMessage = "";
+    this.hudDetail = "";
+    this.hudMessageTimer = 0;
+    this.hudMessageAccent = this.color;
+    this.hudMessageColor = "#f4f8ff";
+    this.warningCooldown = 0;
+    this.repairRemaining = 0;
+    this.repairRate = 0;
+    this.repairTimer = 0;
+    this.repairSlowTimer = 0;
   }
 
   isAlive() {
@@ -232,6 +256,18 @@ export class Vehicle {
     this.airborne = false;
     this.airTime = 0;
     this.airRotation = 0;
+    this.driftCombo = 1;
+    this.pendingDriftMeta = null;
+    this.hudMessage = "";
+    this.hudDetail = "";
+    this.hudMessageTimer = 0;
+    this.hudMessageAccent = this.color;
+    this.hudMessageColor = "#f4f8ff";
+    this.warningCooldown = 0;
+    this.repairRemaining = 0;
+    this.repairRate = 0;
+    this.repairTimer = 0;
+    this.repairSlowTimer = 0;
   }
 
   respawn(spawnPoint, angle = 0) {
@@ -272,6 +308,18 @@ export class Vehicle {
     this.airborne = false;
     this.airTime = 0;
     this.airRotation = 0;
+    this.driftCombo = 1;
+    this.pendingDriftMeta = null;
+    this.hudMessage = "";
+    this.hudDetail = "";
+    this.hudMessageTimer = 0;
+    this.hudMessageAccent = this.color;
+    this.hudMessageColor = "#f4f8ff";
+    this.warningCooldown = 0;
+    this.repairRemaining = 0;
+    this.repairRate = 0;
+    this.repairTimer = 0;
+    this.repairSlowTimer = 0;
   }
 
   registerKill() {
@@ -287,8 +335,40 @@ export class Vehicle {
 
   consumePendingDriftScore() {
     const value = this.pendingDriftScore;
+    const meta = this.pendingDriftMeta;
     this.pendingDriftScore = 0;
-    return value;
+    this.pendingDriftMeta = null;
+    if (value <= 0) {
+      return null;
+    }
+    return {
+      score: value,
+      ...(meta ?? {}),
+    };
+  }
+
+  queueHudMessage(text, detail = "", accent = this.color, duration = 1.2, color = "#f4f8ff") {
+    this.hudMessage = text;
+    this.hudDetail = detail;
+    this.hudMessageAccent = accent;
+    this.hudMessageColor = color;
+    this.hudMessageTimer = Math.max(this.hudMessageTimer, duration);
+  }
+
+  queueWarning(text, detail = "", accent = "#ff4c63", duration = 0.9) {
+    if (this.warningCooldown > 0) {
+      return;
+    }
+    this.queueHudMessage(text, detail, accent, duration);
+    this.warningCooldown = duration * 0.7;
+  }
+
+  beginRepair(totalHeal, duration = PHYSICS_TUNING.repairDuration) {
+    this.repairRemaining += Math.max(0, totalHeal);
+    this.repairTimer = Math.max(this.repairTimer, duration);
+    this.repairSlowTimer = Math.max(this.repairSlowTimer, duration * 0.8);
+    this.repairRate = this.repairTimer > 0 ? this.repairRemaining / this.repairTimer : 0;
+    this.queueHudMessage("FIELD REPAIR", `+${Math.round(totalHeal)} incoming`, "#45f3a8", 1.1);
   }
 
   update(dt, controls, surface, effects) {
@@ -318,9 +398,23 @@ export class Vehicle {
     this.stunTimer = Math.max(0, this.stunTimer - dt);
     this.damageFlash = Math.max(0, this.damageFlash - dt);
     this.lastHitTimer = Math.max(0, this.lastHitTimer - dt);
+    this.hudMessageTimer = Math.max(0, this.hudMessageTimer - dt);
+    this.warningCooldown = Math.max(0, this.warningCooldown - dt);
+    this.repairTimer = Math.max(0, this.repairTimer - dt);
+    this.repairSlowTimer = Math.max(0, this.repairSlowTimer - dt);
     this.bump = lerp(this.bump, 0, 1 - Math.exp(-8.5 * dt));
     this.boostBurstTimer = Math.max(0, this.boostBurstTimer - dt);
     this.lookBack = !!controls.lookBack;
+
+    if (this.repairRemaining > 0 && this.health > 0) {
+      const heal = Math.min(this.repairRemaining, this.repairRate * dt);
+      this.repairRemaining -= heal;
+      this.heal(heal);
+      if (this.repairRemaining <= 0.1 || this.repairTimer <= 0) {
+        this.repairRemaining = 0;
+        this.repairRate = 0;
+      }
+    }
 
     const forward = angleToVector(this.angle);
     const right = { x: -forward.y, y: forward.x };
@@ -381,11 +475,12 @@ export class Vehicle {
     }
 
     let driveForce = 0;
+    const repairPenalty = this.repairSlowTimer > 0 ? PHYSICS_TUNING.repairSpeedPenalty : 1;
     const accelFactor = surface.accelFactor * (surface.offroad ? this.definition.offroadSkill : 1);
     if (this.throttleState > 0) {
-      driveForce = this.definition.acceleration * this.definition.torqueScale * accelFactor * this.throttleState;
+      driveForce = this.definition.acceleration * this.definition.torqueScale * accelFactor * this.throttleState * repairPenalty;
     } else if (this.throttleState < 0) {
-      driveForce = this.definition.acceleration * 0.68 * accelFactor * this.throttleState;
+      driveForce = this.definition.acceleration * 0.68 * accelFactor * this.throttleState * repairPenalty;
     }
 
     const wasBoosting = this.boosting;
@@ -405,12 +500,16 @@ export class Vehicle {
         effects.emitBoost(this.x - forward.x * 30, this.y - forward.y * 30, this.angle, this.color);
       }
     } else {
-      let recharge = PHYSICS_TUNING.passiveBoostRecharge * dt;
+      const rechargeDt = Math.min(dt, PHYSICS_TUNING.maxBoostRechargeStep ?? dt);
+      let recharge = PHYSICS_TUNING.passiveBoostRecharge * rechargeDt;
       if (surface.boostPad) {
         recharge *= 1.4;
       }
       if (drifting && Math.abs(lateralSpeed) > 70 && currentForwardSpeed > 140) {
-        recharge += PHYSICS_TUNING.driftRechargeRate * dt * clamp(Math.abs(lateralSpeed) / 210, 0.35, 1.1) * this.definition.driftControl;
+        recharge += PHYSICS_TUNING.driftRechargeRate
+          * rechargeDt
+          * clamp(Math.abs(lateralSpeed) / 210, 0.35, 1.1)
+          * this.definition.driftControl;
       }
       this.boost = Math.min(this.maxBoost * 1.35, this.boost + recharge);
     }
@@ -457,6 +556,7 @@ export class Vehicle {
     const topSpeed = this.definition.speed
       * (surface.speedFactor * (surface.offroad ? this.definition.offroadSkill : 1))
       * (1 + this.speedBonus)
+      * repairPenalty
       * (this.boosting ? 1.22 + this.definition.nitroKick * 0.08 : 1);
     const velocityLength = Math.hypot(this.vx, this.vy);
     if (velocityLength > topSpeed) {
@@ -535,14 +635,27 @@ export class Vehicle {
 
     if (drifting && currentForwardSpeed > 130) {
       this.driftTime += dt;
+      this.driftCombo = Math.max(1, 1 + Math.floor(this.driftTime / 0.85) + (Math.abs(lateralSpeed) > 120 ? 1 : 0));
       this.driftScore += (Math.abs(lateralSpeed) * 0.15 + currentForwardSpeed * 0.08) * Math.max(0.25, this.throttleState + 0.4) * dt;
     } else if (this.driftScore > 42) {
-      this.pendingDriftScore += this.driftScore;
+      const cleanExit = this.driftTime >= 1
+        && Math.abs(lateralSpeed) < 52
+        && Math.abs(this.steerState) < 0.26
+        && currentForwardSpeed > 135;
+      this.pendingDriftScore += this.driftScore * (cleanExit ? 1.2 : 1);
+      this.pendingDriftMeta = {
+        cleanExit,
+        combo: this.driftCombo,
+        duration: this.driftTime,
+        baseScore: this.driftScore,
+      };
       this.driftScore = 0;
       this.driftTime = 0;
+      this.driftCombo = 1;
     } else {
       this.driftScore = 0;
       this.driftTime = 0;
+      this.driftCombo = 1;
     }
   }
 

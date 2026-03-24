@@ -62,15 +62,16 @@ export class PickupSystem {
 
     if (def.kind === "support") {
       if (pickupType === "repair") {
-        vehicle.heal(vehicle.maxHealth * 0.42);
-        vehicle.stunTimer = Math.max(0, vehicle.stunTimer - 0.5);
+        vehicle.beginRepair(vehicle.maxHealth * 0.42);
         audio.playSfx("repair", 0.34);
       } else if (pickupType === "turbo") {
         vehicle.addBoost(vehicle.maxBoost * 0.58);
+        vehicle.queueHudMessage("TURBO STOCKED", `+${Math.round(vehicle.maxBoost * 0.58)}`, "#ff8be7", 0.95);
         audio.playSfx("turbo", 0.34);
       }
     } else {
       vehicle.assignSpecialWeapon(pickupType);
+      vehicle.queueHudMessage(def.label.toUpperCase(), "Ammo ready", def.color, 0.95);
       audio.playSfx("pickup", 0.26);
     }
 
