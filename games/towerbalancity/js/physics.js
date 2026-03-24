@@ -93,11 +93,13 @@ class PhysicsEngine {
         let totalTorque = 0;
         let totalMass = 0;
         let weightedX = 0;
+        let weightedY = 0;
 
         for (let floor of floors) {
             if (!floor.isFoundation) {
                 let dist = (floor.x + floor.w / 2) - towerCenterX;
                 let centerX = floor.x + floor.w / 2;
+                let centerY = floor.y + floor.h / 2;
                 
                 // Add asymmetrical offset
                 if (floor.intrinsicTorqueOffset !== undefined) {
@@ -108,6 +110,7 @@ class PhysicsEngine {
                 totalTorque += dist * floor.mass; 
                 totalMass += floor.mass;
                 weightedX += centerX * floor.mass;
+                weightedY += centerY * floor.mass;
             }
         }
 
@@ -117,6 +120,7 @@ class PhysicsEngine {
                 totalTorque += dist * obj.mass;
                 totalMass += obj.mass;
                 weightedX += (obj.x + obj.w / 2) * obj.mass;
+                weightedY += (obj.y + obj.h / 2) * obj.mass;
             }
         }
 
@@ -129,9 +133,11 @@ class PhysicsEngine {
             totalTorque += dist * playerMass;
             totalMass += playerMass;
             weightedX += (p.x + p.w / 2) * playerMass;
+            weightedY += (p.y + p.h / 2) * playerMass;
         }
 
         const centerOfMassX = totalMass > 0 ? (weightedX / totalMass) : towerCenterX;
+        const centerOfMassY = totalMass > 0 ? (weightedY / totalMass) : 0;
         const centerOfMassOffset = centerOfMassX - towerCenterX;
         const structuralTorque = totalTorque * exaggeration;
         
@@ -143,6 +149,7 @@ class PhysicsEngine {
         return {
             totalMass,
             centerOfMassX,
+            centerOfMassY,
             centerOfMassOffset,
             structuralTorque,
             windTorque: totalTorque - structuralTorque,

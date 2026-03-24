@@ -40,6 +40,12 @@ class UIManager {
         this.heightDisp = document.getElementById('height-display');
         this.balIndicator = document.getElementById('balance-indicator');
         this.dangerText = document.getElementById('danger-text');
+        this.comArrow = document.getElementById('com-arrow');
+        this.comArrowIcon = document.getElementById('com-arrow-icon');
+        this.windState = document.getElementById('wind-state');
+        this.rainState = document.getElementById('rain-state');
+        this.darkState = document.getElementById('dark-state');
+        this.actionCallout = document.getElementById('action-callout');
         
         this.finalScoreItem = document.getElementById('final-score');
         this.finalHeightItem = document.getElementById('final-height');
@@ -64,6 +70,7 @@ class UIManager {
         
         this.flavorTimeout = null;
         this.phaseTimeout = null;
+        this.calloutTimeout = null;
     }
 
     bindEvents(callbacks) {
@@ -260,7 +267,7 @@ class UIManager {
         this.heightDisp.innerText = height + "m";
     }
 
-    updateBalance(balanceValue, dangerLevel) {
+    updateBalance(balanceValue, dangerLevel, comOffset = 0) {
         let percent = 50 + (balanceValue / 2);
         this.balIndicator.style.left = `${percent}%`;
         
@@ -269,8 +276,37 @@ class UIManager {
         this.dangerText.innerText = this.dangerLabels[dangerLevel];
         this.dangerText.style.color = this.dangerColors[dangerLevel];
 
+        const comNorm = Utils.clamp(comOffset / 180, -1, 1);
+        const arrowHue = Math.abs(comNorm) > 0.55 ? '#ff9f43' : '#8ad8ff';
+        this.comArrowIcon.style.transform = `translateX(${comNorm * 30}px) rotate(${comNorm * 28}deg)`;
+        this.comArrowIcon.style.color = arrowHue;
+        this.comArrow.style.opacity = `${0.75 + (Math.abs(comNorm) * 0.25)}`;
+
         if (dangerLevel === 3) this.dangerText.classList.add('shake');
         else this.dangerText.classList.remove('shake');
+    }
+
+    updateWeatherStates(windForce, isRaining, isDark) {
+        const windy = Math.abs(windForce) > 0.75;
+        this.windState.classList.toggle('active', windy);
+        this.windState.classList.toggle('wind', windy);
+        this.rainState.classList.toggle('active', isRaining);
+        this.rainState.classList.toggle('rain', isRaining);
+        this.darkState.classList.toggle('active', isDark);
+        this.darkState.classList.toggle('dark', isDark);
+    }
+
+    showActionCallout(text, type = 'perfect') {
+        if (!this.actionCallout) return;
+        this.actionCallout.textContent = text;
+        this.actionCallout.className = '';
+        this.actionCallout.classList.add(type);
+        this.actionCallout.classList.add('show');
+
+        if (this.calloutTimeout) clearTimeout(this.calloutTimeout);
+        this.calloutTimeout = setTimeout(() => {
+            this.actionCallout.classList.remove('show');
+        }, 1200);
     }
 
     updatePieceQueue(upcomingPieces) {

@@ -14,6 +14,10 @@ class ProgressionManager {
         this.floorCount = 0;
         this.windForce = 0;
         this.windTarget = 0;
+        this.stormLevel = 0;
+        this.stormDirection = 1;
+        this.stormPulse = 0;
+        this.lightningFlash = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -40,6 +44,10 @@ class ProgressionManager {
         this.floorCount = 0;
         this.windForce = 0;
         this.windTarget = 0;
+        this.stormLevel = 0;
+        this.stormDirection = 1;
+        this.stormPulse = 0;
+        this.lightningFlash = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -59,12 +67,27 @@ class ProgressionManager {
 
     updateEnvironment() {
         const weatherDamping = this.isRaining ? 0.035 : 0.025;
+        if (this.stormLevel > 0) {
+            this.stormPulse += 0.03 + (this.stormLevel * 0.01);
+            const stormWave = Math.sin(this.stormPulse) * 0.55;
+            this.windTarget += ((this.stormDirection * (2 + (this.stormLevel * 2.5)) * stormWave) - this.windTarget) * 0.02;
+            if (Math.random() < 0.0025 * this.stormLevel) {
+                this.lightningFlash = 1;
+            }
+            if (Math.random() < 0.001) {
+                this.stormDirection *= -1;
+            }
+            this.stormLevel *= 0.9992;
+            if (this.stormLevel < 0.05) this.stormLevel = 0;
+        }
         this.windForce += (this.windTarget - this.windForce) * weatherDamping;
         this.windTarget *= this.isRaining ? 0.998 : 0.994;
         this.windForce *= 0.999;
+        this.lightningFlash *= 0.85;
 
         if (Math.abs(this.windTarget) < 0.02) this.windTarget = 0;
         if (Math.abs(this.windForce) < 0.01) this.windForce = 0;
+        if (this.lightningFlash < 0.02) this.lightningFlash = 0;
     }
 
     onFloorDropped() {

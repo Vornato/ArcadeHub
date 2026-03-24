@@ -7,7 +7,10 @@ const FloorArchetypes = {
     'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor' },
     'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor' },
     'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor' },
-    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor' }
+    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor' },
+    'hex': { w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck' },
+    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.14, id: 'ramp-left', name: 'Ramp Left' },
+    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.14, id: 'ramp-right', name: 'Ramp Right' }
 };
 
 class Floor {
@@ -64,6 +67,9 @@ class Floor {
         this.depthW = 30; 
         this.depthH = 20;
         this.rotation = 0;
+        this.localSlope = this.archetype.localSlope || 0;
+        this.edgeInset = this.archetype.edgeInset || 0;
+        this.demolitionProgress = 0;
 
         const winTop = 40;
         const winH = 80;
@@ -142,6 +148,31 @@ class Floor {
         Utils.drawRoundedRect(ctx, innerX, this.y + 6, innerW, 10, 6, trimColor);
         Utils.drawRoundedRect(ctx, innerX, this.y + this.h - 30, innerW, 18, 6, deckGrad);
         Utils.drawRoundedRect(ctx, this.x, this.y + this.h - 18, this.w, 18, 8, lipGrad);
+
+        if (this.archetype.id === 'hex') {
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.edgeInset, this.y + this.h - 30);
+            ctx.lineTo(this.x + this.w - this.edgeInset, this.y + this.h - 30);
+            ctx.lineTo(this.x + this.w - 18, this.y + this.h - 18);
+            ctx.lineTo(this.x + 18, this.y + this.h - 18);
+            ctx.closePath();
+            ctx.fill();
+        } else if (this.localSlope !== 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.beginPath();
+            if (this.localSlope < 0) {
+                ctx.moveTo(innerX, this.y + this.h - 30);
+                ctx.lineTo(innerX + innerW, this.y + this.h - 16);
+                ctx.lineTo(innerX + innerW, this.y + this.h - 30);
+            } else {
+                ctx.moveTo(innerX, this.y + this.h - 16);
+                ctx.lineTo(innerX + innerW, this.y + this.h - 30);
+                ctx.lineTo(innerX, this.y + this.h - 30);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
 
         ctx.fillStyle = 'rgba(255,255,255,0.38)';
         ctx.fillRect(innerX + 8, this.y + this.h - 28, innerW - 16, 3);
@@ -239,6 +270,17 @@ class Floor {
         ctx.strokeStyle = 'rgba(255,255,255,0.22)';
         ctx.lineWidth = 2;
         ctx.strokeRect(innerX + 1, this.y + this.h - 30, innerW - 2, 18);
+
+        if (this.demolitionProgress > 0) {
+            const cutSide = Math.sign(this.localSlope || this.intrinsicTorqueOffset || 1);
+            const scarX = cutSide < 0 ? this.x + 16 : this.x + this.w - 22;
+            ctx.fillStyle = 'rgba(255, 177, 66, 0.35)';
+            ctx.fillRect(scarX, this.y + 12, 8, this.h - 28);
+            ctx.fillStyle = 'rgba(255,255,255,0.24)';
+            for (let i = 0; i < 5; i++) {
+                ctx.fillRect(scarX - 6 + (i * 3), this.y + 18 + (i * 10), 14, 2);
+            }
+        }
         ctx.restore();
     }
 

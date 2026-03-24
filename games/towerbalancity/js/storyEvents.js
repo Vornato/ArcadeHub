@@ -18,6 +18,7 @@ class StoryEventManager {
                 run: (progression) => {
                     let sens = progression.projectManager.selectedProject.traits.windSensitivity;
                     progression.windTarget = Utils.random(3, Math.max(5, (progression.currentChapterData ? progression.currentChapterData.weatherIntensity : 0.1) * 10)) * Utils.choose([-1, 1]) * sens;
+                    progression.stormDirection = Math.sign(progression.windTarget) || Utils.choose([-1, 1]);
                     return { msg: "A strong wind rattles the tower!", type: "warning" };
                 }
             },
@@ -45,6 +46,8 @@ class StoryEventManager {
                 run: (progression) => {
                     progression.windForce = 0;
                     progression.windTarget = 0;
+                    progression.stormLevel = 0;
+                    progression.lightningFlash = 0;
                     progression.isDark = false;
                     progression.isRaining = false;
                     this.activeChains.hadStormWarning = false;
@@ -59,8 +62,23 @@ class StoryEventManager {
                     progression.isRaining = true;
                     let sens = progression.projectManager.selectedProject.traits.windSensitivity;
                     progression.windTarget = Utils.random(2, 5) * Utils.choose([-1, 1]) * sens;
+                    progression.stormDirection = Math.sign(progression.windTarget) || Utils.choose([-1, 1]);
+                    progression.stormLevel = Utils.random(0.6, 1.2);
                     this.activeChains.hadStormWarning = true;
                     return { msg: "A heavy rainstorm begins!", type: "warning" };
+                }
+            },
+            {
+                id: "thunderstorm",
+                name: "Thunderstorm Front",
+                chance: (ch) => ch >= 5 ? 0.8 : 0,
+                run: (progression) => {
+                    progression.isRaining = true;
+                    progression.isDark = true;
+                    progression.stormDirection = Utils.choose([-1, 1]);
+                    progression.stormLevel = Utils.random(1.2, 2.2);
+                    progression.lightningFlash = 0.8;
+                    return { msg: "A violent thunderstorm rolls across the tower!", type: "dramatic" };
                 }
             },
             {
@@ -96,6 +114,22 @@ class StoryEventManager {
                 run: (progression) => {
                     this.activeChains.structuralDamage++;
                     return { msg: "The tower groans under its own weight.", type: "dramatic", eventAction: "Shake" };
+                }
+            },
+            {
+                id: "meteor_strike",
+                name: "Meteor Strike",
+                chance: (ch) => ch >= 6 ? 0.45 : 0,
+                run: () => {
+                    return { msg: "A meteor tears through the sky!", type: "dramatic", eventAction: "Meteor Strike" };
+                }
+            },
+            {
+                id: "demolition_crew",
+                name: "Rogue Demolition Crew",
+                chance: (ch) => ch >= 5 ? 0.5 : 0,
+                run: () => {
+                    return { msg: "A rogue demolition crew starts sawing through a floor!", type: "warning", eventAction: "Demolition Crew" };
                 }
             }
         ];

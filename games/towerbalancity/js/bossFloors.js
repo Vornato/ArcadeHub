@@ -21,6 +21,12 @@ class BossFloorManager {
                     p.mass = 300; // super heavy
                     p.isBoss = true;
                     objects.push(p);
+                    for (let i = 0; i < 4; i++) {
+                        let guest = new Interactable(floor.x + 40 + (i * 55), floor.y + floor.h - 42, 'chair');
+                        guest.mass = 14;
+                        guest.partyGuest = true;
+                        objects.push(guest);
+                    }
                 },
                 update: (game, floor, objects) => {
                     // Piano shifts dangerously if lean > certain angle
@@ -31,6 +37,12 @@ class BossFloorManager {
                             piano.vx += dir * 2;
                             game.audio.play('creak');
                             game.cameraDirector.triggerShake(5, 5);
+                        }
+                    }
+                    for (let guest of objects.filter(o => o.partyGuest && o.onGround)) {
+                        if (Math.random() < 0.02) {
+                            guest.vy = -Utils.random(2.5, 4.5);
+                            guest.vx += Utils.random(-1.2, 1.2);
                         }
                     }
                 }
@@ -88,6 +100,10 @@ class BossFloorManager {
                         game.towerAngularVelocity += Utils.random(-0.006, 0.006);
                         game.audio.play('creak');
                     }
+                    if (game.progression.lightningFlash > 0.6) {
+                        game.towerAngularVelocity += Utils.random(-0.004, 0.004);
+                        game.particles.emitImpactDust(floor.x + floor.w / 2, floor.y + 20, 4);
+                    }
                 }
             },
             pool: {
@@ -124,12 +140,14 @@ class BossFloorManager {
                     objects.push(s1); objects.push(s2);
                 },
                 update: (game, floor, objects) => {
-                    if (Math.random() < 0.005) { // very rare teleport or twitch
+                    if (Math.random() < 0.012) {
                         let targets = objects.filter(o => o.type.startsWith('haunted') && o.onGround);
                         if (targets.length > 0) {
                             let r = Utils.choose(targets);
                             r.x += Utils.random(-40, 40);
                             r.x = Utils.clamp(r.x, floor.x + floor.wallL, floor.x + floor.w - floor.wallR - r.w);
+                            r.vx += Utils.random(-2.2, 2.2);
+                            floor.intrinsicTorqueOffset = Utils.lerp(floor.intrinsicTorqueOffset || 0, (r.x + r.w / 2) - (floor.x + floor.w / 2), 0.2);
                             game.audio.play('perfect');
                             game.particles.emitImpactDust(r.x + r.w/2, r.y + r.h, 10);
                         }

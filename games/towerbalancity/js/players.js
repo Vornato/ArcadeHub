@@ -29,6 +29,8 @@ class InsidePlayer {
         this.landingImpact = 0;
         this.runLean = 0;
         this.turnLag = 0;
+        this.throwWindup = 0;
+        this.throwQueued = false;
 
         // Animation State
         this.walkTimer = 0;
@@ -46,12 +48,14 @@ class InsidePlayer {
 
     update(state, physics, statics, interactables, audio, particles, allPlayers, meta = null, game = null) {
         let moving = false;
+        const supportFloor = game ? game.getSupportingFloor(this) : null;
         // Movement
         let currentSpeed = this.speed;
         let carryPenalty = 0;
         if (this.heldObject) {
-            const burden = this.heldObject.mass / (85 * Math.max(0.8, this.stability));
-            carryPenalty = this.heldObject.mass / (180 * Math.max(0.8, this.stability));
+            const coopMult = this.heldObject.helper ? 0.58 : 1;
+            const burden = (this.heldObject.mass * coopMult) / (85 * Math.max(0.8, this.stability));
+            carryPenalty = (this.heldObject.mass * coopMult) / (180 * Math.max(0.8, this.stability));
             currentSpeed = Math.max(1.2, this.speed - burden);
         }
 
@@ -91,6 +95,7 @@ class InsidePlayer {
 
         if (this.onGround && game) {
             let downhillForce = (Math.sin(game.towerAngle) * 0.24) + (game.towerAngularVelocity * 4.5);
+            if (supportFloor) downhillForce += (supportFloor.localSlope || 0) * 1.9;
             downhillForce /= Math.max(0.7, this.stability);
             if (game.progression.isRaining) downhillForce *= 1.35;
             if (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(downhillForce)) {
@@ -109,6 +114,12 @@ class InsidePlayer {
         // Jump
         if (this.jumpBuffer > 0 && (this.onGround || this.coyoteTimer > 0)) {
             this.vy = this.jumpForce - Math.min(1.1, Math.abs(this.vx) * 0.035);
+            const jumpFlow = Math.sign((Math.sin(game ? game.towerAngle : 0) * 0.8) + (supportFloor ? supportFloor.localSlope || 0 : 0));
+            if (jumpFlow && Math.sign(this.vx || inputDir || jumpFlow) === jumpFlow) {
+                this.vx += jumpFlow * 0.6;
+            } else if (Math.abs(game ? game.towerAngularVelocity : 0) > 0.015) {
+                this.vx *= 0.9;
+            }
             this.onGround = false;
             this.jumpBuffer = 0;
             this.coyoteTimer = 0;
@@ -121,19 +132,31 @@ class InsidePlayer {
         // Grab / Drop
         if (state.action1JustPressed) {
             if (this.heldObject) {
-                this.heldObject.heldBy = null;
-                this.heldObject.x = this.x + (this.w/2) - (this.heldObject.w/2);
-                this.heldObject.y = this.y + this.h - this.heldObject.h;
-                this.heldObject.vx = this.vx * 0.55;
-                this.heldObject.vy = Math.min(2, this.vy * 0.3);
-                this.heldObject.isThrown = false;
-                this.heldObject.carryLagX = 0;
-                this.heldObject.carryLagY = 0;
+                const obj = this.heldObject;
+                if (obj.helper && obj.heldBy && (obj.helper === this || obj.heldBy === this)) {
+                    if (obj.heldBy !== this) obj.heldBy.heldObject = null;
+                    if (obj.helper !== this) obj.helper.heldObject = null;
+                    obj.helper = null;
+                }
+                obj.heldBy = null;
+                obj.x = this.x + (this.w/2) - (obj.w/2);
+                obj.y = this.y + this.h - obj.h;
+                obj.vx = this.vx * 0.55;
+                obj.vy = Math.min(2, this.vy * 0.3);
+                obj.isThrown = false;
+                obj.carryLagX = 0;
+                obj.carryLagY = 0;
                 this.heldObject = null;
             } else {
                 let r = this.charClass.stats.grabRange;
                 const grabBox = { x: this.x - r/2, y: this.y - 10, w: this.w + r, h: this.h + 20 };
                 for (let obj of interactables) {
+                    if (obj.heldBy && !obj.helper && obj.mass >= 70 && Utils.checkAABB(grabBox, obj)) {
+                        obj.helper = this;
+                        this.heldObject = obj;
+                        if (game) game.ui.showActionCallout('HAND-OFF!', 'heroic');
+                        break;
+                    }
                     if (!obj.heldBy && Utils.checkAABB(grabBox, obj)) {
                         obj.heldBy = this;
                         this.heldObject = obj;
@@ -150,7 +173,24 @@ class InsidePlayer {
         }
 
         // Throw
-        if (state.action2JustPressed && this.heldObject) {
+        if (state.action2JustPressed && this.heldObject && !this.throwQueued && !this.heldObject.helper) {
+            this.throwWindup = Math.round(Utils.clamp(this.heldObject.mass / 18, 4, 14));
+            this.throwQueued = true;
+            audio.play('rope');
+        }
+
+        if (this.throwQueued && !this.heldObject) {
+            this.throwQueued = false;
+        }
+
+        if (this.throwQueued && this.heldObject) {
+            this.throwWindup--;
+            this.vx *= 0.9;
+            this.scaleX = 0.8;
+            this.scaleY = 1.2;
+        }
+
+        if (this.throwQueued && this.heldObject && this.throwWindup <= 0) {
             let obj = this.heldObject;
             obj.heldBy = null;
             obj.isThrown = true;
@@ -158,16 +198,18 @@ class InsidePlayer {
             obj.y = this.y - 15;
             const massFactor = Utils.clamp(55 / (obj.mass + 20), 0.45, 1.15);
             obj.vx = (this.vx * 0.4) + (this.facing * 13 * this.charClass.stats.throwMult * massFactor);
-            obj.vy = (this.vy * 0.15) - (6.8 * this.charClass.stats.throwMult * Math.sqrt(massFactor));
+            obj.vy = (this.vy * 0.15) - (7.6 * this.charClass.stats.throwMult * Math.sqrt(massFactor));
             obj.spinVelocity = this.facing * Utils.clamp((Math.abs(obj.vx) + Math.abs(obj.vy)) * 0.02, 0.08, 0.28);
             obj.carryLagX = 0;
             obj.carryLagY = 0;
             this.heldObject = null;
+            this.throwQueued = false;
             
             this.scaleX = 1.3;
             this.scaleY = 0.7;
             particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 3);
             audio.play('throw');
+            if (game && obj.mass >= 80) game.ui.showActionCallout('HEAVY THROW!', 'warning');
             if (meta) meta.recordStat('objsThrown');
         }
 
@@ -204,11 +246,16 @@ class InsidePlayer {
         this.runLean = Utils.lerp(this.runLean, Utils.clamp((this.vx / Math.max(1, this.speed)) * 0.12, -0.12, 0.12), 0.18);
 
         if (this.heldObject) {
+            const carrierCenter = this.heldObject.helper && this.heldObject.heldBy === this
+                ? ((this.x + this.w/2) + (this.heldObject.helper.x + this.heldObject.helper.w/2)) / 2
+                : (this.x + this.w/2);
             this.heldObject.carryLagX = Utils.lerp(this.heldObject.carryLagX || 0, this.vx * 2.2, 0.22);
             this.heldObject.carryLagY = Utils.lerp(this.heldObject.carryLagY || 0, Math.max(-4, this.vy * 0.2), 0.18);
-            this.heldObject.x = this.x + (this.w/2) - (this.heldObject.w/2) + this.heldObject.carryLagX;
-            this.heldObject.y = this.y - this.heldObject.h + 5 + Math.abs(this.heldObject.carryLagY || 0);
-            this.heldObject.visualTiltTarget = Utils.clamp((-this.vx * 0.025) + (Math.sin(this.walkTimer) * 0.02), -0.1, 0.1);
+            if (this.heldObject.heldBy === this) {
+                this.heldObject.x = carrierCenter - (this.heldObject.w/2) + this.heldObject.carryLagX;
+                this.heldObject.y = Math.min(this.y, this.heldObject.helper ? this.heldObject.helper.y : this.y) - this.heldObject.h + 5 + Math.abs(this.heldObject.carryLagY || 0);
+                this.heldObject.visualTiltTarget = Utils.clamp((-this.vx * 0.025) + (Math.sin(this.walkTimer) * 0.02), -0.1, 0.1);
+            }
         }
 
         // Emit sweat if panic mode
@@ -338,6 +385,8 @@ class DropPlayer {
         this.carriageCenterX = gameWidth / 2;
         this.bob = 0;
         this.cooldown = 0;
+        this.cableStretch = 0;
+        this.cableVelocity = 0;
     }
 
     update() {
@@ -360,6 +409,13 @@ class DropPlayer {
         const targetLag = this.carriageVelocity * 3.5;
         this.loadLagVelocity += ((targetLag - this.loadLagOffset) * 0.08) - (this.loadLagVelocity * 0.12);
         this.loadLagOffset += this.loadLagVelocity;
+        this.cableVelocity += ((Math.abs(this.loadLagOffset) * 0.05) - this.cableStretch) * 0.18;
+        this.cableVelocity *= 0.72;
+        this.cableStretch += this.cableVelocity;
+        this.cableStretch = Utils.clamp(this.cableStretch, -2, 18);
+        if (Math.abs(this.cableStretch) > 10 && Math.random() < 0.03) {
+            this.game.audio.play('rope');
+        }
 
         const unclampedX = this.carriageCenterX - (this.currentFloorW / 2) + this.loadLagOffset;
         this.x = Utils.clamp(unclampedX, 100, this.widthLimit - 100 - this.currentFloorW);
@@ -382,7 +438,7 @@ class DropPlayer {
 
     draw(ctx) {
         let cy = this.y + Math.sin(this.bob) * 5;
-        let floorY = cy + 100 + Math.min(16, Math.abs(this.loadLagOffset) * 0.08);
+        let floorY = cy + 100 + Math.min(16, Math.abs(this.loadLagOffset) * 0.08) + this.cableStretch;
 
         // Draw shadow of pending floor straight down over the building
         if (this.cooldown <= 0) {

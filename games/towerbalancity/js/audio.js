@@ -120,6 +120,45 @@ class AudioSystem {
                 s.gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
                 s.osc.start(now); s.osc.stop(now + 0.2);
                 break;
+
+            case 'rope':
+                let r = createSynth('sine');
+                r.osc.frequency.setValueAtTime(180, now);
+                r.osc.frequency.linearRampToValueAtTime(260, now + 0.08);
+                r.gain.gain.setValueAtTime(0.08 * intensity, now);
+                r.gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                r.osc.start(now); r.osc.stop(now + 0.12);
+                break;
+
+            case 'saw':
+                this.playNoise(now, 0.18, 0.18 * intensity);
+                let sw = createSynth('square');
+                sw.osc.frequency.setValueAtTime(260, now);
+                sw.osc.frequency.linearRampToValueAtTime(200, now + 0.18);
+                sw.gain.gain.setValueAtTime(0.08 * intensity, now);
+                sw.gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                sw.osc.start(now); sw.osc.stop(now + 0.18);
+                break;
+
+            case 'lightning':
+                this.playNoise(now, 0.5, 0.5 * intensity);
+                let l = createSynth('triangle');
+                l.osc.frequency.setValueAtTime(1200, now);
+                l.osc.frequency.exponentialRampToValueAtTime(80, now + 0.35);
+                l.gain.gain.setValueAtTime(0.45 * intensity, now);
+                l.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                l.osc.start(now); l.osc.stop(now + 0.35);
+                break;
+
+            case 'meteor':
+                this.playNoise(now, 0.35, 0.45 * intensity);
+                let m = createSynth('sawtooth');
+                m.osc.frequency.setValueAtTime(90, now);
+                m.osc.frequency.exponentialRampToValueAtTime(28, now + 0.45);
+                m.gain.gain.setValueAtTime(0.4 * intensity, now);
+                m.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+                m.osc.start(now); m.osc.stop(now + 0.45);
+                break;
                 
             case 'pickup':
                 let pk = createSynth('sine');

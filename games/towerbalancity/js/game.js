@@ -57,6 +57,7 @@ class Game {
         this.towerCompressionVelocity = 0;
         this.instabilityMemory = 0;
         this.centerOfMassX = this.towerCenterX;
+        this.centerOfMassY = 0;
         this.centerOfMassOffset = 0;
         this.totalMass = 0;
         this.quakeImpulseX = 0;
@@ -77,6 +78,9 @@ class Game {
         this.accumulator = 0;
         this.lastFrameTime = 0;
         this.backdropTime = 0;
+        this.timeScale = 1;
+        this.slowMoTimer = 0;
+        this.lastLightningFlash = 0;
 
         this.clouds = [];
         this.cityBuildings = [];
@@ -201,6 +205,7 @@ class Game {
         this.towerCompressionVelocity = 0;
         this.instabilityMemory = 0;
         this.centerOfMassX = this.towerCenterX;
+        this.centerOfMassY = 0;
         this.centerOfMassOffset = 0;
         this.totalMass = 0;
         this.quakeImpulseX = 0;
@@ -213,6 +218,9 @@ class Game {
         this.isChaosMode = isChaosMode;
         this.accumulator = 0;
         this.lastFrameTime = 0;
+        this.timeScale = 1;
+        this.slowMoTimer = 0;
+        this.lastLightningFlash = 0;
 
         let humanCount = 0;
         for (let i = 0; i < 4; i++) {
@@ -378,6 +386,13 @@ class Game {
         this.towerAngularVelocity += this.towerAngularAcceleration;
         this.towerAngularVelocity = Utils.clamp(this.towerAngularVelocity, -0.05, 0.05);
 
+        if (torqueLoad < 0.08 && Math.abs(this.towerAngle) < 0.03) {
+            this.towerAngularVelocity *= 0.82;
+            if (Math.abs(this.towerAngularVelocity) < 0.0005) {
+                this.towerAngularVelocity = 0;
+            }
+        }
+
         this.towerAngle += this.towerAngularVelocity;
         this.towerAngle = Utils.clamp(this.towerAngle, -maxLeanAngle, maxLeanAngle);
 
@@ -457,6 +472,22 @@ class Game {
         this.quakeImpulseY += vertical;
         this.towerAngularVelocity += horizontal * 0.0015 * Utils.choose([-1, 1]);
         this.towerCompressionVelocity += vertical * 0.015;
+    }
+
+    getSupportingFloor(entity) {
+        const feetY = entity.y + entity.h;
+        for (let i = this.floors.length - 1; i >= 0; i--) {
+            const floor = this.floors[i];
+            const floorTop = floor.colliders[0] ? floor.colliders[0].y : (floor.y + floor.h - 20);
+            if (
+                entity.x + entity.w > floor.x &&
+                entity.x < floor.x + floor.w &&
+                Math.abs(feetY - floorTop) < 14
+            ) {
+                return floor;
+            }
+        }
+        return null;
     }
 
     resolvePlayerCollisions() {
@@ -641,7 +672,10 @@ class Game {
             this.score += 500;
             this.towerAngle *= 0.65;
             this.towerAngularVelocity *= 0.4;
+            this.slowMoTimer = 8;
+            this.timeScale = 0.45;
             this.ui.showFlavorText("PERFECT DROP!", "playful");
+            this.ui.showActionCallout('+PERFECT!', 'perfect');
             this.meta.recordStat('perfectDrops');
             this.vibrateAll(400, 1.0, 1.0);
             this.particles.emitImpactDust(cx, y + h, 50);
@@ -694,6 +728,18 @@ class Game {
                 this.triggerQuake(3.5, 2.5);
                 this.triggerShake(10, 40);
                 this.audio.play('creak');
+            } else if (evName === "Meteor Strike") {
+                this.hazards.push(new MeteorHazard(
+                    this.towerCenterX + Utils.random(-220, 220),
+                    this.floors[Math.max(1, this.floors.length - 1)].y - 520,
+                    Utils.random(-2, 2)
+                ));
+                this.ui.showActionCallout('METEOR!', 'warning');
+                this.audio.play('meteor');
+            } else if (evName === "Demolition Crew" && this.floors.length > 2) {
+                const floor = this.floors[Utils.randomInt(Math.max(1, this.floors.length - 4), this.floors.length - 1)];
+                this.hazards.push(new DemolitionCrewHazard(floor, Utils.choose([-1, 1])));
+                this.ui.showActionCallout('DEMOLITION!', 'warning');
             }
         };
 
@@ -724,6 +770,9 @@ class Game {
 
         this.progression.updateEnvironment();
         this.updateStatics();
+        if (this.slowMoTimer > 0) this.slowMoTimer--;
+        const targetTimeScale = this.slowMoTimer > 0 ? 0.45 : 1;
+        this.timeScale = Utils.lerp(this.timeScale, targetTimeScale, 0.22);
 
         if (this.startGraceTimer > 0) {
             this.startGraceTimer--;
@@ -825,6 +874,19 @@ class Game {
                 obj.vx *= obj.airDrag || 0.994;
                 obj.spinVelocity *= 0.995;
                 this.physics.applyGravity(obj);
+                if (Math.abs(obj.vx) + Math.abs(obj.vy) > 6 && Math.random() < 0.7) {
+                    this.particles.particles.push({
+                        x: obj.x + obj.w / 2,
+                        y: obj.y + obj.h / 2,
+                        vx: -obj.vx * 0.08,
+                        vy: -obj.vy * 0.08,
+                        life: 0.6,
+                        decay: 0.08,
+                        size: Utils.clamp(obj.mass / 20, 3, 10),
+                        color: 'rgba(255,255,255,0.7)',
+                        type: 'dust'
+                    });
+                }
 
                 const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
 
@@ -844,7 +906,7 @@ class Game {
                         this.audio.play('drop', obj.mass);
 
                         for (let h of this.hazards) {
-                            if (!h.isExtinguished && Math.abs(obj.x - h.x) < 60 && Math.abs(obj.y - h.y) < 60) {
+                            if (typeof h.extinguish === 'function' && !h.isExtinguished && Math.abs(obj.x - h.x) < 60 && Math.abs(obj.y - h.y) < 60) {
                                 h.extinguish(obj.mass / 20);
                                 this.particles.emitImpactDust(h.x + h.w / 2, h.y + h.h, 10);
                             }
@@ -854,19 +916,23 @@ class Game {
             } else if (!obj.heldBy) {
                 const tilt = Math.abs(this.towerAngle);
                 const downhillDir = Math.sign(Math.sin(this.towerAngle) || this.towerAngularVelocity || 0) || 0;
+                const supportFloor = this.getSupportingFloor(obj);
                 const dynamicTilt = tilt + (Math.abs(this.towerAngularVelocity) * 1.8) + (this.motionStress * 0.02);
                 if (obj.onGround) {
-                    if (dynamicTilt > obj.slideThreshold) {
+                    const floorSlope = supportFloor ? Math.abs(supportFloor.localSlope || 0) : 0;
+                    const totalTilt = dynamicTilt + floorSlope;
+                    if (totalTilt > obj.slideThreshold) {
                         const slideRatio = Utils.clamp(
-                            (dynamicTilt - obj.slideThreshold) / Math.max(0.01, (Math.PI / 8) - obj.slideThreshold),
+                            (totalTilt - obj.slideThreshold) / Math.max(0.01, (Math.PI / 8) - obj.slideThreshold),
                             0,
                             1
                         );
                         obj.slideTimer = Math.min(1, obj.slideTimer + (0.06 + slideRatio * 0.04));
-                        obj.vx += downhillDir * obj.slideAccel * (0.18 + slideRatio + obj.slideTimer) * (1 + Math.abs(this.towerAngularVelocity) * 6);
+                        const localDir = supportFloor && supportFloor.localSlope ? Math.sign(supportFloor.localSlope) : downhillDir;
+                        obj.vx += localDir * obj.slideAccel * (0.18 + slideRatio + obj.slideTimer) * (1 + Math.abs(this.towerAngularVelocity) * 6);
                         obj.visualTiltTarget = downhillDir * Math.min(0.22, 0.05 + slideRatio * 0.16);
-                    } else if (dynamicTilt > obj.slideThreshold * 0.58) {
-                        const wobbleRatio = (dynamicTilt - (obj.slideThreshold * 0.58)) / (obj.slideThreshold * 0.42);
+                    } else if (totalTilt > obj.slideThreshold * 0.58) {
+                        const wobbleRatio = (totalTilt - (obj.slideThreshold * 0.58)) / (obj.slideThreshold * 0.42);
                         obj.slideTimer = Math.max(0, obj.slideTimer - 0.08);
                         obj.wobbleTime += 0.18 + wobbleRatio * 0.1;
                         const wobble = Math.sin(obj.wobbleTime) * wobbleRatio * 0.05;
@@ -941,6 +1007,7 @@ class Game {
         );
         const torque = massState.torque;
         this.centerOfMassX = massState.centerOfMassX;
+        this.centerOfMassY = massState.centerOfMassY;
         this.centerOfMassOffset = massState.centerOfMassOffset;
         this.totalMass = massState.totalMass;
 
@@ -951,11 +1018,11 @@ class Game {
         let firePanic = 0;
         for (let i = this.hazards.length - 1; i >= 0; i--) {
             const h = this.hazards[i];
-            h.update(this.particles);
-            if (h.isExtinguished) {
+            h.update(this, this.particles);
+            if (h.isExtinguished || h.done) {
                 this.hazards.splice(i, 1);
             } else {
-                firePanic += h.intensity * 200;
+                firePanic += h.intensity ? h.intensity * 200 : 0;
             }
         }
 
@@ -975,9 +1042,16 @@ class Game {
 
         if (previousDangerLevel >= 2 && this.dangerLevel <= 1) {
             this.meta.recordStat('recoveries');
+            this.ui.showActionCallout('HEROIC SAVE!', 'heroic');
         }
 
-        this.ui.updateBalance(this.balance, this.dangerLevel);
+        this.ui.updateBalance(this.balance, this.dangerLevel, this.centerOfMassOffset);
+        this.ui.updateWeatherStates(this.progression.windForce, this.progression.isRaining, this.progression.isDark);
+
+        if (this.progression.lightningFlash > 0.9 && this.lastLightningFlash <= 0.9) {
+            this.audio.play('lightning');
+        }
+        this.lastLightningFlash = this.progression.lightningFlash;
 
         if (this.dangerLevel === 3) {
             this.dangerTimer++;
@@ -1267,6 +1341,12 @@ class Game {
             ctx.fillRect(-width, 0, width * 3, height);
         }
 
+        if (this.progression.lightningFlash > 0) {
+            ctx.globalAlpha = this.progression.lightningFlash * 0.35;
+            ctx.fillStyle = '#dfefff';
+            ctx.fillRect(-width, 0, width * 3, height);
+        }
+
         const vignette = ctx.createLinearGradient(0, 0, 0, height);
         vignette.addColorStop(0, 'rgba(6,10,22,0.3)');
         vignette.addColorStop(0.35, 'rgba(6,10,22,0)');
@@ -1369,7 +1449,7 @@ class Game {
         if (!this.lastFrameTime) this.lastFrameTime = timestamp;
         const delta = Math.min(50, timestamp - this.lastFrameTime);
         this.lastFrameTime = timestamp;
-        this.accumulator += delta;
+        this.accumulator += delta * this.timeScale;
 
         while (this.accumulator >= this.fixedDeltaMs) {
             this.update();
