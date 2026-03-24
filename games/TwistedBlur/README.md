@@ -57,20 +57,27 @@ If your browser blocks gamepad support from `file://`, run a tiny static server 
 ### Gamepad Driving
 
 - Left stick: steer
+- Right stick: aim grapple
 - Right trigger: accelerate
 - Left trigger: brake or reverse
 - `A`: fire autocannon
 - `B`: use special pickup weapon
 - `X`: boost
 - `Y`: look back
+- `RB`: fire grapple hook
+- `LB`: cancel or retract grapple
 - `Start`: pause
 
 ### Keyboard Driving
 
-- Player 1: `WASD`, `Space`, `Left Shift`, `Q`, `E`
-- Player 2: arrow keys, numpad `0`, `1`, `2`, `3`
-- Player 3: `TFGH`, `R`, `Y`, `V`, `B`
-- Player 4: `IJKL`, `U`, `O`, `N`, `M`
+- Player 1: `WASD`, `Space`, `Left Shift`, `Q`, `E`, grapple `C`, retract `X`
+- Player 2: arrow keys, numpad `0`, `1`, `2`, `3`, grapple `9`, retract `7`
+- Player 3: `TFGH`, `R`, `Y`, `V`, `B`, grapple `P`, retract `O`
+- Player 4: `IJKL`, `U`, `O`, `N`, `M`, grapple `.`, retract `,`
+
+### Hook Debug
+
+- `F3` or left stick click toggles grapple debug anchors, tether range, and state helpers
 
 ## Split-Screen Layouts
 

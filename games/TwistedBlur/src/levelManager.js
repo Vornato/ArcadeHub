@@ -1102,6 +1102,47 @@ export function createMatchProps(level) {
   });
 }
 
+function getObstacleHookAnchors(obstacle) {
+  const minX = obstacle.x;
+  const maxX = obstacle.x + obstacle.w;
+  const minY = obstacle.y;
+  const maxY = obstacle.y + obstacle.h;
+  const midX = obstacle.x + obstacle.w * 0.5;
+  const midY = obstacle.y + obstacle.h * 0.5;
+  return [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY },
+    { x: midX, y: minY },
+    { x: maxX, y: midY },
+    { x: midX, y: maxY },
+    { x: minX, y: midY },
+  ];
+}
+
+export function getHookableProps(props = []) {
+  return props.filter((propState) => propState.active && PROP_DEFS[propState.type]?.hookable);
+}
+
+export function getHookDebugAnchors(level, props = []) {
+  const anchors = [];
+
+  for (const obstacle of level.obstacles ?? []) {
+    anchors.push(...getObstacleHookAnchors(obstacle).map((anchor) => ({ ...anchor, kind: "obstacle" })));
+  }
+
+  for (const propState of getHookableProps(props)) {
+    anchors.push({
+      x: propState.x,
+      y: propState.y,
+      kind: propState.type,
+    });
+  }
+
+  return anchors;
+}
+
 export function renderProps(ctx, props, time) {
   props.forEach((propState) => drawProp(ctx, propState, time));
 }

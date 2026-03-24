@@ -421,7 +421,7 @@ export class UIRenderer {
     ctx.restore();
   }
 
-  renderHud(ctx, viewport, participant, match, level, pickups = []) {
+  renderHud(ctx, viewport, participant, match, level, pickups = [], grappleDebug = false) {
     const vehicle = participant.vehicle;
     const x = viewport.x;
     const y = viewport.y;
@@ -433,7 +433,7 @@ export class UIRenderer {
     const pad = Math.round(14 * hudScale);
     const leftWidth = Math.round((ultraCompact ? 220 : compact ? 244 : 274) * hudScale);
     const rightWidth = Math.round((ultraCompact ? 136 : compact ? 156 : 186) * hudScale);
-    const panelHeight = Math.round((compact ? 118 : 132) * hudScale);
+    const panelHeight = Math.round((compact ? 134 : 148) * hudScale);
     const leftX = x + pad;
     const topY = y + pad;
     const rightX = x + w - rightWidth - pad;
@@ -450,6 +450,25 @@ export class UIRenderer {
 
     const healthRatio = vehicle.health / vehicle.maxHealth;
     const boostRatio = vehicle.boost / vehicle.maxBoost;
+    const grapple = vehicle.grapple;
+    let hookLabel = "HOOK READY";
+    let hookColor = UI_COLORS.good;
+    if (grapple.state === "attached_vehicle") {
+      hookLabel = `HOOK DRAG ${Math.round(grapple.tetherTension * 100)}%`;
+      hookColor = participant.color;
+    } else if (grapple.state === "attached_world") {
+      hookLabel = `HOOK SWING ${Math.round(grapple.tetherTension * 100)}%`;
+      hookColor = UI_COLORS.accentCyan;
+    } else if (grapple.state === "fired") {
+      hookLabel = "HOOK OUT";
+      hookColor = UI_COLORS.warning;
+    } else if (grapple.state === "retracting") {
+      hookLabel = "HOOK RETRACT";
+      hookColor = UI_COLORS.dim;
+    } else if (grapple.cooldown > 0 || grapple.recovery > 0) {
+      hookLabel = `HOOK COOL ${Math.max(grapple.cooldown, grapple.recovery).toFixed(1)}`;
+      hookColor = UI_COLORS.warning;
+    }
     const barWidth = leftWidth - Math.round(28 * hudScale);
     const barX = labelX;
     const healthY = topY + Math.round(56 * hudScale);
@@ -470,6 +489,15 @@ export class UIRenderer {
     ctx.fillStyle = UI_COLORS.text;
     ctx.textAlign = "right";
     ctx.fillText(vehicle.specialWeaponId ? `${vehicle.specialWeaponId.toUpperCase()} x${vehicle.specialAmmo}` : "AUTOCANNON", leftX + leftWidth - Math.round(12 * hudScale), topY + Math.round(42 * hudScale));
+    ctx.fillStyle = hookColor;
+    ctx.textAlign = "left";
+    ctx.font = `${Math.round((compact ? 12 : 13) * hudScale)}px Trebuchet MS`;
+    ctx.fillText(hookLabel, barX, topY + Math.round(108 * hudScale));
+    if (grappleDebug) {
+      ctx.fillStyle = UI_COLORS.warning;
+      ctx.textAlign = "right";
+      ctx.fillText("HOOK DBG", leftX + leftWidth - Math.round(12 * hudScale), topY + Math.round(108 * hudScale));
+    }
 
     drawPanel(ctx, rightX, topY, rightWidth, panelHeight, UI_COLORS.accentCyan, 0.76);
     ctx.fillStyle = UI_COLORS.text;

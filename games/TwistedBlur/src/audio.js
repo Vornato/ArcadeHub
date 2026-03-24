@@ -138,6 +138,18 @@ export class AudioSystem {
     } else if (name === "warning") {
       this.beep(880, 0.05, "square", 0.012 * intensity);
       this.beep(660, 0.05, "square", 0.01 * intensity, 0.08);
+    } else if (name === "grappleFire") {
+      this.beep(320, 0.05, "square", 0.014 * intensity);
+      this.beep(180, 0.07, "triangle", 0.012 * intensity, 0.01);
+    } else if (name === "grappleLatch") {
+      this.beep(520, 0.06, "triangle", 0.014 * intensity);
+      this.beep(260, 0.08, "sawtooth", 0.012 * intensity, 0.015);
+    } else if (name === "grappleBreak") {
+      this.beep(150, 0.06, "square", 0.014 * intensity);
+      this.beep(90, 0.09, "sawtooth", 0.016 * intensity, 0.02);
+    } else if (name === "grappleRetract") {
+      this.beep(440, 0.05, "triangle", 0.01 * intensity);
+      this.beep(660, 0.04, "sine", 0.008 * intensity, 0.015);
     }
   }
 

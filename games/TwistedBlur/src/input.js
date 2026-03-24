@@ -308,10 +308,14 @@ export class InputManager {
   getPlayerControls(binding) {
     if (binding.type === "gamepad") {
       const steer = deadzone(this.axisValue(binding.gamepadIndex, 0), 0.16);
+      const aimX = deadzone(this.axisValue(binding.gamepadIndex, 2), 0.18);
+      const aimY = deadzone(this.axisValue(binding.gamepadIndex, 3), 0.18);
       const accel = this.triggerValue(binding.gamepadIndex, 7, 5);
       const brake = this.triggerValue(binding.gamepadIndex, 6, 2);
       return {
         steer,
+        aimX,
+        aimY,
         accel: clamp(accel, 0, 1),
         brake: clamp(brake, 0, 1),
         fire: this.buttonDown(binding.gamepadIndex, 0),
@@ -320,6 +324,11 @@ export class InputManager {
         altPressed: this.buttonPressed(binding.gamepadIndex, 1),
         boost: this.buttonDown(binding.gamepadIndex, 2),
         lookBack: this.buttonDown(binding.gamepadIndex, 3),
+        hook: this.buttonDown(binding.gamepadIndex, 5),
+        hookPressed: this.buttonPressed(binding.gamepadIndex, 5),
+        hookCancel: this.buttonDown(binding.gamepadIndex, 4),
+        hookCancelPressed: this.buttonPressed(binding.gamepadIndex, 4),
+        debugHookToggle: this.buttonPressed(binding.gamepadIndex, 10),
         pause: this.buttonPressed(binding.gamepadIndex, 9),
       };
     }
@@ -329,6 +338,8 @@ export class InputManager {
     const right = this.isKeyDown(layout.steerRight);
     return {
       steer: (left ? -1 : 0) + (right ? 1 : 0),
+      aimX: 0,
+      aimY: 0,
       accel: this.isKeyDown(layout.accel) ? 1 : 0,
       brake: this.isKeyDown(layout.brake) ? 1 : 0,
       fire: this.isKeyDown(layout.fire),
@@ -337,6 +348,11 @@ export class InputManager {
       altPressed: this.wasKeyPressed(layout.alt),
       boost: this.isKeyDown(layout.boost),
       lookBack: this.isKeyDown(layout.lookBack),
+      hook: this.isKeyDown(layout.hook),
+      hookPressed: this.wasKeyPressed(layout.hook),
+      hookCancel: this.isKeyDown(layout.hookCancel),
+      hookCancelPressed: this.wasKeyPressed(layout.hookCancel),
+      debugHookToggle: false,
       pause: this.wasKeyPressed(layout.pause),
     };
   }

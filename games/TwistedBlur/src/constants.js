@@ -444,6 +444,8 @@ export const KEYBOARD_LAYOUTS = [
     alt: "ShiftLeft",
     boost: "KeyQ",
     lookBack: "KeyE",
+    hook: "KeyC",
+    hookCancel: "KeyX",
     pause: "Escape",
   },
   {
@@ -456,6 +458,8 @@ export const KEYBOARD_LAYOUTS = [
     alt: "Numpad1",
     boost: "Numpad2",
     lookBack: "Numpad3",
+    hook: "Numpad9",
+    hookCancel: "Numpad7",
     pause: "Slash",
   },
   {
@@ -468,6 +472,8 @@ export const KEYBOARD_LAYOUTS = [
     alt: "KeyY",
     boost: "KeyV",
     lookBack: "KeyB",
+    hook: "KeyP",
+    hookCancel: "KeyO",
     pause: "Digit0",
   },
   {
@@ -480,6 +486,8 @@ export const KEYBOARD_LAYOUTS = [
     alt: "KeyO",
     boost: "KeyN",
     lookBack: "KeyM",
+    hook: "Period",
+    hookCancel: "Comma",
     pause: "Minus",
   },
 ];
@@ -552,6 +560,50 @@ export const PHYSICS_TUNING = {
   stormDamagePerSecond: 16,
 };
 
+export const GRAPPLE_STATES = {
+  idle: "idle",
+  aiming: "aiming",
+  fired: "fired",
+  attachedVehicle: "attached_vehicle",
+  attachedWorld: "attached_world",
+  retracting: "retracting",
+  cooldown: "cooldown",
+};
+
+export const GRAPPLE_TUNING = {
+  range: 440,
+  projectileSpeed: 1680,
+  retractSpeed: 1860,
+  cooldown: 1.15,
+  missRecovery: 0.28,
+  cancelRecovery: 0.18,
+  detachRecovery: 0.22,
+  maxHoldTime: 2.35,
+  breakDistance: 560,
+  minLength: 118,
+  attachSlack: 34,
+  aimDeadzone: 0.24,
+  vehiclePullForce: 610,
+  vehicleSpringForce: 5.2,
+  vehicleRecoil: 0.2,
+  vehicleDestabilizeForce: 185,
+  vehicleYawPull: 1.55,
+  targetResistanceScale: 0.72,
+  attackerMassScale: 0.18,
+  worldPullForce: 520,
+  worldSpringForce: 4.1,
+  worldSwingAssist: 430,
+  worldYawAssist: 1.18,
+  worldRadialClamp: 6.2,
+  worldResistanceScale: 0.62,
+  boostPullBonus: 0.52,
+  boostSwingBonus: 0.34,
+  airPullScale: 0.74,
+  breakImpactSpeed: 300,
+  breakBoundarySeverity: 190,
+  debugAnchorAlpha: 0.7,
+};
+
 export const UI_COLORS = {
   text: "#f4f8ff",
   dim: "#93a6c7",
@@ -602,6 +654,7 @@ export const PROP_DEFS = {
     color: "#a7744c",
     trim: "#f5d0a8",
     explosiveRadius: 0,
+    hookable: true,
   },
   barrier: {
     id: "barrier",
@@ -611,6 +664,7 @@ export const PROP_DEFS = {
     color: "#7d8fb6",
     trim: "#d9e3ff",
     explosiveRadius: 0,
+    hookable: true,
   },
   canister: {
     id: "canister",
@@ -620,6 +674,7 @@ export const PROP_DEFS = {
     color: "#ff6b2d",
     trim: "#ffd8b8",
     explosiveRadius: 130,
+    hookable: false,
   },
   tower: {
     id: "tower",
@@ -629,6 +684,7 @@ export const PROP_DEFS = {
     color: "#2ef0ff",
     trim: "#e0feff",
     explosiveRadius: 90,
+    hookable: true,
   },
 };
 

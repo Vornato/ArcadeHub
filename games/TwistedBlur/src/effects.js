@@ -243,6 +243,68 @@ export class EffectsSystem {
     this.flash(color, 0.08, 0.04);
   }
 
+  emitGrappleFire(x, y, angle, color = "#2ef0ff") {
+    this.emitSparks(x, y, angle, 5, color, 0.85);
+    this.addParticle({
+      x,
+      y,
+      vx: Math.cos(angle) * 220,
+      vy: Math.sin(angle) * 220,
+      life: 0.14,
+      size: 10,
+      drag: 2.8,
+      color: "#ffffff",
+      glow: color,
+      shape: "line",
+      stretch: 3.6,
+      rotation: angle,
+    });
+  }
+
+  emitGrappleLatch(x, y, color = "#ffd166", intensity = 1) {
+    this.emitSparks(x, y, 0, Math.floor(7 + intensity * 4), color, 0.8 + intensity * 0.2);
+    this.rings.push({ x, y, radius: 10, expand: 130 * intensity, life: 0.16, maxLife: 0.16, color });
+  }
+
+  emitGrappleTension(x, y, angle, color = "#9de9ff", intensity = 1) {
+    this.addParticle({
+      x,
+      y,
+      vx: Math.cos(angle) * randomRange(-35, 35),
+      vy: Math.sin(angle) * randomRange(-35, 35),
+      life: randomRange(0.08, 0.18),
+      size: randomRange(2, 4) * intensity,
+      drag: 3.2,
+      color,
+      glow: "#ffffff",
+      shape: "diamond",
+      stretch: 1.2,
+      rotation: angle + randomRange(-0.4, 0.4),
+    });
+  }
+
+  emitGrappleBreak(x, y, angle, color = "#ff8b5d") {
+    this.emitSparks(x, y, angle, 8, color, 1.05);
+    this.emitSmoke(x, y, 2, "rgba(210,220,225,0.28)");
+  }
+
+  emitGrappleRetract(x, y, angle, color = "#8efcdf") {
+    this.addParticle({
+      x,
+      y,
+      vx: Math.cos(angle) * 80,
+      vy: Math.sin(angle) * 80,
+      life: 0.12,
+      size: 5,
+      drag: 3.4,
+      color,
+      glow: color,
+      shape: "line",
+      stretch: 2.1,
+      rotation: angle,
+    });
+  }
+
   addSkidMark(x, y, angle, color = "rgba(20,20,20,0.5)") {
     this.skidMarks.push({
       x,

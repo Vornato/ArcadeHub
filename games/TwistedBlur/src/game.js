@@ -15,6 +15,7 @@ import { EffectsSystem } from "./effects.js";
 import { WeaponSystem } from "./weapons.js";
 import { PickupSystem } from "./pickups.js";
 import { Camera } from "./camera.js";
+import { GrappleSystem } from "./grapple.js";
 import { getSplitScreenLayout } from "./splitScreen.js";
 import { MenuFlow } from "./menu.js";
 import { UIRenderer } from "./ui.js";
@@ -47,6 +48,7 @@ export class Game {
     this.effects = new EffectsSystem();
     this.weaponSystem = new WeaponSystem();
     this.pickupSystem = new PickupSystem();
+    this.grappleSystem = new GrappleSystem();
     this.menu = new MenuFlow();
     this.ui = new UIRenderer();
 
@@ -409,6 +411,9 @@ export class Game {
   updateMatch(dt) {
     this.match.elapsed += dt;
     const mode = this.match.mode;
+    if (this.input.wasKeyPressed("F3")) {
+      this.grappleSystem.toggleDebug();
+    }
 
     for (const participant of this.participants) {
       const vehicle = participant.vehicle;
@@ -416,6 +421,9 @@ export class Game {
         ? this.input.getPlayerControls(participant.binding)
         : participant.brain.update(participant, this, dt);
       participant.controls = controls;
+      if (controls.debugHookToggle) {
+        this.grappleSystem.toggleDebug();
+      }
 
       if (!vehicle.isAlive()) {
         vehicle.update(dt, controls, participant.surface ?? { traction: 1, accelFactor: 1, speedFactor: 1, dragFactor: 1, boostPad: false, offroad: false }, this.effects);
@@ -439,6 +447,7 @@ export class Game {
       if (boundaryImpact && boundaryImpact > 80) {
         this.effects.emitImpactBurst(vehicle.x, vehicle.y, vehicle.angle + Math.PI, participant.color, 0.65);
         this.shakeCamerasNear(vehicle.x, vehicle.y, 5);
+        this.grappleSystem.registerBoundaryImpact(vehicle, boundaryImpact, this.effects, this.audio);
       }
 
       this.applyHazardDamage(vehicle, surface, dt);
@@ -447,6 +456,14 @@ export class Game {
       this.audio.setEngineState(vehicle.id, vehicle.speed / vehicle.definition.speed, vehicle.boosting || vehicle.airborne);
     }
 
+    this.handleGrappleEvents(this.grappleSystem.update(
+      dt,
+      this.participants,
+      this.level,
+      this.props,
+      this.effects,
+      this.audio,
+    ));
     this.updateModeState(dt);
     this.resolveVehicleImpacts();
     this.resolvePropContacts();
@@ -535,6 +552,7 @@ export class Game {
           vehicle.applyDamage(damage * 0.12, null);
           this.effects.emitImpactBurst(propState.x, propState.y, Math.atan2(awayY, awayX), participant.color, 0.75);
           this.shakeCamerasNear(propState.x, propState.y, 5);
+          this.grappleSystem.registerImpact(vehicle, impactSpeed, this.effects, this.audio);
         }
       }
     }
@@ -554,6 +572,8 @@ export class Game {
         const damage = impact.impactSpeed * PHYSICS_TUNING.vehicleImpactDamage * boostFactor;
         this.effects.emitImpactBurst(impact.x, impact.y, Math.atan2(impact.ny, impact.nx), "#ffd8a8", 1);
         this.shakeCamerasNear(impact.x, impact.y, 8);
+        this.grappleSystem.registerImpact(a, impact.impactSpeed, this.effects, this.audio);
+        this.grappleSystem.registerImpact(b, impact.impactSpeed, this.effects, this.audio);
 
         if (a.applyDamage((damage / b.mass) * b.damageMultiplier, this.participants[j].id)) {
           this.handleDestroyEvent({ sourceId: this.participants[j].id, targetId: this.participants[i].id, x: a.x, y: a.y });
@@ -571,6 +591,14 @@ export class Game {
         this.handleDestroyEvent(event);
       } else if (event.type === "propHit") {
         this.handlePropHit(event);
+      }
+    });
+  }
+
+  handleGrappleEvents(events) {
+    events.forEach((event) => {
+      if (event.type === "shake") {
+        this.shakeCamerasNear(event.x, event.y, event.amount);
       }
     });
   }
@@ -1107,6 +1135,7 @@ export class Game {
       this.pickupSystem.render(ctx, this.time);
       this.weaponSystem.render(ctx);
       this.participants.forEach((entry) => entry.vehicle.render(ctx));
+      this.grappleSystem.render(ctx, this.participants, this.level, this.props, this.time);
       participant.camera.end(ctx);
 
       this.effects.renderViewportOverlay(
@@ -1117,7 +1146,7 @@ export class Game {
         this.time,
       );
       this.ui.renderViewportFrame(ctx, viewport, participant);
-      this.ui.renderHud(ctx, viewport, participant, this.match, this.level, this.pickupSystem.pickups);
+      this.ui.renderHud(ctx, viewport, participant, this.match, this.level, this.pickupSystem.pickups, this.grappleSystem.debug);
     });
 
     this.effects.renderScreenFlashes(ctx, this.width, this.height);

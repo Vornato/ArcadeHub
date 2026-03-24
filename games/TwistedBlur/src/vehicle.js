@@ -1,4 +1,4 @@
-import { PHYSICS_TUNING, SPECIAL_WEAPON_DEFS } from "./constants.js";
+import { GRAPPLE_STATES, PHYSICS_TUNING, SPECIAL_WEAPON_DEFS } from "./constants.js";
 import { angleToVector, approach, clamp, dot, lerp, randomRange } from "./physics.js";
 import { drawVehicleSpriteLocal } from "./vehicleSprites.js";
 
@@ -91,6 +91,35 @@ export class Vehicle {
     this.repairRate = 0;
     this.repairTimer = 0;
     this.repairSlowTimer = 0;
+    this.grapple = null;
+    this.resetGrappleState(0);
+  }
+
+  resetGrappleState(angle = this.angle) {
+    this.grapple = {
+      state: GRAPPLE_STATES.idle,
+      aimAngle: angle ?? 0,
+      aimStrength: 0,
+      tetherTension: 0,
+      cooldown: 0,
+      recovery: 0,
+      holdTimer: 0,
+      projectileX: 0,
+      projectileY: 0,
+      projectilePrevX: 0,
+      projectilePrevY: 0,
+      projectileVx: 0,
+      projectileVy: 0,
+      projectileTravel: 0,
+      anchorX: 0,
+      anchorY: 0,
+      anchorKind: null,
+      anchorSourceId: null,
+      targetId: null,
+      restLength: 0,
+      breakDistance: 0,
+      effectTimer: 0,
+    };
   }
 
   resetForMatch(spawnPoint, angle = 0) {
@@ -165,6 +194,7 @@ export class Vehicle {
     this.repairRate = 0;
     this.repairTimer = 0;
     this.repairSlowTimer = 0;
+    this.resetGrappleState(angle);
   }
 
   isAlive() {
@@ -268,6 +298,7 @@ export class Vehicle {
     this.repairRate = 0;
     this.repairTimer = 0;
     this.repairSlowTimer = 0;
+    this.resetGrappleState(this.angle);
   }
 
   respawn(spawnPoint, angle = 0) {
@@ -320,6 +351,7 @@ export class Vehicle {
     this.repairRate = 0;
     this.repairTimer = 0;
     this.repairSlowTimer = 0;
+    this.resetGrappleState(angle);
   }
 
   registerKill() {
