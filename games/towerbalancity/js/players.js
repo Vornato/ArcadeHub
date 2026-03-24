@@ -18,11 +18,17 @@ class InsidePlayer {
         
         this.color = color;
         this.onGround = false;
-        this.mass = 20;
+        this.mass = 20 * this.charClass.stats.massMult;
+        this.stability = Utils.clamp(this.charClass.stats.massMult, 0.7, 2.2);
         
         this.heldObject = null;
         this.facing = 1;
         this.isPlayer = true;
+        this.coyoteTimer = 0;
+        this.jumpBuffer = 0;
+        this.landingImpact = 0;
+        this.runLean = 0;
+        this.turnLag = 0;
 
         // Animation State
         this.walkTimer = 0;
@@ -38,38 +44,74 @@ class InsidePlayer {
         }
     }
 
-    update(state, physics, statics, interactables, audio, particles, allPlayers, meta = null) {
+    update(state, physics, statics, interactables, audio, particles, allPlayers, meta = null, game = null) {
         let moving = false;
         // Movement
         let currentSpeed = this.speed;
+        let carryPenalty = 0;
         if (this.heldObject) {
-            // Slower if object is heavy and class has bad massMult
-            let burden = (this.heldObject.mass * this.charClass.stats.massMult) / 100;
-            currentSpeed = Math.max(1.0, this.speed - burden);
+            const burden = this.heldObject.mass / (85 * Math.max(0.8, this.stability));
+            carryPenalty = this.heldObject.mass / (180 * Math.max(0.8, this.stability));
+            currentSpeed = Math.max(1.2, this.speed - burden);
         }
 
+        let inputDir = 0;
         if (state.left) {
-            this.vx = -currentSpeed;
+            inputDir = -1;
             this.facing = -1;
             moving = true;
         } else if (state.right) {
-            this.vx = currentSpeed;
+            inputDir = 1;
             this.facing = 1;
             moving = true;
-        } else {
-            this.vx = 0;
         }
 
+        const desiredVx = inputDir * currentSpeed;
+        const accelGround = Utils.clamp(0.3 + (this.speed * 0.055) - (this.stability * 0.09) - carryPenalty, 0.18, 0.55);
+        const accelAir = accelGround * 0.55;
+        let decelGround = Utils.clamp(0.34 + (this.stability * 0.07), 0.24, 0.5);
+        if (game && game.progression.isRaining) decelGround *= 0.8;
+        const decelAir = 0.12;
+        const turnBrake = this.onGround ? (0.82 + (this.stability * 0.05)) : 0.92;
+
+        this.coyoteTimer = this.onGround ? 7 : Math.max(0, this.coyoteTimer - 1);
+        if (state.jumpJustPressed) this.jumpBuffer = 7;
+        else this.jumpBuffer = Math.max(0, this.jumpBuffer - 1);
+
+        if (inputDir !== 0) {
+            if (Math.sign(this.vx || inputDir) !== inputDir && Math.abs(this.vx) > 0.2) {
+                this.vx *= turnBrake;
+                this.turnLag = Utils.lerp(this.turnLag, -inputDir * Math.min(1, Math.abs(this.vx) / Math.max(1, this.speed)), 0.4);
+            }
+            this.vx = Utils.approach(this.vx, desiredVx, this.onGround ? accelGround : accelAir);
+        } else {
+            this.vx = Utils.approach(this.vx, 0, this.onGround ? decelGround : decelAir);
+            this.turnLag = Utils.lerp(this.turnLag, 0, 0.16);
+        }
+
+        if (this.onGround && game) {
+            let downhillForce = (Math.sin(game.towerAngle) * 0.24) + (game.towerAngularVelocity * 4.5);
+            downhillForce /= Math.max(0.7, this.stability);
+            if (game.progression.isRaining) downhillForce *= 1.35;
+            if (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(downhillForce)) {
+                downhillForce *= 0.36;
+            }
+            this.vx += downhillForce;
+        }
+        if (Math.abs(this.vx) < 0.02) this.vx = 0;
+
         if (moving && this.onGround) {
-            this.walkTimer += 0.3;
+            this.walkTimer += 0.18 + Math.abs(this.vx) * 0.045;
         } else {
             this.walkTimer = 0;
         }
 
         // Jump
-        if (state.jumpJustPressed && this.onGround) {
-            this.vy = this.jumpForce;
+        if (this.jumpBuffer > 0 && (this.onGround || this.coyoteTimer > 0)) {
+            this.vy = this.jumpForce - Math.min(1.1, Math.abs(this.vx) * 0.035);
             this.onGround = false;
+            this.jumpBuffer = 0;
+            this.coyoteTimer = 0;
             // Stretch on jump
             this.scaleX = 0.6;
             this.scaleY = 1.4;
@@ -82,8 +124,11 @@ class InsidePlayer {
                 this.heldObject.heldBy = null;
                 this.heldObject.x = this.x + (this.w/2) - (this.heldObject.w/2);
                 this.heldObject.y = this.y + this.h - this.heldObject.h;
-                this.heldObject.vx = 0;
-                this.heldObject.vy = 0;
+                this.heldObject.vx = this.vx * 0.55;
+                this.heldObject.vy = Math.min(2, this.vy * 0.3);
+                this.heldObject.isThrown = false;
+                this.heldObject.carryLagX = 0;
+                this.heldObject.carryLagY = 0;
                 this.heldObject = null;
             } else {
                 let r = this.charClass.stats.grabRange;
@@ -92,6 +137,10 @@ class InsidePlayer {
                     if (!obj.heldBy && Utils.checkAABB(grabBox, obj)) {
                         obj.heldBy = this;
                         this.heldObject = obj;
+                        obj.isThrown = false;
+                        obj.carryLagX = 0;
+                        obj.carryLagY = 0;
+                        obj.spinVelocity = 0;
                         this.scaleX = 1.2; // feedback
                         this.scaleY = 0.8;
                         break;
@@ -107,8 +156,12 @@ class InsidePlayer {
             obj.isThrown = true;
             obj.x = this.x + (this.w/2) - (obj.w/2);
             obj.y = this.y - 15;
-            obj.vx = this.facing * 14 * this.charClass.stats.throwMult;
-            obj.vy = -7 * this.charClass.stats.throwMult;
+            const massFactor = Utils.clamp(55 / (obj.mass + 20), 0.45, 1.15);
+            obj.vx = (this.vx * 0.4) + (this.facing * 13 * this.charClass.stats.throwMult * massFactor);
+            obj.vy = (this.vy * 0.15) - (6.8 * this.charClass.stats.throwMult * Math.sqrt(massFactor));
+            obj.spinVelocity = this.facing * Utils.clamp((Math.abs(obj.vx) + Math.abs(obj.vy)) * 0.02, 0.08, 0.28);
+            obj.carryLagX = 0;
+            obj.carryLagY = 0;
             this.heldObject = null;
             
             this.scaleX = 1.3;
@@ -118,42 +171,44 @@ class InsidePlayer {
             if (meta) meta.recordStat('objsThrown');
         }
 
-        physics.applyGravity(this);
-        physics.moveAndCollide(this, statics);
-
-        // Player vs Player collision (Bumping logic)
-        for (let other of allPlayers) {
-            if (other !== this && Utils.checkAABB(this, other)) {
-                // If collision exists, push away
-                let centerSelf = this.x + this.w/2;
-                let centerOther = other.x + other.w/2;
-                let basePush = this.charClass.stats.pushForce;
-                let pushForce = this.isChaosMode ? basePush * 3 : basePush;
-                if (centerSelf < centerOther) {
-                    this.x -= pushForce;
-                    other.x += pushForce;
-                } else {
-                    this.x += pushForce;
-                    other.x -= pushForce;
-                }
-            }
+        let gravityScale = 1.0;
+        if (!this.onGround) {
+            if (this.vy < -2) gravityScale = state.jump ? 0.78 : 1.08;
+            else if (Math.abs(this.vy) < 2) gravityScale = 0.9;
+            else gravityScale = 1.52;
         }
+
+        const preCollisionVy = this.vy;
+        this.vy += physics.gravity * gravityScale;
+        if (this.vy > physics.maxFallSpeed * 1.35) {
+            this.vy = physics.maxFallSpeed * 1.35;
+        }
+        physics.moveAndCollide(this, statics);
 
         // Squash on landing
         if (this.onGround && !this.wasOnGround) {
-            this.scaleX = 1.4;
-            this.scaleY = 0.6;
+            this.landingImpact = Utils.clamp(Math.abs(preCollisionVy) / 10, 0, 1.2);
+            this.scaleX = 1.2 + (this.landingImpact * 0.25);
+            this.scaleY = 0.82 - (this.landingImpact * 0.14);
             particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 2);
+            if (game) {
+                game.addCharacterLandingImpulse(this, Math.abs(preCollisionVy));
+            }
         }
         this.wasOnGround = this.onGround;
 
         // Smooth scaling back to 1
         this.scaleX = Utils.lerp(this.scaleX, 1, 0.15);
         this.scaleY = Utils.lerp(this.scaleY, 1, 0.15);
+        this.landingImpact = Utils.lerp(this.landingImpact, 0, 0.16);
+        this.runLean = Utils.lerp(this.runLean, Utils.clamp((this.vx / Math.max(1, this.speed)) * 0.12, -0.12, 0.12), 0.18);
 
         if (this.heldObject) {
-            this.heldObject.x = this.x + (this.w/2) - (this.heldObject.w/2);
-            this.heldObject.y = this.y - this.heldObject.h + 5;
+            this.heldObject.carryLagX = Utils.lerp(this.heldObject.carryLagX || 0, this.vx * 2.2, 0.22);
+            this.heldObject.carryLagY = Utils.lerp(this.heldObject.carryLagY || 0, Math.max(-4, this.vy * 0.2), 0.18);
+            this.heldObject.x = this.x + (this.w/2) - (this.heldObject.w/2) + this.heldObject.carryLagX;
+            this.heldObject.y = this.y - this.heldObject.h + 5 + Math.abs(this.heldObject.carryLagY || 0);
+            this.heldObject.visualTiltTarget = Utils.clamp((-this.vx * 0.025) + (Math.sin(this.walkTimer) * 0.02), -0.1, 0.1);
         }
 
         // Emit sweat if panic mode
@@ -176,13 +231,14 @@ class InsidePlayer {
         if (this.walkTimer > 0) {
             rot = Math.sin(this.walkTimer) * 0.15;
         }
-        ctx.rotate(rot);
+        ctx.rotate(rot + this.runLean + (this.turnLag * 0.08));
 
-        ctx.scale(this.scaleX, this.scaleY);
+        ctx.scale(this.scaleX * (1 + (this.landingImpact * 0.04)), this.scaleY * (1 - (this.landingImpact * 0.06)));
         ctx.translate(0, -this.h); // hinge at feet
 
         // Body Drop Shadow
         let shadowW = this.panicMode ? this.w/2 + 10 : this.w/2 + 5;
+        shadowW += this.landingImpact * 8;
         if (this.onGround) {
             ctx.fillStyle = 'rgba(0,0,0,0.4)';
             ctx.beginPath(); ctx.ellipse(0, this.h, shadowW, 5, 0, 0, Math.PI*2); ctx.fill();
@@ -269,14 +325,17 @@ class DropPlayer {
         this.y = 30;
         this.w = 60;
         this.h = 40;
-        this.speed = 6;
         this.game = gameRef;
         this.color = '#f1c40f';
         this.widthLimit = gameWidth;
         
         this.currentFloorW = 400;
-        this.direction = 1;
-        this.autoMoveVal = 0;
+        this.carriageOffset = 0;
+        this.carriageVelocity = 3.4;
+        this.loadLagOffset = 0;
+        this.loadLagVelocity = 0;
+        this.maxSwing = 250;
+        this.carriageCenterX = gameWidth / 2;
         this.bob = 0;
         this.cooldown = 0;
     }
@@ -287,20 +346,35 @@ class DropPlayer {
         this.currentFloorW = nextPiece.w;
         this.currentFloorH = nextPiece.h;
 
-        this.autoMoveVal += 3 * this.direction;
-        if (this.autoMoveVal > 250) this.direction = -1;
-        if (this.autoMoveVal < -250) this.direction = 1;
-        
-        this.x = (this.widthLimit / 2) + this.autoMoveVal - (this.currentFloorW/2);
-        if (state.left) this.x -= this.speed;
-        if (state.right) this.x += this.speed;
-        this.x = Utils.clamp(this.x, 100, this.widthLimit - 100 - this.currentFloorW);
+        const manualForce = (state.right ? 1 : 0) - (state.left ? 1 : 0);
+        this.carriageVelocity += (-this.carriageOffset * 0.0018) - (this.carriageVelocity * 0.01) + (manualForce * 0.38);
+        this.carriageOffset += this.carriageVelocity;
+
+        if (Math.abs(this.carriageOffset) > this.maxSwing) {
+            this.carriageOffset = Math.sign(this.carriageOffset) * this.maxSwing;
+            this.carriageVelocity *= -0.92;
+        }
+
+        this.carriageCenterX = (this.widthLimit / 2) + this.carriageOffset;
+
+        const targetLag = this.carriageVelocity * 3.5;
+        this.loadLagVelocity += ((targetLag - this.loadLagOffset) * 0.08) - (this.loadLagVelocity * 0.12);
+        this.loadLagOffset += this.loadLagVelocity;
+
+        const unclampedX = this.carriageCenterX - (this.currentFloorW / 2) + this.loadLagOffset;
+        this.x = Utils.clamp(unclampedX, 100, this.widthLimit - 100 - this.currentFloorW);
+        if (this.x !== unclampedX) {
+            this.loadLagOffset *= 0.7;
+            this.loadLagVelocity *= 0.6;
+            this.carriageVelocity *= 0.85;
+        }
 
         if (this.cooldown > 0) this.cooldown--;
         this.bob += 0.1;
 
         if (state.action1JustPressed && this.cooldown <= 0) {
-            this.game.dropFloor(this.x, this.y + 100, nextPiece);
+            const inheritedMomentum = this.carriageVelocity + (this.loadLagVelocity * 0.8) + (this.loadLagOffset * 0.05);
+            this.game.dropFloor(this.x, this.y + 100, nextPiece, inheritedMomentum);
             this.cooldown = 120;
             this.game.audio.play('drop');
         }
@@ -308,11 +382,12 @@ class DropPlayer {
 
     draw(ctx) {
         let cy = this.y + Math.sin(this.bob) * 5;
+        let floorY = cy + 100 + Math.min(16, Math.abs(this.loadLagOffset) * 0.08);
 
         // Draw shadow of pending floor straight down over the building
         if (this.cooldown <= 0) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fillRect(this.x, cy + 100, this.currentFloorW, 2000); // beam of light/shadow
+            ctx.fillRect(this.x, floorY, this.currentFloorW, 2000); // beam of light/shadow
             
             // Ghost outline tutorial for early drops
             if (this.game.floors.length < 5) {
@@ -341,7 +416,7 @@ class DropPlayer {
         }
         
         // Cab housing
-        let cabX = this.x + this.currentFloorW/2 - this.w/2;
+        let cabX = this.carriageCenterX - this.w/2;
         Utils.drawRoundedRect(ctx, cabX, cy, this.w, this.h, 5, this.color);
         
         // Hook/Cable
@@ -349,13 +424,13 @@ class DropPlayer {
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(cabX + this.w/2, cy + this.h);
-        ctx.lineTo(cabX + this.w/2, cy + 100);
+        ctx.lineTo(this.x + this.currentFloorW/2, floorY);
         ctx.stroke();
 
         if (this.cooldown <= 0) {
             ctx.globalAlpha = 0.9;
             ctx.fillStyle = '#74b9ff';
-            ctx.fillRect(this.x, cy + 100, this.currentFloorW, this.currentFloorH);
+            ctx.fillRect(this.x, floorY, this.currentFloorW, this.currentFloorH);
             ctx.globalAlpha = 1.0;
         } else {
             // Load Bar

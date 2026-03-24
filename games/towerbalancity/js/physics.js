@@ -23,6 +23,7 @@ class PhysicsEngine {
             entity.vx += windForce * 0.05; 
         }
 
+        const attemptedVX = entity.vx;
         entity.x += entity.vx;
         let collideX = false;
         
@@ -33,25 +34,41 @@ class PhysicsEngine {
                 } else if (entity.vx < 0) {
                     entity.x = s.x + s.w;      
                 }
-                entity.vx = 0;
+                if (entity.restitutionX && Math.abs(attemptedVX) > 0.4 && !entity.isPlayer) {
+                    entity.vx = -attemptedVX * entity.restitutionX;
+                } else {
+                    entity.vx = 0;
+                }
                 collideX = true;
             }
         }
 
+        const attemptedVY = entity.vy;
         entity.y += entity.vy;
         entity.onGround = false;
         let collideY = false;
         let groundFriction = this.friction;
+        let groundCollider = null;
 
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
                 if (entity.vy > 0) {
                     entity.y = s.y - entity.h; 
-                    entity.onGround = true;
+                    if (entity.restitutionY && Math.abs(attemptedVY) > (entity.bounceThreshold || 3) && !entity.isPlayer) {
+                        entity.vy = -attemptedVY * entity.restitutionY;
+                    } else {
+                        entity.onGround = true;
+                        entity.vy = 0;
+                        groundCollider = s;
+                    }
                 } else if (entity.vy < 0) {
                     entity.y = s.y + s.h;      
+                    if (entity.restitutionY && !entity.isPlayer) {
+                        entity.vy = -attemptedVY * entity.restitutionY * 0.4;
+                    } else {
+                        entity.vy = 0;
+                    }
                 }
-                entity.vy = 0;
                 collideY = true;
                 if (s.frictionModifier !== undefined) groundFriction = s.frictionModifier;
             }
@@ -62,28 +79,35 @@ class PhysicsEngine {
             if (windForce && Math.abs(windForce) > 4 && entity.mass < 20) {
                  entity.vx += windForce * 0.1;
             } else {
-                entity.vx *= groundFriction;
+                const surfaceGrip = entity.surfaceGrip !== undefined ? entity.surfaceGrip : 1;
+                const effectiveDrag = Utils.clamp(1 - ((1 - groundFriction) * surfaceGrip), 0.78, 0.995);
+                entity.vx *= effectiveDrag;
             }
-            if (Math.abs(entity.vx) < 0.1) entity.vx = 0;
+            if (Math.abs(entity.vx) < (entity.settleThreshold || 0.1)) entity.vx = 0;
         }
 
-        return { collideX, collideY };
+        return { collideX, collideY, impactVx: attemptedVX, impactVy: attemptedVY, groundFriction, groundCollider };
     }
 
-    // Calculate balance with Wind torque
-    calculateBalance(floors, objects, players, towerCenterX, windForce) {
+    calculateMassState(floors, objects, players, towerCenterX, windForce, exaggeration = 1.12) {
         let totalTorque = 0;
-        
+        let totalMass = 0;
+        let weightedX = 0;
+
         for (let floor of floors) {
             if (!floor.isFoundation) {
                 let dist = (floor.x + floor.w / 2) - towerCenterX;
+                let centerX = floor.x + floor.w / 2;
                 
                 // Add asymmetrical offset
                 if (floor.intrinsicTorqueOffset !== undefined) {
                      dist += floor.intrinsicTorqueOffset;
+                     centerX += floor.intrinsicTorqueOffset;
                 }
                 
                 totalTorque += dist * floor.mass; 
+                totalMass += floor.mass;
+                weightedX += centerX * floor.mass;
             }
         }
 
@@ -91,6 +115,8 @@ class PhysicsEngine {
             if (!obj.heldBy) { 
                 let dist = (obj.x + obj.w / 2) - towerCenterX;
                 totalTorque += dist * obj.mass;
+                totalMass += obj.mass;
+                weightedX += (obj.x + obj.w / 2) * obj.mass;
             }
         }
 
@@ -101,15 +127,31 @@ class PhysicsEngine {
             }
             let dist = (p.x + p.w / 2) - towerCenterX;
             totalTorque += dist * playerMass;
+            totalMass += playerMass;
+            weightedX += (p.x + p.w / 2) * playerMass;
         }
 
-        // Wind acts like a massive torque push
-        // A windForce of 5 could act like a massive block placed 200px offset
+        const centerOfMassX = totalMass > 0 ? (weightedX / totalMass) : towerCenterX;
+        const centerOfMassOffset = centerOfMassX - towerCenterX;
+        const structuralTorque = totalTorque * exaggeration;
+        
         if (windForce) {
             let towerHeight = floors.length * 100; // rough estimation
             totalTorque += windForce * towerHeight * 5; 
         }
 
-        return totalTorque;
+        return {
+            totalMass,
+            centerOfMassX,
+            centerOfMassOffset,
+            structuralTorque,
+            windTorque: totalTorque - structuralTorque,
+            torque: totalTorque
+        };
+    }
+
+    // Calculate balance with Wind torque
+    calculateBalance(floors, objects, players, towerCenterX, windForce) {
+        return this.calculateMassState(floors, objects, players, towerCenterX, windForce).torque;
     }
 }

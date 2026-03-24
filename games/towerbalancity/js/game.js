@@ -24,7 +24,7 @@ class Game {
         this.progression.onChapterChange = (chapterData) => {
             this.ui.showPhaseBanner(chapterData.name);
             this.ui.setSkyColors(chapterData.sky);
-            for (let c of this.clouds) c.speed = chapterData.cloudSpeed;
+            for (let c of this.clouds) c.speed = chapterData.cloudSpeed * (0.55 + (c.depth * 0.9));
         };
 
         this.progression.onFlavorText = (msg, type) => {
@@ -46,6 +46,22 @@ class Game {
 
         this.towerCenterX = canvas.width / 2;
         this.balance = 0;
+        this.towerAngle = 0;
+        this.towerAngularVelocity = 0;
+        this.towerAngularAcceleration = 0;
+        this.torqueRatio = 0;
+        this.motionStress = 0;
+        this.microSwayTime = 0;
+        this.structureStabilityBias = 1;
+        this.towerCompression = 0;
+        this.towerCompressionVelocity = 0;
+        this.instabilityMemory = 0;
+        this.centerOfMassX = this.towerCenterX;
+        this.centerOfMassOffset = 0;
+        this.totalMass = 0;
+        this.quakeImpulseX = 0;
+        this.quakeImpulseY = 0;
+        this.overRotationTime = 0;
         this.dangerLevel = 0;
         this.dangerTimer = 0;
         this.maxDangerTime = 180;
@@ -57,15 +73,91 @@ class Game {
         this.shakeTimer = 0;
         this.shakeMag = 0;
         this.startGraceTimer = 0;
+        this.fixedDeltaMs = 1000 / 60;
+        this.accumulator = 0;
+        this.lastFrameTime = 0;
+        this.backdropTime = 0;
 
         this.clouds = [];
-        for (let i = 0; i < 20; i++) {
+        this.cityBuildings = [];
+        this.stars = [];
+        this.nebulae = [];
+        this.atmoDust = [];
+        this.initializeBackdrop();
+    }
+
+    initializeBackdrop() {
+        this.clouds = [];
+        this.cityBuildings = [];
+        this.stars = [];
+        this.nebulae = [];
+        this.atmoDust = [];
+
+        for (let i = 0; i < 26; i++) {
             this.clouds.push({
+                x: Utils.random(-300, this.canvas.width + 300),
+                y: Utils.random(-180, this.canvas.height + 160),
+                w: Utils.random(140, 360),
+                h: Utils.random(45, 120),
+                depth: Utils.random(0.16, 1.0),
+                fluff: Utils.random(0.7, 1.35),
+                speed: Utils.random(0.7, 1.6),
+                alpha: Utils.random(0.18, 0.4)
+            });
+        }
+
+        const buildingSpan = this.canvas.width * 2.4;
+        for (let layer = 0; layer < 3; layer++) {
+            let cursor = -this.canvas.width * 0.45;
+            while (cursor < buildingSpan) {
+                const width = Utils.random(55, 150) * (1 + (layer * 0.1));
+                const height = Utils.random(110 + (layer * 70), 240 + (layer * 110));
+                this.cityBuildings.push({
+                    x: cursor,
+                    w: width,
+                    h: height,
+                    depth: 0.16 + (layer * 0.18),
+                    roof: Utils.choose(['flat', 'antennas', 'crown', 'slant']),
+                    windowCols: Utils.randomInt(2, 5),
+                    windowRows: Utils.randomInt(5, 10),
+                    lightRate: Utils.random(0.25, 0.75)
+                });
+                cursor += width + Utils.random(12, 34);
+            }
+        }
+
+        for (let i = 0; i < 90; i++) {
+            this.stars.push({
                 x: Utils.random(0, this.canvas.width),
-                y: Utils.random(-3000, this.canvas.height),
-                w: Utils.random(100, 300),
-                h: Utils.random(40, 80),
-                speed: 1.0
+                y: Utils.random(0, this.canvas.height * 0.95),
+                size: Utils.random(0.7, 2.3),
+                alpha: Utils.random(0.3, 0.95),
+                depth: Utils.random(0.08, 1.0),
+                twinkle: Utils.random(0.4, 2.1)
+            });
+        }
+
+        const nebulaPalette = ['rgba(110, 157, 255, 0.28)', 'rgba(233, 110, 255, 0.2)', 'rgba(111, 255, 218, 0.18)', 'rgba(255, 170, 110, 0.16)'];
+        for (let i = 0; i < 7; i++) {
+            this.nebulae.push({
+                x: Utils.random(-120, this.canvas.width + 120),
+                y: Utils.random(-80, this.canvas.height * 0.7),
+                r: Utils.random(120, 260),
+                stretch: Utils.random(0.6, 1.8),
+                alpha: Utils.random(0.18, 0.38),
+                color: Utils.choose(nebulaPalette),
+                drift: Utils.random(-0.8, 0.8)
+            });
+        }
+
+        for (let i = 0; i < 36; i++) {
+            this.atmoDust.push({
+                x: Utils.random(-100, this.canvas.width + 100),
+                y: Utils.random(20, this.canvas.height - 40),
+                len: Utils.random(18, 90),
+                alpha: Utils.random(0.08, 0.22),
+                depth: Utils.random(0.2, 1.0),
+                angle: Utils.random(-0.6, 0.6)
             });
         }
     }
@@ -98,11 +190,29 @@ class Game {
         this.particles.particles = [];
 
         this.balance = 0;
+        this.towerAngle = 0;
+        this.towerAngularVelocity = 0;
+        this.towerAngularAcceleration = 0;
+        this.torqueRatio = 0;
+        this.motionStress = 0;
+        this.microSwayTime = 0;
+        this.structureStabilityBias = 1;
+        this.towerCompression = 0;
+        this.towerCompressionVelocity = 0;
+        this.instabilityMemory = 0;
+        this.centerOfMassX = this.towerCenterX;
+        this.centerOfMassOffset = 0;
+        this.totalMass = 0;
+        this.quakeImpulseX = 0;
+        this.quakeImpulseY = 0;
+        this.overRotationTime = 0;
         this.dangerLevel = 0;
         this.dangerTimer = 0;
         this.score = 0;
         this.height = 0;
         this.isChaosMode = isChaosMode;
+        this.accumulator = 0;
+        this.lastFrameTime = 0;
 
         let humanCount = 0;
         for (let i = 0; i < 4; i++) {
@@ -127,6 +237,7 @@ class Game {
         this.collapseDirector.timer = 0;
 
         this.progression.projectManager.setProject(projectThemeId);
+        this.initializeBackdrop();
         this.meta.startRun();
         this.progression.startRun();
         this.music.start();
@@ -206,6 +317,8 @@ class Game {
         if (this.isPaused) {
             this.ui.showPause();
         } else {
+            this.lastFrameTime = 0;
+            this.accumulator = 0;
             this.ui.hidePause();
             this.loop();
         }
@@ -217,7 +330,228 @@ class Game {
         this.workerCamera.triggerShake(mag, duration);
     }
 
-    dropFloor(x, y, archetype) {
+    updateTowerCompression() {
+        this.structureStabilityBias = Utils.lerp(this.structureStabilityBias, 1, 0.015);
+
+        this.towerCompressionVelocity += (-this.towerCompression * 0.24) - (this.towerCompressionVelocity * 0.22);
+        this.towerCompression += this.towerCompressionVelocity;
+        this.towerCompression = Utils.clamp(this.towerCompression, -0.04, 0.18);
+    }
+
+    updateTowerMotion(netTorque, maxTorque) {
+        const normalizedTorque = Utils.clamp(netTorque / maxTorque, -1.5, 1.5);
+        const torqueLoad = Math.min(1, Math.abs(normalizedTorque));
+        const stabilityBias = this.structureStabilityBias;
+        const memory = this.instabilityMemory;
+
+        this.torqueRatio = normalizedTorque;
+        this.microSwayTime += 0.015 + ((1 - torqueLoad) * 0.02);
+
+        const spring = (0.028 - (torqueLoad * 0.008)) * stabilityBias * (1 - (memory * 0.18));
+        const damping = (0.11 - (torqueLoad * 0.035)) * (0.94 + (stabilityBias * 0.08)) * (1 - (memory * 0.28));
+        const torqueDrive = (0.007 + (torqueLoad * 0.002)) / stabilityBias;
+        const nominalLeanAngle = (Math.PI / 12) * Utils.clamp(0.92 + (stabilityBias * 0.08), 0.86, 1.06);
+        const maxLeanAngle = Math.PI / 8;
+
+        let ambientTorque = 0;
+        if (torqueLoad < 0.2 && Math.abs(this.towerAngle) < 0.08) {
+            ambientTorque =
+                (Math.sin(this.microSwayTime) * 0.0009) +
+                (Math.sin(this.microSwayTime * 0.43) * 0.0005);
+        }
+        if (memory > 0.75) {
+            ambientTorque += Utils.random(-0.0018, 0.0018) * ((memory - 0.75) / 0.25);
+        }
+
+        const edgeInstability = Math.max(0, (Math.abs(this.towerAngle) / nominalLeanAngle) - 0.8);
+        const instabilityTorque =
+            Math.sign(this.towerAngle || normalizedTorque || 1) *
+            edgeInstability * edgeInstability * 0.0015;
+
+        this.towerAngularAcceleration =
+            (normalizedTorque * torqueDrive) +
+            ambientTorque +
+            instabilityTorque -
+            (this.towerAngle * spring) -
+            (this.towerAngularVelocity * damping);
+
+        this.towerAngularVelocity += this.towerAngularAcceleration;
+        this.towerAngularVelocity = Utils.clamp(this.towerAngularVelocity, -0.05, 0.05);
+
+        this.towerAngle += this.towerAngularVelocity;
+        this.towerAngle = Utils.clamp(this.towerAngle, -maxLeanAngle, maxLeanAngle);
+
+        if (Math.abs(this.towerAngle) >= maxLeanAngle) {
+            this.towerAngularVelocity *= 0.6;
+        }
+
+        const leanStress = Math.min(1, Math.abs(this.towerAngle) / nominalLeanAngle);
+        const velocityStress = Math.min(1, Math.abs(this.towerAngularVelocity) / 0.03);
+        const torqueStress = Math.min(1, Math.abs(normalizedTorque));
+        const edgeStress = Math.min(1, edgeInstability);
+
+        this.motionStress = Math.min(
+            1.4,
+            (leanStress * 0.65) +
+            (velocityStress * 0.2) +
+            (torqueStress * 0.15) +
+            (edgeStress * 0.25)
+        );
+        this.instabilityMemory = Math.max(this.motionStress, this.instabilityMemory * 0.985);
+
+        this.balance = Utils.clamp((this.towerAngle / nominalLeanAngle) * 100, -100, 100);
+    }
+
+    applyFloorImpact(floor, impactSpeed, isSettled = false) {
+        const massFactor = Utils.clamp(floor.mass / 700, 0.35, 3.2);
+        const widthBias = Utils.clamp(floor.w / 300, 0.75, 1.35);
+        const impactStrength = Utils.clamp((impactSpeed / 10) * massFactor, 0.1, 3.2);
+        const floorCenterOffset = ((floor.x + floor.w / 2) - this.towerCenterX) / Math.max(120, floor.w / 2);
+        const offsetNorm = Utils.clamp(floorCenterOffset, -1.5, 1.5);
+        const horizontalImpulse = (floor.vx || 0) * 0.0009 * massFactor;
+        const rotationalImpulse = (offsetNorm * 0.0045 * impactStrength) / widthBias;
+
+        if (Math.abs(offsetNorm) < 0.12) {
+            this.towerAngularVelocity *= 0.92;
+            this.towerAngularVelocity += horizontalImpulse * 0.5;
+        } else {
+            this.towerAngularVelocity += rotationalImpulse + horizontalImpulse;
+        }
+
+        this.towerCompressionVelocity += impactStrength * (isSettled ? 0.03 : 0.045);
+
+        if (isSettled) {
+            const settledBias = Utils.clamp(0.85 + ((floor.w - 300) / 600), 0.78, 1.2);
+            this.structureStabilityBias = Utils.lerp(this.structureStabilityBias, settledBias, 0.35);
+        }
+    }
+
+    addCharacterLandingImpulse(player, landingSpeed) {
+        if (landingSpeed < 3) return;
+
+        const offset = ((player.x + player.w / 2) - this.towerCenterX) / 300;
+        const impulse = Utils.clamp((landingSpeed / 22) * (player.mass / 20), 0, 1.5);
+        this.towerAngularVelocity += Utils.clamp(offset, -1, 1) * impulse * 0.0025;
+        this.towerCompressionVelocity += impulse * 0.01;
+        this.cameraDirector.addImpact(impulse * 0.06);
+        this.workerCamera.addImpact(impulse * 0.06);
+    }
+
+    addObjectImpactImpulse(obj, impactVy, impactVx = 0) {
+        const verticalImpact = Math.abs(impactVy);
+        if (verticalImpact < 1.5 && Math.abs(impactVx) < 1.2) return;
+
+        const massFactor = Utils.clamp(obj.mass / 80, 0.2, 3.2);
+        const offset = Utils.clamp(((obj.x + obj.w / 2) - this.towerCenterX) / 320, -1.2, 1.2);
+        const lift = Utils.clamp((verticalImpact / 12) * massFactor, 0, 2.2);
+        const lateral = Utils.clamp((impactVx / 18) * massFactor, -1.8, 1.8);
+
+        this.towerAngularVelocity += (offset * lift * 0.0018) + (lateral * 0.0009);
+        this.towerCompressionVelocity += lift * 0.006;
+        this.cameraDirector.addImpact(lift * 0.12);
+        this.workerCamera.addImpact(lift * 0.12);
+    }
+
+    triggerQuake(horizontal = 3, vertical = 2) {
+        this.quakeImpulseX += horizontal * Utils.choose([-1, 1]);
+        this.quakeImpulseY += vertical;
+        this.towerAngularVelocity += horizontal * 0.0015 * Utils.choose([-1, 1]);
+        this.towerCompressionVelocity += vertical * 0.015;
+    }
+
+    resolvePlayerCollisions() {
+        for (let i = 0; i < this.players.length; i++) {
+            for (let j = i + 1; j < this.players.length; j++) {
+                const a = this.players[i];
+                const b = this.players[j];
+                if (!Utils.checkAABB(a, b)) continue;
+
+                const overlapLeft = (a.x + a.w) - b.x;
+                const overlapRight = (b.x + b.w) - a.x;
+                const overlap = Math.min(overlapLeft, overlapRight);
+                const aLeft = (a.x + a.w / 2) < (b.x + b.w / 2);
+                const separation = (overlap / 2) + 0.5;
+
+                if (aLeft) {
+                    a.x -= separation;
+                    b.x += separation;
+                } else {
+                    a.x += separation;
+                    b.x -= separation;
+                }
+
+                const relativeSpeed = Math.abs(a.vx - b.vx);
+                const pushBase = ((a.charClass.stats.pushForce + b.charClass.stats.pushForce) / 2);
+                const chaosMult = (a.isChaosMode || b.isChaosMode) ? 1.5 : 1.0;
+                const impulse = Math.min(2.6, (relativeSpeed * 0.22) + (pushBase * 0.18)) * chaosMult;
+                const aResistance = Utils.clamp(a.stability, 0.7, 2.2);
+                const bResistance = Utils.clamp(b.stability, 0.7, 2.2);
+
+                if (aLeft) {
+                    a.vx -= impulse / aResistance;
+                    b.vx += impulse / bResistance;
+                } else {
+                    a.vx += impulse / aResistance;
+                    b.vx -= impulse / bResistance;
+                }
+
+                a.vx *= 0.96;
+                b.vx *= 0.96;
+            }
+        }
+    }
+
+    resolveObjectCollisions() {
+        for (let i = 0; i < this.objects.length; i++) {
+            const a = this.objects[i];
+            if (a.heldBy) continue;
+
+            for (let j = i + 1; j < this.objects.length; j++) {
+                const b = this.objects[j];
+                if (b.heldBy || !Utils.checkAABB(a, b)) continue;
+
+                const overlapX = Math.min(a.x + a.w - b.x, b.x + b.w - a.x);
+                const overlapY = Math.min(a.y + a.h - b.y, b.y + b.h - a.y);
+                const aCenterX = a.x + a.w / 2;
+                const bCenterX = b.x + b.w / 2;
+                const dir = aCenterX < bCenterX ? -1 : 1;
+                const massA = Math.max(1, a.mass);
+                const massB = Math.max(1, b.mass);
+                const totalMass = massA + massB;
+
+                if (overlapX <= overlapY * 1.15) {
+                    const separation = overlapX + 0.25;
+                    a.x += dir * (separation * (massB / totalMass));
+                    b.x -= dir * (separation * (massA / totalMass));
+
+                    const relativeVx = a.vx - b.vx;
+                    const impulse = Utils.clamp(relativeVx * 0.22, -2.4, 2.4);
+                    a.vx -= impulse * (massB / totalMass) * a.impactDamping;
+                    b.vx += impulse * (massA / totalMass) * b.impactDamping;
+                } else {
+                    const separation = overlapY + 0.25;
+                    const aAbove = a.y < b.y;
+                    if (aAbove) {
+                        a.y -= separation * (massB / totalMass);
+                        if (a.vy > 0) a.vy *= -a.restitutionY * 0.35;
+                    } else {
+                        b.y -= separation * (massA / totalMass);
+                        if (b.vy > 0) b.vy *= -b.restitutionY * 0.35;
+                    }
+                }
+
+                const impact = Math.abs(a.vx - b.vx) + Math.abs(a.vy - b.vy) * 0.35;
+                if (impact > 1.2) {
+                    const bounceStrength = Utils.clamp(impact / 5, 0.4, 1.2);
+                    a.triggerBounce(bounceStrength);
+                    b.triggerBounce(bounceStrength);
+                    this.addObjectImpactImpulse(a, impact * 0.35, a.vx - b.vx);
+                }
+            }
+        }
+    }
+
+    dropFloor(x, y, archetype, horizontalMomentum = 0) {
         this.upcomingPieces.shift();
 
         // Auto-align first few drops before creating the floor
@@ -245,6 +579,8 @@ class Game {
         const newFloor = new Floor(x, spawnY, false, theme, archetype, pTheme);
         newFloor.isFalling = true;
         newFloor.vy = 0;
+        newFloor.vx = horizontalMomentum;
+        newFloor.impactBounces = 0;
         newFloor.dropOffset = offset;
         newFloor.dropArchetype = archetype;
         newFloor.dropTheme = theme;
@@ -278,6 +614,9 @@ class Game {
             this.upcomingPieces.push(nextArchetype);
         }
 
+        this.cameraDirector.addImpact(0.8);
+        this.workerCamera.addImpact(0.8);
+
         const showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
         this.ui.setWeather(showWeather && this.progression.isRaining, showWeather && this.progression.isDark);
     }
@@ -288,7 +627,7 @@ class Game {
         let w = newFloor.w;
         let h = newFloor.h;
         let cx = x + w / 2;
-        let offset = newFloor.dropOffset;
+        let offset = Math.abs(cx - this.towerCenterX);
         let archetype = newFloor.dropArchetype;
         let theme = newFloor.dropTheme;
 
@@ -300,7 +639,8 @@ class Game {
             this.audio.play('perfect');
             this.cameraDirector.doPerfectDropZoom();
             this.score += 500;
-            this.balance *= 0.5;
+            this.towerAngle *= 0.65;
+            this.towerAngularVelocity *= 0.4;
             this.ui.showFlavorText("PERFECT DROP!", "playful");
             this.meta.recordStat('perfectDrops');
             this.vibrateAll(400, 1.0, 1.0);
@@ -351,6 +691,7 @@ class Game {
                 const hx = floor.x + Utils.random(20, floor.w - 20 - 30);
                 this.objects.push(new Interactable(hx, floor.y - 40, 'safe'));
             } else if (evName === "Shake") {
+                this.triggerQuake(3.5, 2.5);
                 this.triggerShake(10, 40);
                 this.audio.play('creak');
             }
@@ -362,6 +703,10 @@ class Game {
     updateStatics() {
         this.statics = [];
         for (let f of this.floors) {
+            if (f.colliders && f.colliders[0]) {
+                let rainFriction = this.progression.isRaining ? 1.12 : 1.0;
+                f.colliders[0].frictionModifier = Utils.clamp(f.baseFloorFriction * rainFriction, 0.78, 1.12);
+            }
             this.statics = this.statics.concat(f.colliders);
         }
     }
@@ -369,11 +714,16 @@ class Game {
     update() {
         if (!this.isRunning || this.isPaused) return;
 
+        this.backdropTime += 0.016;
+
         if (this.collapseDirector.isActive) {
             this.collapseDirector.update();
             this.particles.update();
             return;
         }
+
+        this.progression.updateEnvironment();
+        this.updateStatics();
 
         if (this.startGraceTimer > 0) {
             this.startGraceTimer--;
@@ -393,19 +743,58 @@ class Game {
         for (let i = 1; i < this.floors.length; i++) {
             let f = this.floors[i];
             if (f.isFalling) {
-                f.vy = (f.vy || 0) + this.physics.gravity;
-                if (f.vy > this.physics.maxFallSpeed) f.vy = this.physics.maxFallSpeed;
+                const prevX = f.x;
+                const prevY = f.y;
+                f.vy = ((f.vy || 0) + (this.physics.gravity * 1.05)) * 0.992;
+                f.vx = (f.vx || 0) * 0.996;
+                if (f.vy > this.physics.maxFallSpeed * 1.1) f.vy = this.physics.maxFallSpeed * 1.1;
                 
                 let nextY = f.y + f.vy;
+                let nextX = f.x + (f.vx || 0);
                 let prevFloor = this.floors[i - 1];
                 let targetY = prevFloor.y - f.h;
                 
                 if (nextY >= targetY) {
-                    f.updatePosition(targetY);
-                    f.isFalling = false;
-                    this.onFloorLanded(f);
+                    f.updatePosition(nextX, targetY);
+
+                    const impactSpeed = Math.abs(f.vy);
+                    const maxBounces = impactSpeed > 11 ? 2 : 1;
+                    const bounceRestitution = Utils.clamp(0.18 - ((f.mass / 500) * 0.04), 0.08, 0.16);
+                    const shouldBounce = impactSpeed > 2.8 && f.impactBounces < maxBounces;
+
+                    this.applyFloorImpact(f, impactSpeed, !shouldBounce);
+                    this.cameraDirector.addImpact(impactSpeed * 0.06);
+                    this.workerCamera.addImpact(impactSpeed * 0.06);
+
+                    if (shouldBounce) {
+                        f.impactBounces++;
+                        f.vy = -impactSpeed * bounceRestitution;
+                        f.vx *= 0.65;
+                        if (i === this.floors.length - 1) {
+                            const dx = f.x - prevX;
+                            const dy = f.y - prevY;
+                            for (let p of this.players) {
+                                p.x += dx;
+                                p.y += dy;
+                            }
+                        }
+                        this.updateStatics();
+                    } else {
+                        f.isFalling = false;
+                        f.vy = 0;
+                        f.vx *= 0.2;
+                        this.onFloorLanded(f);
+                    }
                 } else {
-                    f.updatePosition(nextY);
+                    f.updatePosition(nextX, nextY);
+                    if (i === this.floors.length - 1) {
+                        const dx = f.x - prevX;
+                        const dy = f.y - prevY;
+                        for (let p of this.players) {
+                            p.x += dx;
+                            p.y += dy;
+                        }
+                    }
                     this.updateStatics();
                 }
             }
@@ -425,13 +814,16 @@ class Game {
             } else {
                 state = this.inputManager.getPlayerState(p.slot);
             }
-            p.update(state, this.physics, this.statics, this.objects, this.audio, this.particles, this.players, this.meta);
+            p.update(state, this.physics, this.statics, this.objects, this.audio, this.particles, this.players, this.meta, this);
         }
+        this.resolvePlayerCollisions();
 
         for (let i = this.objects.length - 1; i >= 0; i--) {
             const obj = this.objects[i];
 
             if (obj.isThrown) {
+                obj.vx *= obj.airDrag || 0.994;
+                obj.spinVelocity *= 0.995;
                 this.physics.applyGravity(obj);
 
                 const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
@@ -442,12 +834,14 @@ class Game {
                 }
 
                 if (hits.collideX || hits.collideY) {
+                    obj.spinVelocity *= 0.82;
                     if (hits.collideY && obj.onGround) {
                         obj.isThrown = false;
-                        obj.vx = 0;
-                        obj.triggerBounce();
-                        this.particles.emitImpactDust(obj.x + obj.w / 2, obj.y + obj.h, 5);
-                        this.audio.play('drop');
+                        obj.vx *= 0.52;
+                        obj.triggerBounce(Utils.clamp(Math.abs(hits.impactVy) / 10, 0.55, 1.5));
+                        this.addObjectImpactImpulse(obj, hits.impactVy, hits.impactVx);
+                        this.particles.emitImpactDust(obj.x + obj.w / 2, obj.y + obj.h, Math.max(4, Math.floor(obj.mass / 20)));
+                        this.audio.play('drop', obj.mass);
 
                         for (let h of this.hazards) {
                             if (!h.isExtinguished && Math.abs(obj.x - h.x) < 60 && Math.abs(obj.y - h.y) < 60) {
@@ -458,13 +852,53 @@ class Game {
                     }
                 }
             } else if (!obj.heldBy) {
+                const tilt = Math.abs(this.towerAngle);
+                const downhillDir = Math.sign(Math.sin(this.towerAngle) || this.towerAngularVelocity || 0) || 0;
+                const dynamicTilt = tilt + (Math.abs(this.towerAngularVelocity) * 1.8) + (this.motionStress * 0.02);
+                if (obj.onGround) {
+                    if (dynamicTilt > obj.slideThreshold) {
+                        const slideRatio = Utils.clamp(
+                            (dynamicTilt - obj.slideThreshold) / Math.max(0.01, (Math.PI / 8) - obj.slideThreshold),
+                            0,
+                            1
+                        );
+                        obj.slideTimer = Math.min(1, obj.slideTimer + (0.06 + slideRatio * 0.04));
+                        obj.vx += downhillDir * obj.slideAccel * (0.18 + slideRatio + obj.slideTimer) * (1 + Math.abs(this.towerAngularVelocity) * 6);
+                        obj.visualTiltTarget = downhillDir * Math.min(0.22, 0.05 + slideRatio * 0.16);
+                    } else if (dynamicTilt > obj.slideThreshold * 0.58) {
+                        const wobbleRatio = (dynamicTilt - (obj.slideThreshold * 0.58)) / (obj.slideThreshold * 0.42);
+                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.08);
+                        obj.wobbleTime += 0.18 + wobbleRatio * 0.1;
+                        const wobble = Math.sin(obj.wobbleTime) * wobbleRatio * 0.05;
+                        obj.visualTiltTarget = (downhillDir * Math.min(0.1, wobbleRatio * 0.08)) + wobble;
+                    } else {
+                        obj.slideTimer = Math.max(0, obj.slideTimer - 0.14);
+                        obj.visualTiltTarget = 0;
+                    }
+                    obj.restTimer = (Math.abs(obj.vx) < obj.settleThreshold && obj.slideTimer < 0.08) ? (obj.restTimer + 1) : 0;
+                } else {
+                    obj.slideTimer = Math.max(0, obj.slideTimer - 0.06);
+                    obj.visualTiltTarget = 0;
+                    obj.restTimer = 0;
+                }
+
                 this.physics.applyGravity(obj);
+                if (this.quakeImpulseX || this.quakeImpulseY) {
+                    obj.vx += (this.quakeImpulseX * 0.03) / Math.max(1, obj.mass / 20);
+                    obj.vy -= this.quakeImpulseY * 0.04;
+                }
                 const wasOnGround = obj.onGround;
-                this.physics.moveAndCollide(obj, this.statics, windForce);
+                const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
 
                 if (obj.onGround && !wasOnGround) {
-                    obj.triggerBounce();
+                    obj.triggerBounce(Utils.clamp(Math.abs(hits.impactVy) / 11, 0.4, 1.25));
+                    this.addObjectImpactImpulse(obj, hits.impactVy, hits.impactVx);
                     this.audio.play('drop', obj.mass);
+                }
+
+                if (obj.onGround && obj.restTimer > 14) {
+                    obj.vx = 0;
+                    obj.vy = 0;
                 }
 
                 if (obj.onGround && Math.abs(obj.vx) > 0.5 && Math.random() < 0.1) {
@@ -472,6 +906,7 @@ class Game {
                 }
             }
         }
+        this.resolveObjectCollisions();
 
         for (let p of this.players) {
             if (p.y > this.canvas.height + Math.abs(this.cameraDirector.y) + 300) {
@@ -483,13 +918,31 @@ class Game {
             }
         }
 
-        const torque = this.physics.calculateBalance(
+        if (this.quakeImpulseX || this.quakeImpulseY) {
+            for (let p of this.players) {
+                if (p.onGround) {
+                    p.vx += this.quakeImpulseX * 0.02 / p.stability;
+                    p.vy -= this.quakeImpulseY * 0.03;
+                    p.onGround = false;
+                }
+            }
+            this.quakeImpulseX *= 0.78;
+            this.quakeImpulseY *= 0.72;
+            if (Math.abs(this.quakeImpulseX) < 0.05) this.quakeImpulseX = 0;
+            if (Math.abs(this.quakeImpulseY) < 0.05) this.quakeImpulseY = 0;
+        }
+
+        const massState = this.physics.calculateMassState(
             this.floors,
             this.objects,
             this.players,
             this.towerCenterX,
             windForce
         );
+        const torque = massState.torque;
+        this.centerOfMassX = massState.centerOfMassX;
+        this.centerOfMassOffset = massState.centerOfMassOffset;
+        this.totalMass = massState.totalMass;
 
         const chapterShrink = (this.progression.currentChapter - 1) * 1000;
         const pMult = this.progression.projectManager.selectedProject.traits.stabilityMult;
@@ -506,18 +959,19 @@ class Game {
             }
         }
 
-        this.balance = Utils.clamp(
-            ((torque + (Math.sign(torque || 1) * firePanic)) / maxTorque) * 100,
-            -100,
-            100
-        );
+        const netTorque = torque + (Math.sign(torque || 1) * firePanic);
+        this.updateTowerCompression();
+        this.updateTowerMotion(netTorque, maxTorque);
 
         const previousDangerLevel = this.dangerLevel;
-        const absBalance = Math.abs(this.balance);
-        if (absBalance < 30) this.dangerLevel = 0;
-        else if (absBalance < 60) this.dangerLevel = 1;
-        else if (absBalance < 85) this.dangerLevel = 2;
+        if (this.motionStress < 0.18) this.dangerLevel = 0;
+        else if (this.motionStress < 0.42) this.dangerLevel = 1;
+        else if (this.motionStress < 0.75) this.dangerLevel = 2;
         else this.dangerLevel = 3;
+
+        const nearFailure = Math.abs(this.towerAngle) > (Math.PI / 10.2) || this.motionStress > 0.95;
+        if (nearFailure) this.overRotationTime++;
+        else this.overRotationTime = Math.max(0, this.overRotationTime - 2);
 
         if (previousDangerLevel >= 2 && this.dangerLevel <= 1) {
             this.meta.recordStat('recoveries');
@@ -543,7 +997,11 @@ class Game {
             this.dangerTimer = 0;
         }
 
-        const dLevel = this.dangerTimer > 0 ? 2 : (Math.abs(torque) > maxTorque * 0.7 ? 1 : 0);
+        if (this.overRotationTime > 45 && this.motionStress > 0.9) {
+            this.stop();
+        }
+
+        const dLevel = this.dangerTimer > 0 ? 2 : (this.motionStress > 0.45 ? 1 : 0);
         this.music.updateGameplayState(dLevel, this.progression.currentChapter, false);
         this.music.update();
 
@@ -557,7 +1015,13 @@ class Game {
             ? this.floors[this.floors.length - 1].y
             : this.canvas.height;
 
-        this.cameraDirector.update(this.dropPlayer.x + this.dropPlayer.w / 2, highestY - 50, torque, dLevel);
+        const cameraMotion = {
+            angle: this.towerAngle,
+            angularVelocity: this.towerAngularVelocity,
+            stress: this.instabilityMemory,
+            centerOffset: this.centerOfMassOffset
+        };
+        this.cameraDirector.update(this.dropPlayer.carriageCenterX || (this.dropPlayer.x + this.dropPlayer.w / 2), highestY - 50, cameraMotion, dLevel);
 
         let workerAvgX = this.towerCenterX;
         let workerAvgY = highestY;
@@ -578,14 +1042,15 @@ class Game {
             workerAvgY = sumY / activePlayers;
         }
 
-        this.workerCamera.update(workerAvgX, workerAvgY, torque, dLevel);
+        this.workerCamera.update(workerAvgX, workerAvgY, cameraMotion, dLevel);
         this.particles.update();
     }
 
     drawWorld(ctx) {
         ctx.translate(this.towerCenterX, this.canvas.height);
-        const angle = (this.balance / 100) * (Math.PI / 14);
-        ctx.rotate(angle);
+        ctx.rotate(this.towerAngle);
+        ctx.scale(1 + (this.towerCompression * 0.06), 1 - (this.towerCompression * 0.16));
+        ctx.transform(1, 0, this.towerAngle * 0.08, 1, 0, 0);
         ctx.translate(-this.towerCenterX, -this.canvas.height);
 
         for (let f of this.floors) f.draw(ctx);
@@ -596,20 +1061,232 @@ class Game {
         this.particles.draw(ctx);
     }
 
+    drawCloudShape(ctx, x, y, w, h, color, stretch = 1) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(x, y, w * 0.36, h * 0.34 * stretch, 0, 0, Math.PI * 2);
+        ctx.ellipse(x - w * 0.18, y + h * 0.03, w * 0.24, h * 0.26 * stretch, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + w * 0.2, y + h * 0.04, w * 0.26, h * 0.24 * stretch, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawBackdrop(ctx, camera) {
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const altitude = Utils.clamp((-camera.y) / 5200, 0, 1.35);
+        const cityWeight = 1 - Utils.smoothstep(0.14, 0.42, altitude);
+        const skyWeight = Utils.smoothstep(0.05, 0.28, altitude) * (1 - Utils.smoothstep(0.52, 0.82, altitude));
+        const upperWeight = Utils.smoothstep(0.46, 0.72, altitude) * (1 - Utils.smoothstep(0.86, 1.08, altitude));
+        const spaceWeight = Utils.smoothstep(0.8, 1.08, altitude);
+        const duskWeight = Utils.smoothstep(0.18, 0.5, altitude);
+        const windWeight = Utils.clamp(Math.abs(this.progression.windForce) / 9, 0, 1);
+        const parallaxX = camera.x * 0.12;
+
+        ctx.save();
+        ctx.fillStyle = '#050914';
+        ctx.fillRect(-width, -height, width * 3, height * 3);
+
+        let grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, '#13233f');
+        grad.addColorStop(0.65, '#314c72');
+        grad.addColorStop(1, '#f29d58');
+        ctx.globalAlpha = 0.9 * cityWeight;
+        ctx.fillStyle = grad;
+        ctx.fillRect(-width, 0, width * 3, height);
+
+        grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, '#79a2f4');
+        grad.addColorStop(0.48, '#97d3f7');
+        grad.addColorStop(1, '#f7d19b');
+        ctx.globalAlpha = 0.88 * Math.max(skyWeight, 0.2 * cityWeight);
+        ctx.fillStyle = grad;
+        ctx.fillRect(-width, 0, width * 3, height);
+
+        grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, '#06142f');
+        grad.addColorStop(0.45, '#21456d');
+        grad.addColorStop(1, 'rgba(68,114,160,0.12)');
+        ctx.globalAlpha = 0.92 * upperWeight;
+        ctx.fillStyle = grad;
+        ctx.fillRect(-width, 0, width * 3, height);
+
+        grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, '#03050f');
+        grad.addColorStop(0.42, '#140d31');
+        grad.addColorStop(1, '#24124f');
+        ctx.globalAlpha = 0.96 * spaceWeight;
+        ctx.fillStyle = grad;
+        ctx.fillRect(-width, 0, width * 3, height);
+
+        const sunX = width * 0.76;
+        const sunY = height * (0.22 + (altitude * 0.08));
+        let glow = ctx.createRadialGradient(sunX, sunY, 20, sunX, sunY, height * 0.45);
+        glow.addColorStop(0, 'rgba(255, 239, 189, 0.85)');
+        glow.addColorStop(0.35, 'rgba(255, 204, 130, 0.28)');
+        glow.addColorStop(1, 'rgba(255, 204, 130, 0)');
+        ctx.globalAlpha = 0.8 * (skyWeight + (upperWeight * 0.35));
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        const horizonGlow = ctx.createLinearGradient(0, height * 0.48, 0, height);
+        horizonGlow.addColorStop(0, 'rgba(255,255,255,0)');
+        horizonGlow.addColorStop(0.55, 'rgba(255,197,119,0.12)');
+        horizonGlow.addColorStop(1, 'rgba(255,129,72,0.28)');
+        ctx.globalAlpha = 0.7 * (cityWeight + duskWeight * 0.65);
+        ctx.fillStyle = horizonGlow;
+        ctx.fillRect(-width, height * 0.48, width * 3, height * 0.6);
+
+        const atmosphere = ctx.createLinearGradient(0, 0, 0, height);
+        atmosphere.addColorStop(0, 'rgba(255,255,255,0)');
+        atmosphere.addColorStop(0.58, 'rgba(200,230,255,0.03)');
+        atmosphere.addColorStop(1, 'rgba(19,32,58,0.28)');
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = atmosphere;
+        ctx.fillRect(-width, 0, width * 3, height);
+
+        const skylineBaseY = height + 10;
+        for (let b of this.cityBuildings) {
+            const x = b.x - (parallaxX * b.depth);
+            const y = skylineBaseY - b.h;
+            const body = ctx.createLinearGradient(0, y, 0, skylineBaseY);
+            body.addColorStop(0, b.depth < 0.3 ? '#31404f' : (b.depth < 0.5 ? '#223241' : '#15222d'));
+            body.addColorStop(1, '#0d1720');
+            ctx.globalAlpha = (0.22 + b.depth * 0.35) * cityWeight;
+            Utils.drawRoundedRect(ctx, x, y, b.w, b.h, 8, body);
+
+            ctx.globalAlpha = 0.12 * cityWeight;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x + 4, y + 6, b.w - 8, 3);
+
+            ctx.globalAlpha = (0.16 + b.depth * 0.18) * cityWeight;
+            ctx.fillStyle = 'rgba(255, 205, 125, 0.85)';
+            const padX = 10;
+            const padY = 14;
+            const colGap = Math.max(11, (b.w - padX * 2) / Math.max(2, b.windowCols));
+            const rowGap = Math.max(13, (b.h - padY * 2) / Math.max(4, b.windowRows));
+            for (let col = 0; col < b.windowCols; col++) {
+                for (let row = 0; row < b.windowRows; row++) {
+                    if (((col + row + Math.floor(b.h)) % 7) / 6 > b.lightRate) continue;
+                    ctx.fillRect(x + padX + (col * colGap), y + padY + (row * rowGap), 4, 7);
+                }
+            }
+
+            ctx.globalAlpha = 0.18 * cityWeight;
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            if (b.roof === 'antennas') {
+                ctx.beginPath();
+                ctx.moveTo(x + b.w * 0.35, y);
+                ctx.lineTo(x + b.w * 0.35, y - 18);
+                ctx.moveTo(x + b.w * 0.62, y);
+                ctx.lineTo(x + b.w * 0.62, y - 12);
+                ctx.stroke();
+            } else if (b.roof === 'crown') {
+                ctx.beginPath();
+                ctx.moveTo(x + 10, y);
+                ctx.lineTo(x + b.w * 0.5, y - 16);
+                ctx.lineTo(x + b.w - 10, y);
+                ctx.stroke();
+            } else if (b.roof === 'slant') {
+                ctx.beginPath();
+                ctx.moveTo(x, y + 6);
+                ctx.lineTo(x + b.w, y - 10);
+                ctx.stroke();
+            }
+        }
+
+        const fogGrad = ctx.createLinearGradient(0, height * 0.52, 0, height);
+        fogGrad.addColorStop(0, 'rgba(255,255,255,0)');
+        fogGrad.addColorStop(1, 'rgba(210,224,255,0.26)');
+        ctx.globalAlpha = 0.48 * cityWeight;
+        ctx.fillStyle = fogGrad;
+        ctx.fillRect(-width, height * 0.52, width * 3, height * 0.6);
+
+        for (let c of this.clouds) {
+            const cloudWeight = (skyWeight * (1.08 - (c.depth * 0.35))) + (upperWeight * c.depth * 0.7);
+            if (cloudWeight <= 0.02) continue;
+            const wrapX = width + c.w * 1.5;
+            let x = c.x + Math.sin(this.backdropTime * c.speed * 0.18 + c.depth) * 25;
+            x -= parallaxX * (0.28 + c.depth * 0.4);
+            while (x < -c.w * 1.4) x += wrapX * 1.4;
+            while (x > width + c.w * 1.4) x -= wrapX * 1.4;
+            const y = c.y + (camera.y * c.depth * 0.055) + Math.sin(this.backdropTime * c.speed * 0.1 + c.x * 0.01) * 10;
+            ctx.globalAlpha = Utils.clamp(c.alpha * cloudWeight, 0, 0.42);
+            this.drawCloudShape(ctx, x, y, c.w, c.h, 'rgba(255,255,255,0.92)', c.fluff);
+            ctx.globalAlpha = Utils.clamp(c.alpha * cloudWeight * 0.45, 0, 0.18);
+            this.drawCloudShape(ctx, x + 12, y + 8, c.w * 0.9, c.h * 0.86, 'rgba(122,167,214,0.65)', c.fluff);
+        }
+
+        for (let d of this.atmoDust) {
+            const dustWeight = (upperWeight * 0.8) + (spaceWeight * 0.65);
+            if (dustWeight <= 0.03) continue;
+            const x = d.x - (parallaxX * d.depth * 0.35);
+            const y = d.y + (camera.y * d.depth * 0.03);
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(d.angle + (windWeight * 0.12));
+            ctx.globalAlpha = d.alpha * dustWeight;
+            ctx.fillStyle = spaceWeight > 0.2 ? 'rgba(184,202,255,0.9)' : 'rgba(255,255,255,0.8)';
+            ctx.fillRect(-d.len / 2, -1, d.len, 2);
+            ctx.restore();
+        }
+
+        for (let n of this.nebulae) {
+            if (spaceWeight <= 0.03 && upperWeight <= 0.06) continue;
+            const x = n.x - (parallaxX * 0.12) + Math.sin(this.backdropTime * 0.02 + n.drift) * 18;
+            const y = n.y + (camera.y * 0.018 * n.stretch);
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(n.stretch, 1);
+            const nebula = ctx.createRadialGradient(0, 0, 12, 0, 0, n.r);
+            nebula.addColorStop(0, n.color);
+            nebula.addColorStop(0.55, n.color);
+            nebula.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = ((spaceWeight * 0.9) + (upperWeight * 0.2)) * n.alpha;
+            ctx.fillStyle = nebula;
+            ctx.fillRect(-n.r, -n.r, n.r * 2, n.r * 2);
+            ctx.restore();
+        }
+
+        for (let s of this.stars) {
+            const visibility = (spaceWeight * 0.95) + (upperWeight * 0.28);
+            if (visibility <= 0.01) continue;
+            const twinkle = 0.65 + (Math.sin(this.backdropTime * (1.2 + s.twinkle) + s.x * 0.03) * 0.35);
+            const x = s.x - (parallaxX * s.depth * 0.08);
+            const y = s.y + (camera.y * s.depth * 0.014);
+            ctx.globalAlpha = s.alpha * visibility * twinkle;
+            ctx.fillStyle = '#f8fbff';
+            ctx.beginPath();
+            ctx.arc(x, y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (this.progression.isDark) {
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = '#020308';
+            ctx.fillRect(-width, 0, width * 3, height);
+        }
+
+        const vignette = ctx.createLinearGradient(0, 0, 0, height);
+        vignette.addColorStop(0, 'rgba(6,10,22,0.3)');
+        vignette.addColorStop(0.35, 'rgba(6,10,22,0)');
+        vignette.addColorStop(1, 'rgba(4,6,14,0.34)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = vignette;
+        ctx.fillRect(-width, 0, width * 3, height);
+        ctx.restore();
+    }
+
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (!this.isRunning) this.backdropTime += 0.016;
 
         if (this.isRunning) {
             const hw = this.canvas.width / 2;
 
             if (this.isSinglePlayer) {
                 this.ctx.save();
-                this.ctx.translate(0, this.cameraDirector.y * 0.2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                for (let c of this.clouds) {
-                    Utils.drawRoundedRect(this.ctx, c.x, c.y, c.w, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                    Utils.drawRoundedRect(this.ctx, c.x + 20, c.y - 15, c.w * 0.6, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                }
+                this.drawBackdrop(this.ctx, this.cameraDirector);
                 this.ctx.restore();
 
                 this.ctx.save();
@@ -630,12 +1307,7 @@ class Game {
                 this.ctx.translate(-hw / 2, 0);
 
                 this.ctx.save();
-                this.ctx.translate(0, this.cameraDirector.y * 0.2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                for (let c of this.clouds) {
-                    Utils.drawRoundedRect(this.ctx, c.x, c.y, c.w, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                    Utils.drawRoundedRect(this.ctx, c.x + 20, c.y - 15, c.w * 0.6, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                }
+                this.drawBackdrop(this.ctx, this.cameraDirector);
                 this.ctx.restore();
 
                 this.ctx.save();
@@ -658,12 +1330,7 @@ class Game {
                 this.ctx.translate(hw / 2, 0);
 
                 this.ctx.save();
-                this.ctx.translate(0, this.workerCamera.y * 0.2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                for (let c of this.clouds) {
-                    Utils.drawRoundedRect(this.ctx, c.x, c.y, c.w, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                    Utils.drawRoundedRect(this.ctx, c.x + 20, c.y - 15, c.w * 0.6, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                }
+                this.drawBackdrop(this.ctx, this.workerCamera);
                 this.ctx.restore();
 
                 this.ctx.save();
@@ -692,21 +1359,25 @@ class Game {
                 this.ctx.restore();
             }
         } else {
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            for (let c of this.clouds) {
-                c.x += c.speed * 0.5;
-                if (c.x > this.canvas.width + c.w) c.x = -c.w;
-                Utils.drawRoundedRect(this.ctx, c.x, c.y, c.w, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-                Utils.drawRoundedRect(this.ctx, c.x + 20, c.y - 15, c.w * 0.6, c.h, 20, 'rgba(255, 255, 255, 0.1)');
-            }
+            this.drawBackdrop(this.ctx, this.cameraDirector);
         }
     }
 
-    loop() {
+    loop(timestamp = 0) {
         if (!this.isRunning || this.isPaused) return;
-        this.update();
+
+        if (!this.lastFrameTime) this.lastFrameTime = timestamp;
+        const delta = Math.min(50, timestamp - this.lastFrameTime);
+        this.lastFrameTime = timestamp;
+        this.accumulator += delta;
+
+        while (this.accumulator >= this.fixedDeltaMs) {
+            this.update();
+            this.inputManager.postUpdate();
+            this.accumulator -= this.fixedDeltaMs;
+        }
+
         this.draw();
-        this.inputManager.postUpdate();
-        requestAnimationFrame(() => this.loop());
+        requestAnimationFrame((ts) => this.loop(ts));
     }
 }

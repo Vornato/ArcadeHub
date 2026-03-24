@@ -6,6 +6,15 @@ const Utils = {
     randomInt: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
     clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
     lerp: (start, end, amt) => (1 - amt) * start + amt * end,
+    approach: (value, target, delta) => {
+        if (value < target) return Math.min(value + delta, target);
+        if (value > target) return Math.max(value - delta, target);
+        return target;
+    },
+    smoothstep: (edge0, edge1, value) => {
+        const t = Math.max(0, Math.min(1, (value - edge0) / Math.max(0.0001, edge1 - edge0)));
+        return t * t * (3 - (2 * t));
+    },
     choose: (arr) => arr[Math.floor(Math.random() * arr.length)],
 
     checkAABB: (r1, r2) => {

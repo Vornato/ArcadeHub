@@ -63,15 +63,16 @@ class Floor {
         this.wallR = isFoundation ? 20 : this.archetype.wallRight;
         this.depthW = 30; 
         this.depthH = 20;
+        this.rotation = 0;
 
         const winTop = 40;
         const winH = 80;
 
-        let fMod = this.isSlippery ? 0.98 : 0.8; // default friction is 0.8 in physics.js
+        this.baseFloorFriction = this.isSlippery ? 0.98 : 0.8; // default friction is 0.8 in physics.js
 
         // Bottom floor collider
         this.colliders = [
-            { x: this.x, y: this.y + this.h - this.wallL, w: this.w, h: this.wallL, isFloor: true, frictionModifier: fMod }
+            { x: this.x, y: this.y + this.h - this.wallL, w: this.w, h: this.wallL, isFloor: true, frictionModifier: this.baseFloorFriction }
         ];
 
         if (!isFoundation) {
@@ -90,113 +91,171 @@ class Floor {
     }
 
     draw(ctx) {
+        ctx.save();
+        if (this.rotation) {
+            ctx.translate(this.x + this.w / 2, this.y + this.h);
+            ctx.rotate(this.rotation);
+            ctx.translate(-(this.x + this.w / 2), -(this.y + this.h));
+        }
+        const innerX = this.x + this.wallL;
+        const innerW = this.w - this.wallL - this.wallR;
+        const shellGrad = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
+        shellGrad.addColorStop(0, Utils.adjustColor(this.baseColor, 22));
+        shellGrad.addColorStop(1, Utils.adjustColor(this.baseColor, -26));
+        const wallGrad = ctx.createLinearGradient(innerX, this.y, innerX, this.y + this.h);
+        wallGrad.addColorStop(0, Utils.adjustColor(this.wallColor, 14));
+        wallGrad.addColorStop(1, Utils.adjustColor(this.wallColor, -18));
+        const deckGrad = ctx.createLinearGradient(innerX, this.y + this.h - 26, innerX, this.y + this.h);
+        deckGrad.addColorStop(0, Utils.adjustColor(this.floorColor, 34));
+        deckGrad.addColorStop(0.35, this.floorColor);
+        deckGrad.addColorStop(1, Utils.adjustColor(this.floorColor, -22));
+        const lipGrad = ctx.createLinearGradient(this.x, this.y + this.h - 20, this.x, this.y + this.h + 8);
+        lipGrad.addColorStop(0, '#d8dee6');
+        lipGrad.addColorStop(1, '#7f8c98');
+        const trimColor = this.projectTheme ? this.projectTheme.visuals.trim : this.ceilingColor;
+
+        ctx.shadowColor = 'rgba(0,0,0,0.24)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 10;
+        Utils.drawRoundedRect(ctx, this.x, this.y + 4, this.w, this.h - 2, 12, shellGrad);
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
         if (!this.isFoundation) {
-            Utils.drawColoredRect(ctx, this.x + this.wallL, this.y, this.w - this.wallL - this.wallR, this.h, this.wallColor);
-            
-            // Thematic Wallpaper
+            Utils.drawRoundedRect(ctx, innerX, this.y + 8, innerW, this.h - 28, 10, wallGrad);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.07)';
+            const panelGap = this.theme && this.theme.name === "Luxury Penthouse" ? 44 : 28;
+            for (let i = 14; i < innerW - 10; i += panelGap) {
+                ctx.fillRect(innerX + i, this.y + 14, Math.max(8, panelGap * 0.36), this.h - 42);
+            }
+
             ctx.fillStyle = 'rgba(255,255,255,0.05)';
-            if (this.theme && this.theme.name === "Luxury Penthouse") {
-                // Diamonds
-                for(let i=30; i<this.w-this.wallL-this.wallR; i+=40) {
-                     ctx.save(); ctx.translate(this.x + this.wallL + i, this.y + this.h/2); ctx.rotate(Math.PI/4);
-                     ctx.fillRect(-10, -10, 20, 20); ctx.restore();
-                }
-            } else {
-                // Stripes
-                for(let i=10; i<this.w-this.wallL-this.wallR; i+=30) {
-                     ctx.fillRect(this.x + this.wallL + i, this.y, 15, this.h);
-                }
+            for (let i = 0; i < innerW; i += 36) {
+                ctx.fillRect(innerX + i, this.y + this.h - 48, 16, 4);
             }
         } else {
-            Utils.drawColoredRect(ctx, this.x, this.y, this.w, this.h, this.baseColor);
+            Utils.drawRoundedRect(ctx, this.x + 6, this.y + 10, this.w - 12, this.h - 26, 12, wallGrad);
         }
 
-        Utils.drawColoredRect(ctx, this.x + this.wallL, this.y, this.w - this.wallL - this.wallR, 10, this.ceilingColor);
-        Utils.drawColoredRect(ctx, this.x + this.wallL, this.y + this.h - 20 - this.depthH, this.w - this.wallL - this.wallR, this.depthH, this.floorColor);
-        Utils.drawColoredRect(ctx, this.x, this.y + this.h - 20, this.w, 20, '#d1ccc0');
-        
-        ctx.fillStyle = '#a4b0be';
-        ctx.fillRect(this.x, this.y + this.h - 20, this.w, 3); 
+        Utils.drawRoundedRect(ctx, innerX, this.y + 6, innerW, 10, 6, trimColor);
+        Utils.drawRoundedRect(ctx, innerX, this.y + this.h - 30, innerW, 18, 6, deckGrad);
+        Utils.drawRoundedRect(ctx, this.x, this.y + this.h - 18, this.w, 18, 8, lipGrad);
 
-        if (!this.isFoundation) {
-            let winStyle = this.projectTheme ? this.projectTheme.visuals.windowStyle : 'rect';
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.fillRect(innerX + 8, this.y + this.h - 28, innerW - 16, 3);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(this.x + 6, this.y + this.h - 14, this.w - 12, 2);
 
-            ctx.fillStyle = this.baseColor;
-            
-            // Draw custom exterior based on window style
-            if (winStyle === 'full') {
-                ctx.fillRect(this.x, this.y, this.wallL, 20);
-                ctx.fillRect(this.x, this.y + this.h - 30, this.wallL, 10);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y + this.h - 30, this.wallR, 10);
-                // The glowing glass
-                ctx.fillStyle = 'rgba(0, 206, 201, 0.3)';
-                ctx.fillRect(this.x + 2, this.y + 20, this.wallL - 4, this.h - 50);
-                ctx.fillRect(this.x + this.w - this.wallR + 2, this.y + 20, this.wallR - 4, this.h - 50);
-            } else if (winStyle === 'small') {
-                ctx.fillRect(this.x, this.y, this.wallL, this.h - 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, this.h - 20);
-                ctx.fillStyle = '#2d3436';
-                ctx.fillRect(this.x + this.wallL/2 - 5, this.y + 40, 10, 20);
-                ctx.fillRect(this.x + this.w - this.wallR/2 - 5, this.y + 40, 10, 20);
-            } else if (winStyle === 'wide') {
-                ctx.fillRect(this.x, this.y, this.wallL, 40);
-                ctx.fillRect(this.x, this.y + 120, this.wallL, this.h - 120 - 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, 40);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y + 120, this.wallR, this.h - 120 - 20);
-                ctx.fillStyle = '#f1c40f'; // golden tint
-                ctx.fillRect(this.x, this.y + 40, this.wallL, 80);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y + 40, this.wallR, 80);
-            } else if (winStyle === 'crooked') {
-                ctx.fillRect(this.x, this.y, this.wallL, this.h - 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, this.h - 20);
-                ctx.fillStyle = '#2d3436';
-                ctx.beginPath(); ctx.moveTo(this.x+2, this.y+30); ctx.lineTo(this.x+this.wallL-2, this.y+40); ctx.lineTo(this.x+this.wallL-5, this.y+90); ctx.fill();
-            } else {
-                ctx.fillRect(this.x, this.y, this.wallL, 40);
-                ctx.fillRect(this.x, this.y + 120, this.wallL, this.h - 120 - 20);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y, this.wallR, 40);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y + 120, this.wallR, this.h - 120 - 20);
-                ctx.fillStyle = '#2d3436';
-                ctx.fillRect(this.x + this.wallL - 5, this.y + 40, 5, 80);
-                ctx.fillRect(this.x + this.w - this.wallR, this.y + 40, 5, 80);
-            }
+        const supportCount = Math.max(3, Math.floor(this.w / 72));
+        ctx.fillStyle = 'rgba(44, 62, 80, 0.32)';
+        for (let i = 0; i < supportCount; i++) {
+            const ribX = this.x + 18 + (i * ((this.w - 36) / Math.max(1, supportCount - 1)));
+            ctx.fillRect(ribX, this.y + this.h - 18, 6, 14);
+        }
 
-            // Center pillar
-            if (this.archetype.centerPillar) {
-                ctx.fillStyle = this.baseColor;
-                ctx.fillRect(this.x + this.w/2 - 15, this.y, 30, this.h - 20);
-            }
-
-            ctx.fillStyle = Utils.adjustColor(this.baseColor, -50);
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        for (let i = 0; i < this.w; i += 34) {
             ctx.beginPath();
-            ctx.moveTo(this.x + this.w, this.y);
-            ctx.lineTo(this.x + this.w + this.depthW, this.y - this.depthH);
-            ctx.lineTo(this.x + this.w + this.depthW, this.y + this.h - this.depthH);
-            ctx.lineTo(this.x + this.w, this.y + this.h);
-            ctx.closePath();
-            ctx.fill();
-
-            // Depending on architecture, we might just draw a generic 3D cutout or style the cutout depth based on trim
-            let tColor = this.projectTheme ? this.projectTheme.visuals.trim : Utils.adjustColor(this.baseColor, 20);
-            
-            ctx.clearRect(this.x + this.w + 1, this.y + 40 - this.depthH/2, this.depthW - 2, 80);
-            
-            ctx.fillStyle = tColor;
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.lineTo(this.x + this.depthW, this.y - this.depthH);
-            ctx.lineTo(this.x + this.w + this.depthW, this.y - this.depthH);
-            ctx.lineTo(this.x + this.w, this.y);
-            ctx.closePath();
+            ctx.arc(this.x + 12 + i, this.y + this.h - 9, 2, 0, Math.PI * 2);
             ctx.fill();
         }
+
+        let winStyle = this.projectTheme ? this.projectTheme.visuals.windowStyle : 'rect';
+        const outerWallGrad = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
+        outerWallGrad.addColorStop(0, Utils.adjustColor(this.baseColor, 12));
+        outerWallGrad.addColorStop(1, Utils.adjustColor(this.baseColor, -30));
+        Utils.drawRoundedRect(ctx, this.x, this.y, this.wallL, this.h - 8, 8, outerWallGrad);
+        Utils.drawRoundedRect(ctx, this.x + this.w - this.wallR, this.y, this.wallR, this.h - 8, 8, outerWallGrad);
+
+        if (winStyle === 'full') {
+            ctx.fillStyle = 'rgba(127, 224, 255, 0.34)';
+            ctx.fillRect(this.x + 3, this.y + 16, Math.max(8, this.wallL - 6), this.h - 42);
+            ctx.fillRect(this.x + this.w - this.wallR + 3, this.y + 16, Math.max(8, this.wallR - 6), this.h - 42);
+        } else if (winStyle === 'wide') {
+            ctx.fillStyle = 'rgba(255, 223, 128, 0.36)';
+            ctx.fillRect(this.x + 4, this.y + 28, Math.max(10, this.wallL - 8), 30);
+            ctx.fillRect(this.x + this.w - this.wallR + 4, this.y + 28, Math.max(10, this.wallR - 8), 30);
+        } else if (winStyle === 'small') {
+            ctx.fillStyle = 'rgba(255,255,255,0.14)';
+            for (let iy = this.y + 18; iy < this.y + this.h - 44; iy += 22) {
+                ctx.fillRect(this.x + 4, iy, Math.max(8, this.wallL - 8), 8);
+                ctx.fillRect(this.x + this.w - this.wallR + 4, iy, Math.max(8, this.wallR - 8), 8);
+            }
+        } else if (winStyle === 'crooked') {
+            ctx.fillStyle = 'rgba(255,255,255,0.14)';
+            ctx.beginPath();
+            ctx.moveTo(this.x + 4, this.y + 18);
+            ctx.lineTo(this.x + this.wallL - 6, this.y + 28);
+            ctx.lineTo(this.x + this.wallL - 10, this.y + 58);
+            ctx.lineTo(this.x + 6, this.y + 48);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.w - this.wallR + 6, this.y + 24);
+            ctx.lineTo(this.x + this.w - 6, this.y + 18);
+            ctx.lineTo(this.x + this.w - 10, this.y + 50);
+            ctx.lineTo(this.x + this.w - this.wallR + 10, this.y + 58);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.fillRect(this.x + 4, this.y + 18, Math.max(8, this.wallL - 8), 56);
+            ctx.fillRect(this.x + this.w - this.wallR + 4, this.y + 18, Math.max(8, this.wallR - 8), 56);
+        }
+
+        if (this.archetype.centerPillar) {
+            const pillarGrad = ctx.createLinearGradient(this.x + this.w / 2, this.y, this.x + this.w / 2, this.y + this.h);
+            pillarGrad.addColorStop(0, Utils.adjustColor(this.baseColor, 20));
+            pillarGrad.addColorStop(1, Utils.adjustColor(this.baseColor, -28));
+            Utils.drawRoundedRect(ctx, this.x + this.w / 2 - 17, this.y + 8, 34, this.h - 28, 8, pillarGrad);
+            ctx.fillStyle = 'rgba(255,255,255,0.16)';
+            ctx.fillRect(this.x + this.w / 2 - 10, this.y + 14, 20, 3);
+        }
+
+        const sideGrad = ctx.createLinearGradient(this.x + this.w, this.y, this.x + this.w + this.depthW, this.y + this.h);
+        sideGrad.addColorStop(0, Utils.adjustColor(this.baseColor, -8));
+        sideGrad.addColorStop(1, Utils.adjustColor(this.baseColor, -42));
+        ctx.fillStyle = sideGrad;
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.w, this.y + 4);
+        ctx.lineTo(this.x + this.w + this.depthW, this.y - this.depthH + 8);
+        ctx.lineTo(this.x + this.w + this.depthW, this.y + this.h - this.depthH - 8);
+        ctx.lineTo(this.x + this.w, this.y + this.h - 2);
+        ctx.closePath();
+        ctx.fill();
+
+        const topGrad = ctx.createLinearGradient(this.x, this.y, this.x, this.y - this.depthH);
+        topGrad.addColorStop(0, Utils.adjustColor(trimColor, 12));
+        topGrad.addColorStop(1, Utils.adjustColor(trimColor, -10));
+        ctx.fillStyle = topGrad;
+        ctx.beginPath();
+        ctx.moveTo(this.x + 4, this.y + 4);
+        ctx.lineTo(this.x + this.depthW, this.y - this.depthH + 8);
+        ctx.lineTo(this.x + this.w + this.depthW, this.y - this.depthH + 8);
+        ctx.lineTo(this.x + this.w - 4, this.y + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(innerX + 1, this.y + this.h - 30, innerW - 2, 18);
+        ctx.restore();
     }
 
-    updatePosition(y) {
-        let dy = y - this.y;
-        this.y = y;
+    updatePosition(x, y = null) {
+        let nextX = x;
+        let nextY = y;
+        if (y === null) {
+            nextY = x;
+            nextX = this.x;
+        }
+
+        let dx = nextX - this.x;
+        let dy = nextY - this.y;
+        this.x = nextX;
+        this.y = nextY;
         for (let c of this.colliders) {
+            c.x += dx;
             c.y += dy;
         }
     }
@@ -217,6 +276,15 @@ class Interactable {
         this.scaleY = 1;
         this.targetScaleX = 1;
         this.targetScaleY = 1;
+        this.visualTilt = 0;
+        this.visualTiltTarget = 0;
+        this.slideTimer = 0;
+        this.wobbleTime = 0;
+        this.restTimer = 0;
+        this.rotation = 0;
+        this.spinVelocity = 0;
+        this.carryLagX = 0;
+        this.carryLagY = 0;
 
         switch(type) {
             case 'couch': this.w = 60; this.h = 35; this.mass = 30; this.color = '#e84393'; break;
@@ -240,11 +308,24 @@ class Interactable {
             case 'haunted_clock': this.w = 35; this.h = 90; this.mass = 80; this.color = '#8c7ae6'; break;
             default: this.w = 30; this.h = 30; this.mass = 10; this.color = '#bdc3c7';
         }
+
+        this.weightClass = this.mass < 20 ? 'light' : (this.mass < 80 ? 'medium' : 'heavy');
+        this.slideThreshold = this.weightClass === 'light' ? 0.028 : (this.weightClass === 'medium' ? 0.052 : 0.074);
+        this.slideAccel = this.weightClass === 'light' ? 0.52 : (this.weightClass === 'medium' ? 0.34 : 0.26);
+        this.restitutionX = this.weightClass === 'light' ? 0.14 : (this.weightClass === 'medium' ? 0.09 : 0.05);
+        this.restitutionY = this.weightClass === 'light' ? 0.13 : (this.weightClass === 'medium' ? 0.08 : 0.045);
+        this.bounceThreshold = this.weightClass === 'light' ? 2.2 : (this.weightClass === 'medium' ? 3.1 : 4.2);
+        this.airDrag = this.weightClass === 'light' ? 0.995 : (this.weightClass === 'medium' ? 0.992 : 0.989);
+        this.surfaceGrip = this.weightClass === 'light' ? 0.24 : (this.weightClass === 'medium' ? 0.42 : 0.28);
+        this.settleThreshold = this.weightClass === 'light' ? 0.08 : (this.weightClass === 'medium' ? 0.12 : 0.16);
+        this.impactDamping = this.weightClass === 'light' ? 0.76 : (this.weightClass === 'medium' ? 0.82 : 0.88);
     }
 
-    triggerBounce() {
-        this.scaleX = 1.3;
-        this.scaleY = 0.7;
+    triggerBounce(strength = 1) {
+        const bounce = Utils.clamp(strength, 0.4, 1.6);
+        this.scaleX = 1 + (0.22 * bounce);
+        this.scaleY = 1 - (0.18 * bounce);
+        this.restTimer = 0;
     }
 
     draw(ctx) {
@@ -258,10 +339,16 @@ class Interactable {
         ctx.translate(cx, cy);
         
         if (this.isThrown) {
-            this.rotation = (this.rotation || 0) + this.vx * 0.05;
+            this.spinVelocity = Utils.lerp(this.spinVelocity || 0, (this.vx * 0.028) + (this.vy * 0.01), 0.08);
+            this.rotation = (this.rotation || 0) + (this.spinVelocity || 0);
             ctx.rotate(this.rotation);
             ctx.translate(0, -this.h/2); 
         } else {
+            if (this.heldBy) {
+                this.rotation = 0;
+            }
+            this.visualTilt = Utils.lerp(this.visualTilt, this.visualTiltTarget || 0, 0.18);
+            ctx.rotate(this.visualTilt);
             ctx.scale(this.scaleX, this.scaleY);
             ctx.translate(0, -this.h);
         }

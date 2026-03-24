@@ -85,7 +85,7 @@ class BossFloorManager {
                 update: (game, floor, objects) => {
                     if (Math.random() < 0.02) {
                         game.cameraDirector.triggerShake(5, 10);
-                        game.balance += Utils.random(-5, 5);
+                        game.towerAngularVelocity += Utils.random(-0.006, 0.006);
                         game.audio.play('creak');
                     }
                 }

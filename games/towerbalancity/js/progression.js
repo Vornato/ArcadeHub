@@ -13,6 +13,7 @@ class ProgressionManager {
         this.currentChapterData = null;
         this.floorCount = 0;
         this.windForce = 0;
+        this.windTarget = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -38,6 +39,7 @@ class ProgressionManager {
         this.currentChapterData = this.chapters[0];
         this.floorCount = 0;
         this.windForce = 0;
+        this.windTarget = 0;
         this.isDark = false;
         this.isRaining = false;
         
@@ -53,6 +55,16 @@ class ProgressionManager {
         let theme = this.tenantManager.getThemeForFloor();
         this.eventManager.recordTheme(theme.id);
         return theme;
+    }
+
+    updateEnvironment() {
+        const weatherDamping = this.isRaining ? 0.035 : 0.025;
+        this.windForce += (this.windTarget - this.windForce) * weatherDamping;
+        this.windTarget *= this.isRaining ? 0.998 : 0.994;
+        this.windForce *= 0.999;
+
+        if (Math.abs(this.windTarget) < 0.02) this.windTarget = 0;
+        if (Math.abs(this.windForce) < 0.01) this.windForce = 0;
     }
 
     onFloorDropped() {

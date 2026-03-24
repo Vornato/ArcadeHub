@@ -17,7 +17,7 @@ class StoryEventManager {
                 chance: 1.0,
                 run: (progression) => {
                     let sens = progression.projectManager.selectedProject.traits.windSensitivity;
-                    progression.windForce = Utils.random(3, Math.max(5, (progression.currentChapterData ? progression.currentChapterData.weatherIntensity : 0.1) * 10)) * Utils.choose([-1, 1]) * sens;
+                    progression.windTarget = Utils.random(3, Math.max(5, (progression.currentChapterData ? progression.currentChapterData.weatherIntensity : 0.1) * 10)) * Utils.choose([-1, 1]) * sens;
                     return { msg: "A strong wind rattles the tower!", type: "warning" };
                 }
             },
@@ -44,6 +44,7 @@ class StoryEventManager {
                 chance: (ch, progression) => (progression.isRaining || progression.windForce !== 0) ? 1.5 : 0,
                 run: (progression) => {
                     progression.windForce = 0;
+                    progression.windTarget = 0;
                     progression.isDark = false;
                     progression.isRaining = false;
                     this.activeChains.hadStormWarning = false;
@@ -57,7 +58,7 @@ class StoryEventManager {
                 run: (progression) => {
                     progression.isRaining = true;
                     let sens = progression.projectManager.selectedProject.traits.windSensitivity;
-                    progression.windForce = Utils.random(2, 5) * Utils.choose([-1, 1]) * sens;
+                    progression.windTarget = Utils.random(2, 5) * Utils.choose([-1, 1]) * sens;
                     this.activeChains.hadStormWarning = true;
                     return { msg: "A heavy rainstorm begins!", type: "warning" };
                 }
