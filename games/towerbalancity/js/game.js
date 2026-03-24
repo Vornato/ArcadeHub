@@ -67,6 +67,10 @@ class Game {
         this.dangerLevel = 0;
         this.dangerTimer = 0;
         this.maxDangerTime = 180;
+        this.negativeStabilityTimer = 0;
+        this.maxNegativeStabilityTime = 210;
+        this.negativeStabilityThreshold = -42;
+        this.negativeStabilityRecoverThreshold = -18;
 
         this.cameraY = 0;
         this.targetCameraY = 0;
@@ -81,6 +85,7 @@ class Game {
         this.backdropTime = 0;
         this.timeScale = 1;
         this.slowMoTimer = 0;
+        this.manualStepMode = false;
         this.lastLightningFlash = 0;
         this.currentMode = 'normal';
         this.dailyChallenge = null;
@@ -221,6 +226,7 @@ class Game {
         this.overRotationTime = 0;
         this.dangerLevel = 0;
         this.dangerTimer = 0;
+        this.negativeStabilityTimer = 0;
         this.score = 0;
         this.height = 0;
         this.isChaosMode = isChaosMode;
@@ -228,6 +234,7 @@ class Game {
         this.lastFrameTime = 0;
         this.timeScale = 1;
         this.slowMoTimer = 0;
+        this.manualStepMode = false;
         this.lastLightningFlash = 0;
         this.currentMode = runMode;
         this.dailyChallenge = dailyChallenge;
@@ -576,6 +583,69 @@ class Game {
 
     getFloorIndex(floor) {
         return this.floors.indexOf(floor);
+    }
+
+    getFloorLooseObjects(floor) {
+        if (!floor) return [];
+        return this.objects.filter(obj => !obj.heldBy && !obj.isThrown && this.getSupportingFloor(obj) === floor);
+    }
+
+    getFloorOccupants(floor) {
+        if (!floor) return [];
+        return this.players.filter(player => this.getSupportingFloor(player) === floor);
+    }
+
+    findFloorObjectPlacement(floor, type, options = {}) {
+        if (!floor || !type || typeof floor.getInnerBounds !== 'function') return null;
+
+        const preview = new Interactable(0, 0, type);
+        const { innerX, innerW } = floor.getInnerBounds();
+        const margin = options.margin !== undefined ? options.margin : 16;
+        const minX = innerX + margin;
+        const maxX = (innerX + innerW) - preview.w - margin;
+        if (maxX < minX) return null;
+
+        const keepCenterClear = options.keepCenterClear !== false;
+        const clearCenterWidth = options.clearCenterWidth !== undefined
+            ? options.clearCenterWidth
+            : Math.max(72, Math.min(138, innerW * 0.28));
+        const floorCenter = floor.x + (floor.w / 2);
+        const clearLeft = floorCenter - (clearCenterWidth / 2);
+        const clearRight = floorCenter + (clearCenterWidth / 2);
+        const occupiedRanges = [];
+
+        for (let obj of this.getFloorLooseObjects(floor)) {
+            occupiedRanges.push({ left: obj.x - 16, right: obj.x + obj.w + 16 });
+        }
+        for (let player of this.getFloorOccupants(floor)) {
+            occupiedRanges.push({ left: player.x - 18, right: player.x + player.w + 18 });
+        }
+
+        const anchors = (options.allowCenterFallback ? [0.14, 0.86, 0.28, 0.72, 0.42, 0.58, 0.5] : [0.14, 0.86, 0.28, 0.72, 0.42, 0.58]);
+
+        for (let anchor of anchors) {
+            const candidateCenter = innerX + (innerW * anchor);
+            const x = Utils.clamp(candidateCenter - (preview.w / 2), minX, maxX);
+            const left = x;
+            const right = x + preview.w;
+            if (keepCenterClear && left < clearRight && right > clearLeft) continue;
+            if (occupiedRanges.some(range => right > range.left && left < range.right)) continue;
+
+            return {
+                x,
+                y: floor.getSurfaceYAt(x + (preview.w / 2)) - preview.h
+            };
+        }
+
+        if (keepCenterClear && options.allowCenterFallback) {
+            return this.findFloorObjectPlacement(floor, type, {
+                ...options,
+                allowCenterFallback: false,
+                keepCenterClear: false
+            });
+        }
+
+        return null;
     }
 
     getLooseObjectCount() {
@@ -936,16 +1006,20 @@ class Game {
             archetype.bossDef.setup(this, newFloor, this.objects);
         } else if (this.floors.length > 1) {
             const spawnBudget = Math.max(0, this.getObjectSoftCap() - this.getLooseObjectCount());
-            const itemCeiling = Math.min(spawnBudget, 1 + Math.floor(this.progression.currentChapter / 3));
+            const { innerW } = newFloor.getInnerBounds();
+            const widthCap = Utils.clamp(Math.floor((innerW - 120) / 140) + 1, 1, 3);
+            const chapterCap = 1 + Math.floor(this.progression.currentChapter / 4);
+            const itemCeiling = Math.min(spawnBudget, widthCap, chapterCap);
             const canPopulateFloor = theme && theme.props && theme.props.length > 0 && itemCeiling > 0;
             const itemAmount = canPopulateFloor ? Utils.randomInt(0, itemCeiling) : 0;
             for (let i = 0; i < itemAmount; i++) {
-                const maxDistL = w / 2 - archetype.wallLeft - 30;
-                const maxDistR = w / 2 - archetype.wallRight - 30;
-                const ox = x + w / 2 + Utils.random(-maxDistL, maxDistR);
-                const oy = y + h - 80;
                 const typeToSpawn = Utils.choose(theme.props);
-                this.objects.push(new Interactable(ox, oy, typeToSpawn));
+                const placement = this.findFloorObjectPlacement(newFloor, typeToSpawn, {
+                    clearCenterWidth: Math.max(84, Math.min(148, innerW * 0.34)),
+                    allowCenterFallback: innerW >= 420
+                });
+                if (!placement) break;
+                this.objects.push(new Interactable(placement.x, placement.y, typeToSpawn));
             }
         }
         this.tagSpawnedObjects(spawnStartIndex, archetype.isBoss ? 'boss-floor' : 'floor', newFloor);
@@ -961,14 +1035,21 @@ class Game {
                 this.hazards.push(new FireHazard(hx, hy));
             } else if (evName === "Heavy Delivery" && this.floors.length > 1) {
                 const looseHeavyCount = this.objects.filter(obj => !obj.heldBy && !obj.isThrown && obj.mass >= 70).length;
-                const overBudget = this.getLooseObjectCount() >= (this.getObjectSoftCap() + 2);
+                const overBudget = this.getLooseObjectCount() >= this.getObjectSoftCap();
                 if (this.heavyDeliveryCooldown > 0 || overBudget || looseHeavyCount >= 4) return;
                 const floor = this.floors[this.floors.length - 1];
-                const hx = floor.x + Utils.random(20, floor.w - 20 - 30);
+                const floorObjects = this.getFloorLooseObjects(floor);
+                const floorHeavyCount = floorObjects.filter(obj => obj.mass >= 70).length;
+                if (floorObjects.length >= 2 || floorHeavyCount >= 1) return;
+                const placement = this.findFloorObjectPlacement(floor, 'safe', {
+                    clearCenterWidth: Math.max(64, Math.min(112, floor.getInnerBounds().innerW * 0.24)),
+                    allowCenterFallback: true
+                });
+                if (!placement) return;
                 const spawnStart = this.objects.length;
-                this.objects.push(new Interactable(hx, floor.y - 40, 'safe'));
+                this.objects.push(new Interactable(placement.x, placement.y, 'safe'));
                 this.tagSpawnedObjects(spawnStart, 'event-heavy-delivery', floor);
-                this.heavyDeliveryCooldown = 4;
+                this.heavyDeliveryCooldown = 6;
                 this.pruneLooseObjects();
             } else if (evName === "Shake") {
                 this.triggerQuake(3.5, 2.5);
@@ -1361,6 +1442,13 @@ class Game {
         else if (dangerSignal < 0.54) this.dangerLevel = 1;
         else if (dangerSignal < 0.86) this.dangerLevel = 2;
         else this.dangerLevel = 3;
+        const sustainedNegativeStability = this.balance <= this.negativeStabilityThreshold && dangerSignal >= 0.48;
+        if (sustainedNegativeStability) {
+            this.negativeStabilityTimer++;
+        } else {
+            const recoveryStep = (this.balance > this.negativeStabilityRecoverThreshold || this.dangerLevel <= 1) ? 5 : 2;
+            this.negativeStabilityTimer = Math.max(0, this.negativeStabilityTimer - recoveryStep);
+        }
 
         const nearFailure = Math.abs(this.towerAngle) > (Math.PI / 10.2) || this.motionStress > 0.95;
         if (nearFailure) this.overRotationTime++;
@@ -1439,6 +1527,14 @@ class Game {
             }
         } else {
             this.dangerTimer = 0;
+        }
+
+        if (this.negativeStabilityTimer >= this.maxNegativeStabilityTime) {
+            this.audio.play('crash');
+            this.triggerShake(26, 64);
+            this.vibrateAll(900, 1.0, 0.9);
+            this.stop();
+            return;
         }
 
         if (this.overRotationTime > 45 && this.motionStress > 0.9) {
@@ -1842,6 +1938,11 @@ class Game {
 
     loop(timestamp = 0) {
         if (!this.isRunning || this.isPaused) return;
+        if (this.manualStepMode) {
+            this.draw();
+            requestAnimationFrame((ts) => this.loop(ts));
+            return;
+        }
 
         if (!this.lastFrameTime) this.lastFrameTime = timestamp;
         const delta = Math.min(50, timestamp - this.lastFrameTime);

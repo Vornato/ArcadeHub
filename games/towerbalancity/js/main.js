@@ -6,6 +6,7 @@ window.onload = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const autoTestMode = searchParams.get('autotest') === '1';
     const hudTestMode = searchParams.get('hudtest') === '1';
+    const textDumpMode = searchParams.get('textdump') === '1';
 
     const canvas = document.getElementById('game-canvas');
     const projectSelector = document.getElementById('project-selector');
@@ -17,6 +18,91 @@ window.onload = () => {
     const metaManager = new MetaManager();
     const game = new Game(canvas, inputManager, audioSystem, uiManager, metaManager);
     window.__towerPanicDebug = { game, inputManager, audioSystem, uiManager, metaManager };
+
+    function renderGameToText() {
+        const topFloor = game.floors.length > 0 ? game.floors[game.floors.length - 1] : null;
+        const topBounds = topFloor && typeof topFloor.getInnerBounds === 'function'
+            ? topFloor.getInnerBounds()
+            : null;
+        const topFloorIndex = topFloor ? game.getFloorIndex(topFloor) : -1;
+        const topObjects = topFloor
+            ? game.getFloorLooseObjects(topFloor).map((obj) => ({
+                type: obj.type,
+                x: Math.round(obj.x),
+                y: Math.round(obj.y),
+                w: obj.w,
+                h: obj.h,
+                mass: obj.mass
+            }))
+            : [];
+        const players = game.players.map((player) => {
+            const supportFloor = game.getSupportingFloor(player);
+            return {
+                slot: player.slot,
+                x: Math.round(player.x),
+                y: Math.round(player.y),
+                vx: Number(player.vx.toFixed(2)),
+                vy: Number(player.vy.toFixed(2)),
+                supportFloor: game.getFloorIndex(supportFloor)
+            };
+        });
+
+        return JSON.stringify({
+            mode: game.currentMode,
+            running: game.isRunning,
+            paused: game.isPaused,
+            coordSystem: 'origin top-left, +x right, +y down',
+            tower: {
+                floors: game.floors.length,
+                height: game.height,
+                balance: Number(game.balance.toFixed(2)),
+                angle: Number(game.towerAngle.toFixed(4)),
+                dangerLevel: game.dangerLevel,
+                dangerTimer: game.dangerTimer,
+                negativeStabilityTimer: game.negativeStabilityTimer
+            },
+            topFloor: topFloor ? {
+                index: topFloorIndex,
+                width: topFloor.w,
+                innerWidth: topBounds ? Math.round(topBounds.innerW) : topFloor.w,
+                x: Math.round(topFloor.x),
+                y: Math.round(topFloor.y),
+                objectCount: topObjects.length,
+                objects: topObjects
+            } : null,
+            looseObjects: {
+                total: game.getLooseObjectCount(),
+                heavy: game.objects.filter(obj => !obj.heldBy && !obj.isThrown && obj.mass >= 70).length
+            },
+            players
+        }, null, 2);
+    }
+
+    window.render_game_to_text = renderGameToText;
+    window.advanceTime = (ms = 1000 / 60) => {
+        const frameMs = game.fixedDeltaMs || (1000 / 60);
+        const frames = Math.max(1, Math.round(ms / frameMs));
+        game.manualStepMode = true;
+        for (let i = 0; i < frames; i++) {
+            inputManager.update();
+            if (game.isRunning && !game.isPaused) {
+                game.update();
+            }
+            inputManager.postUpdate();
+        }
+        game.draw();
+        return renderGameToText();
+    };
+
+    if (textDumpMode) {
+        const stateDump = document.createElement('pre');
+        stateDump.id = 'state-dump';
+        stateDump.style.cssText = 'position:absolute;right:18px;top:18px;z-index:9999;width:380px;max-height:70vh;overflow:auto;margin:0;padding:12px;background:rgba(0,0,0,0.82);border:1px solid rgba(255,255,255,0.18);color:#fff;font:12px/1.45 monospace;white-space:pre-wrap;';
+        document.body.appendChild(stateDump);
+        setInterval(() => {
+            stateDump.textContent = renderGameToText();
+        }, 120);
+    }
 
     let setupActive = false;
     let assignedPlayers = 0;
@@ -407,8 +493,14 @@ window.onload = () => {
                 pumpGame(620);
                 if (!expect(game.floors.length >= 3, 'second_floor_spawned', { floors: game.floors.length })) return;
                 if (!expect(game.floors[2] && !game.floors[2].isFalling, 'second_floor_landed', { y: game.floors[2] ? game.floors[2].y : null })) return;
+                if (!expect(game.floors[2] && game.floors[2].getInnerBounds().innerW >= 300, 'interior_width_expanded', {
+                    innerWidth: game.floors[2] ? game.floors[2].getInnerBounds().innerW : null
+                })) return;
 
                 const topFloor = game.floors[game.floors.length - 1];
+                if (!expect(game.getFloorLooseObjects(topFloor).length <= 2, 'spawn_clutter_capped', {
+                    objectCount: game.getFloorLooseObjects(topFloor).length
+                })) return;
                 const testSafe = new Interactable(topFloor.x + topFloor.w / 2 - 20, topFloor.y - 140, 'safe');
                 game.objects.push(testSafe);
                 recordStep('heavy_object_spawned', { objectType: testSafe.type });
@@ -428,6 +520,20 @@ window.onload = () => {
                 game.pause();
                 await wait(120);
                 if (!expect(!game.isPaused, 'resume_works')) return;
+
+                game.negativeStabilityTimer = game.maxNegativeStabilityTime - 1;
+                game.towerAngle = -Math.PI / 8;
+                game.towerAngularVelocity = -0.012;
+                game.instabilityMemory = 0.84;
+                recordStep('negative_stability_forced', {
+                    threshold: game.negativeStabilityThreshold,
+                    timer: game.negativeStabilityTimer
+                });
+                pumpGame(4);
+                if (!expect(game.collapseDirector.isActive, 'negative_stability_collapse_triggered', {
+                    balance: game.balance,
+                    negativeTimer: game.negativeStabilityTimer
+                })) return;
 
                 if (report.errors.length > 0) {
                     finish('failed');

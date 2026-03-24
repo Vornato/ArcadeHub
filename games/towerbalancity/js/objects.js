@@ -1,20 +1,33 @@
 // objects.js
 // Thematic Floors and Heavy Furniture
 
+const FLOOR_WIDTH_SCALE = 1.14;
+const FLOOR_WALL_SCALE = 0.82;
+const FLOOR_WALL_MIN = 14;
+
+function expandFloorArchetype(archetype) {
+    return {
+        ...archetype,
+        w: Math.round(archetype.w * FLOOR_WIDTH_SCALE),
+        wallLeft: Math.max(FLOOR_WALL_MIN, Math.round(archetype.wallLeft * FLOOR_WALL_SCALE)),
+        wallRight: Math.max(FLOOR_WALL_MIN, Math.round(archetype.wallRight * FLOOR_WALL_SCALE))
+    };
+}
+
 const FloorArchetypes = {
-    'normal': { w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal', name: 'Standard Floor', material: 'wood', tooltip: 'Reliable wooden span with neutral balance.' },
-    'wide': { w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide', name: 'Wide Floor', material: 'metal', tooltip: 'Broad metal deck with extra reach and higher mass.' },
-    'narrow': { w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor', material: 'wood', tooltip: 'Slim platform that punishes crowded stacks.' },
-    'left-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor', material: 'wood', tooltip: 'Built thick on the left side. Counter-weight it early.' },
-    'right-heavy': { w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor', material: 'wood', tooltip: 'Built thick on the right side. Counter-weight it early.' },
-    'split': { w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor', material: 'metal', tooltip: 'Center pillar breaks movement and load paths.' },
-    'hex': { w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck', material: 'metal', tooltip: 'Tapered edges narrow the safe payload lane.' },
-    'ramp-left': { w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-left', name: 'Ramp Left', material: 'wood', tooltip: 'Slides cargo left. Brace or stumble downhill.' },
-    'ramp-right': { w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-right', name: 'Ramp Right', material: 'wood', tooltip: 'Slides cargo right. Brace or stumble downhill.' },
-    'curve-left': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: -0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-left', name: 'Curved Left', material: 'metal', tooltip: 'Curved deck collects weight on the left pocket.' },
-    'curve-right': { w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: 0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-right', name: 'Curved Right', material: 'metal', tooltip: 'Curved deck collects weight on the right pocket.' },
-    'circular': { w: 340, h: 108, massMult: 1.12, wallLeft: 22, wallRight: 22, curveDepth: -10, surfaceSegments: 8, surfaceFriction: 0.88, gripAssist: 0.04, slideThresholdMult: 1.42, slideAccelMult: 0.62, downhillForceMult: 0.5, braceAssist: 1.14, id: 'circular', name: 'Circular Deck', material: 'ice', tooltip: 'Convex circular floor sheds loads toward the sides.' },
-    'seesaw': { w: 340, h: 96, massMult: 0.95, wallLeft: 18, wallRight: 18, isSeesaw: true, seesawRange: 0.1, seesawResponse: 0.045, seesawDamping: 0.9, seesawTorqueScale: 110, surfaceSegments: 8, surfaceFriction: 0.73, gripAssist: 0.06, slideThresholdMult: 1.38, slideAccelMult: 0.66, downhillForceMult: 0.54, braceAssist: 1.2, id: 'seesaw', name: 'Seesaw Deck', material: 'wood', tooltip: 'Pivoting floor feeds occupant torque back into the tower.' }
+    'normal': expandFloorArchetype({ w: 300, h: 100, massMult: 1.0, wallLeft: 20, wallRight: 20, id: 'normal', name: 'Standard Floor', material: 'wood', tooltip: 'Reliable wooden span with neutral balance.' }),
+    'wide': expandFloorArchetype({ w: 450, h: 100, massMult: 1.2, wallLeft: 20, wallRight: 20, id: 'wide', name: 'Wide Floor', material: 'metal', tooltip: 'Broad metal deck with extra reach and higher mass.' }),
+    'narrow': expandFloorArchetype({ w: 200, h: 100, massMult: 0.8, wallLeft: 20, wallRight: 20, id: 'narrow', name: 'Narrow Floor', material: 'wood', tooltip: 'Slim platform that punishes crowded stacks.' }),
+    'left-heavy': expandFloorArchetype({ w: 300, h: 100, massMult: 1.4, wallLeft: 80, wallRight: 20, id: 'left-heavy', name: 'Left-Heavy Floor', material: 'wood', tooltip: 'Built thick on the left side. Counter-weight it early.' }),
+    'right-heavy': expandFloorArchetype({ w: 300, h: 100, massMult: 1.4, wallLeft: 20, wallRight: 80, id: 'right-heavy', name: 'Right-Heavy Floor', material: 'wood', tooltip: 'Built thick on the right side. Counter-weight it early.' }),
+    'split': expandFloorArchetype({ w: 400, h: 100, massMult: 1.3, wallLeft: 20, wallRight: 20, centerPillar: true, id: 'split', name: 'Split Floor', material: 'metal', tooltip: 'Center pillar breaks movement and load paths.' }),
+    'hex': expandFloorArchetype({ w: 360, h: 110, massMult: 1.15, wallLeft: 28, wallRight: 28, edgeInset: 38, id: 'hex', name: 'Hex Deck', material: 'metal', tooltip: 'Tapered edges narrow the safe payload lane.' }),
+    'ramp-left': expandFloorArchetype({ w: 320, h: 100, massMult: 1.0, wallLeft: 42, wallRight: 18, localSlope: -0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-left', name: 'Ramp Left', material: 'wood', tooltip: 'Slides cargo left. Brace or stumble downhill.' }),
+    'ramp-right': expandFloorArchetype({ w: 320, h: 100, massMult: 1.0, wallLeft: 18, wallRight: 42, localSlope: 0.1, surfaceFriction: 0.72, gripAssist: 0.05, slideThresholdMult: 1.34, slideAccelMult: 0.7, downhillForceMult: 0.62, braceAssist: 1.16, id: 'ramp-right', name: 'Ramp Right', material: 'wood', tooltip: 'Slides cargo right. Brace or stumble downhill.' }),
+    'curve-left': expandFloorArchetype({ w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: -0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-left', name: 'Curved Left', material: 'metal', tooltip: 'Curved deck collects weight on the left pocket.' }),
+    'curve-right': expandFloorArchetype({ w: 330, h: 102, massMult: 1.08, wallLeft: 24, wallRight: 24, curveDepth: 14, curveBias: 0.4, surfaceSegments: 7, surfaceFriction: 0.75, gripAssist: 0.05, slideThresholdMult: 1.28, slideAccelMult: 0.72, downhillForceMult: 0.58, braceAssist: 1.12, id: 'curve-right', name: 'Curved Right', material: 'metal', tooltip: 'Curved deck collects weight on the right pocket.' }),
+    'circular': expandFloorArchetype({ w: 340, h: 108, massMult: 1.12, wallLeft: 22, wallRight: 22, curveDepth: -10, surfaceSegments: 8, surfaceFriction: 0.88, gripAssist: 0.04, slideThresholdMult: 1.42, slideAccelMult: 0.62, downhillForceMult: 0.5, braceAssist: 1.14, id: 'circular', name: 'Circular Deck', material: 'ice', tooltip: 'Convex circular floor sheds loads toward the sides.' }),
+    'seesaw': expandFloorArchetype({ w: 340, h: 96, massMult: 0.95, wallLeft: 18, wallRight: 18, isSeesaw: true, seesawRange: 0.1, seesawResponse: 0.045, seesawDamping: 0.9, seesawTorqueScale: 110, surfaceSegments: 8, surfaceFriction: 0.73, gripAssist: 0.06, slideThresholdMult: 1.38, slideAccelMult: 0.66, downhillForceMult: 0.54, braceAssist: 1.2, id: 'seesaw', name: 'Seesaw Deck', material: 'wood', tooltip: 'Pivoting floor feeds occupant torque back into the tower.' })
 };
 
 class Floor {
