@@ -528,7 +528,7 @@ export class Vehicle {
       if (this.boostBurstTimer > 0) {
         driveForce += this.definition.acceleration * PHYSICS_TUNING.boostBurstKick * this.definition.nitroKick;
       }
-      if (Math.random() < 0.52) {
+      if (startedBoost || Math.random() < 0.2) {
         effects.emitBoost(this.x - forward.x * 30, this.y - forward.y * 30, this.angle, this.color);
       }
     } else {

@@ -1,5 +1,6 @@
 import {
   ANNOUNCER_STYLES,
+  GRAPPLE_TUNING,
   MAX_COMPETITORS,
   MODE_DEFS,
   PHYSICS_TUNING,
@@ -298,6 +299,7 @@ export class Game {
 
     this.announcer.reset();
     this.effects.reset();
+    this.grappleSystem.reset();
     this.weaponSystem.reset();
     this.audio.clearDynamicState();
     this.pickupSystem.reset(this.level, this.modeId);
@@ -461,6 +463,7 @@ export class Game {
       this.participants,
       this.level,
       this.props,
+      this.pickupSystem.pickups,
       this.effects,
       this.audio,
     ));
@@ -599,6 +602,26 @@ export class Game {
     events.forEach((event) => {
       if (event.type === "shake") {
         this.shakeCamerasNear(event.x, event.y, event.amount);
+        return;
+      }
+      if (event.type === "line_hit") {
+        const targetParticipant = this.participants.find((participant) => participant.id === event.targetId);
+        if (!targetParticipant?.vehicle?.isAlive()) {
+          return;
+        }
+
+        const targetVehicle = targetParticipant.vehicle;
+        targetVehicle.stunTimer = Math.max(targetVehicle.stunTimer, GRAPPLE_TUNING.lineHitStun);
+        if (targetVehicle.applyDamage(event.damage, event.sourceId)) {
+          this.handleDestroyEvent({
+            sourceId: event.sourceId,
+            targetId: event.targetId,
+            x: event.x,
+            y: event.y,
+          });
+        } else {
+          this.shakeCamerasNear(event.x, event.y, 5);
+        }
       }
     });
   }
@@ -1144,6 +1167,7 @@ export class Game {
         participant.vehicle.speed / participant.vehicle.definition.speed,
         participant.vehicle.health / participant.vehicle.maxHealth,
         this.time,
+        participant.vehicle.boosting,
       );
       this.ui.renderViewportFrame(ctx, viewport, participant);
       this.ui.renderHud(ctx, viewport, participant, this.match, this.level, this.pickupSystem.pickups, this.grappleSystem.debug);

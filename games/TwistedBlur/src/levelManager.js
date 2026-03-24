@@ -1,6 +1,9 @@
 import { MODE_DEFS, PROP_DEFS } from "./constants.js";
 import { clamp, distance, distanceToPolyline, pointInCircle, pointInRect, randomRange } from "./physics.js";
 
+const levelBackdropCache = new Map();
+const LEVEL_PREVIEW_PADDING = 18;
+
 function point(x, y) {
   return { x, y };
 }
@@ -17,6 +20,10 @@ function prop(x, y, type, rotation = 0) {
   return { x, y, type, rotation };
 }
 
+function road(points, width, closed = false) {
+  return { points, width, closed };
+}
+
 function ringPickups(path, amount, radiusShift = 0) {
   const result = [];
   for (let index = 0; index < amount; index += 1) {
@@ -28,6 +35,73 @@ function ringPickups(path, amount, radiusShift = 0) {
     });
   }
   return result;
+}
+
+function getLevelImageWorldRect(level, imageWidth, imageHeight) {
+  const usableWidth = Math.max(1, imageWidth - LEVEL_PREVIEW_PADDING * 2);
+  const usableHeight = Math.max(1, imageHeight - LEVEL_PREVIEW_PADDING * 2);
+  const scale = Math.min(
+    usableWidth / level.world.width,
+    usableHeight / level.world.height,
+  );
+  const worldWidth = level.world.width * scale;
+  const worldHeight = level.world.height * scale;
+  return {
+    x: (imageWidth - worldWidth) * 0.5,
+    y: (imageHeight - worldHeight) * 0.5,
+    width: worldWidth,
+    height: worldHeight,
+  };
+}
+
+function getLevelBackdropEntry(level) {
+  let entry = levelBackdropCache.get(level.id);
+  if (entry) {
+    return entry;
+  }
+
+  const image = new Image();
+  entry = {
+    image,
+    loaded: false,
+    failed: false,
+  };
+  image.decoding = "async";
+  image.onload = () => {
+    entry.loaded = true;
+    entry.failed = false;
+  };
+  image.onerror = () => {
+    entry.failed = true;
+  };
+  image.src = new URL(`../${getLevelPreviewPath(level)}`, import.meta.url).href;
+  levelBackdropCache.set(level.id, entry);
+  return entry;
+}
+
+function drawLevelBackdropImage(ctx, level) {
+  const entry = getLevelBackdropEntry(level);
+  if (!entry.loaded || entry.failed) {
+    return false;
+  }
+
+  if (entry.image.width === level.world.width && entry.image.height === level.world.height) {
+    ctx.drawImage(entry.image, 0, 0);
+  } else {
+    const source = getLevelImageWorldRect(level, entry.image.width, entry.image.height);
+    ctx.drawImage(
+      entry.image,
+      source.x,
+      source.y,
+      source.width,
+      source.height,
+      0,
+      0,
+      level.world.width,
+      level.world.height,
+    );
+  }
+  return true;
 }
 
 const NEON_CITY_PATH = [
@@ -66,15 +140,20 @@ const ICE_PATH = [
 ];
 
 const SHIPYARD_PATH = [
-  point(720, 930),
-  point(1400, 560),
-  point(2420, 500),
-  point(3480, 760),
-  point(3820, 1440),
-  point(3330, 2230),
-  point(2240, 2490),
-  point(1160, 2320),
-  point(620, 1630),
+  point(780, 1200),
+  point(1380, 620),
+  point(2260, 520),
+  point(3220, 760),
+  point(3940, 560),
+  point(4700, 980),
+  point(4540, 1600),
+  point(4900, 2360),
+  point(4080, 2760),
+  point(3180, 2540),
+  point(2520, 2860),
+  point(1580, 2660),
+  point(760, 2140),
+  point(540, 1500),
 ];
 
 const LEVELS = [
@@ -289,6 +368,34 @@ const LEVELS = [
     world: { width: 3800, height: 2600 },
     checkpoints: [],
     trackPath: [],
+    roadPaths: [
+      road([
+        point(720, 940),
+        point(1080, 680),
+        point(1740, 620),
+        point(2540, 700),
+        point(3070, 980),
+        point(3040, 1600),
+        point(2460, 1880),
+        point(1660, 1940),
+        point(1020, 1780),
+        point(700, 1460),
+      ], 260, true),
+      road([
+        point(1900, 560),
+        point(1900, 980),
+        point(1720, 1260),
+        point(1900, 1540),
+        point(1900, 2060),
+      ], 190, false),
+      road([
+        point(820, 1260),
+        point(1400, 1260),
+        point(1900, 1260),
+        point(2420, 1260),
+        point(3000, 1260),
+      ], 180, false),
+    ],
     shortcutPaths: [],
     raceSpawns: [],
     arenaSpawns: [
@@ -360,6 +467,34 @@ const LEVELS = [
     world: { width: 3200, height: 2200 },
     checkpoints: [],
     trackPath: [],
+    roadPaths: [
+      road([
+        point(520, 820),
+        point(960, 620),
+        point(1600, 540),
+        point(2320, 620),
+        point(2680, 900),
+        point(2460, 1540),
+        point(1920, 1760),
+        point(1260, 1700),
+        point(680, 1440),
+        point(500, 1080),
+      ], 235, true),
+      road([
+        point(740, 1520),
+        point(1180, 1230),
+        point(1600, 1100),
+        point(2020, 980),
+        point(2460, 660),
+      ], 180, false),
+      road([
+        point(760, 660),
+        point(1180, 980),
+        point(1600, 1100),
+        point(2040, 1260),
+        point(2440, 1540),
+      ], 180, false),
+    ],
     shortcutPaths: [],
     raceSpawns: [],
     arenaSpawns: [
@@ -429,57 +564,64 @@ const LEVELS = [
     id: "voltage-shipyards",
     name: "Voltage Shipyards",
     category: "race",
-    world: { width: 4400, height: 3000 },
-    trackWidth: 240,
+    world: { width: 5400, height: 3400 },
+    trackWidth: 220,
     checkpoints: SHIPYARD_PATH,
     trackPath: SHIPYARD_PATH,
     shortcutPaths: [
-      { points: [point(1540, 760), point(2140, 1240), point(1840, 2060)], width: 140 },
-      { points: [point(3160, 930), point(2860, 1620), point(3080, 2230)], width: 120 },
+      { points: [point(1530, 820), point(2320, 1490), point(1830, 2380)], width: 150 },
+      { points: [point(3380, 870), point(2900, 1700), point(3300, 2460)], width: 130 },
     ],
     raceSpawns: [
-      point(760, 1060),
-      point(850, 1170),
-      point(940, 1280),
-      point(1030, 1390),
-      point(1120, 1500),
-      point(1210, 1610),
+      point(820, 1380),
+      point(910, 1490),
+      point(1000, 1600),
+      point(1090, 1710),
+      point(1180, 1820),
+      point(1270, 1930),
     ],
     arenaSpawns: [],
     pickupSpawns: [
-      ...ringPickups(SHIPYARD_PATH, 9, 65),
-      point(2040, 1300),
-      point(2810, 1710),
-      point(1580, 2190),
+      ...ringPickups(SHIPYARD_PATH, 12, 72),
+      point(2260, 1520),
+      point(3040, 1770),
+      point(1710, 2310),
+      point(3920, 2420),
     ],
     boostPads: [
-      { x: 1160, y: 650, w: 190, h: 42, angle: -0.36 },
-      { x: 3200, y: 840, w: 190, h: 42, angle: 0.24 },
-      { x: 1210, y: 2240, w: 210, h: 42, angle: 2.9 },
+      { x: 1150, y: 700, w: 200, h: 42, angle: -0.48 },
+      { x: 3570, y: 640, w: 220, h: 42, angle: -0.18 },
+      { x: 4510, y: 1100, w: 200, h: 42, angle: 1.32 },
+      { x: 1230, y: 2410, w: 220, h: 42, angle: 2.92 },
     ],
     ramps: [
-      { x: 2080, y: 1220, w: 110, h: 110, angle: 0.92 },
-      { x: 2860, y: 1580, w: 100, h: 100, angle: 1.28 },
+      { x: 2260, y: 1460, w: 118, h: 118, angle: 0.98 },
+      { x: 2950, y: 1690, w: 108, h: 108, angle: 1.28 },
+      { x: 3790, y: 2210, w: 112, h: 112, angle: 2.36 },
     ],
     hazards: [
-      circle(2360, 980, 120, "rgba(46,240,255,0.28)", "pulse"),
-      circle(2980, 1980, 125, "rgba(255,76,99,0.32)", "damage"),
-      circle(1420, 1960, 115, "rgba(255, 177, 66, 0.28)", "sand"),
-      { kind: "laserWall", type: "damage", axis: "x", x: 2240, y: 1460, range: 640, length: 980, thickness: 38, speed: 0.75, phase: 0.4, color: "rgba(255,76,99,0.82)" },
+      circle(2440, 1060, 125, "rgba(46,240,255,0.28)", "pulse"),
+      circle(3380, 2010, 135, "rgba(255,76,99,0.32)", "damage"),
+      circle(1610, 2140, 125, "rgba(255, 177, 66, 0.28)", "sand"),
+      circle(4290, 1700, 120, "rgba(255,76,99,0.26)", "damage"),
+      { kind: "laserWall", type: "damage", axis: "x", x: 2550, y: 1600, range: 760, length: 1160, thickness: 38, speed: 0.8, phase: 0.4, color: "rgba(255,76,99,0.82)" },
     ],
     obstacles: [
-      rect(1700, 940, 430, 320, "#253149"),
-      rect(2460, 980, 470, 330, "#253149"),
-      rect(1560, 1700, 420, 390, "#253149"),
-      rect(2520, 1750, 450, 360, "#253149"),
+      rect(1730, 900, 460, 320, "#253149"),
+      rect(2470, 830, 540, 300, "#253149"),
+      rect(3310, 1180, 420, 320, "#253149"),
+      rect(1470, 1820, 420, 420, "#253149"),
+      rect(2520, 1740, 470, 360, "#253149"),
+      rect(3450, 2030, 520, 340, "#253149"),
     ],
     props: [
-      prop(970, 1020, "crate"),
-      prop(1820, 780, "tower"),
-      prop(2140, 1520, "canister"),
-      prop(3200, 1110, "barrier"),
-      prop(2940, 2130, "canister"),
-      prop(1280, 2130, "crate"),
+      prop(980, 1220, "crate"),
+      prop(1840, 760, "tower"),
+      prop(2140, 1600, "canister"),
+      prop(3340, 1030, "barrier"),
+      prop(3070, 2170, "canister"),
+      prop(1290, 2330, "crate"),
+      prop(4220, 1270, "tower"),
     ],
     palette: {
       ground: "#071319",
@@ -493,75 +635,114 @@ const LEVELS = [
     },
     surface: {
       roadTraction: 0.95,
-      offroadTraction: 0.76,
-      offroadSpeed: 0.71,
-      offroadAccel: 0.68,
+      offroadTraction: 0.74,
+      offroadSpeed: 0.68,
+      offroadAccel: 0.64,
     },
-    intro: "Steel piers, charge relays, and container cuts through humming docks.",
+    intro: "Braided dock lanes, blind crane cuts, and a tidal maze of charge relays.",
   },
   {
     id: "eclipse-vault",
     name: "Eclipse Vault",
     category: "arena",
-    world: { width: 3600, height: 2500 },
+    world: { width: 4200, height: 3200 },
     checkpoints: [],
     trackPath: [],
+    roadPaths: [
+      road([
+        point(900, 1080),
+        point(1480, 760),
+        point(2360, 700),
+        point(3160, 980),
+        point(3400, 1680),
+        point(3020, 2460),
+        point(2200, 2700),
+        point(1360, 2560),
+        point(920, 2060),
+        point(920, 1420),
+      ], 250, true),
+      road([
+        point(2100, 520),
+        point(2100, 1120),
+        point(1710, 1580),
+        point(2100, 2050),
+        point(2100, 2780),
+      ], 190, false),
+      road([
+        point(920, 1570),
+        point(1480, 1570),
+        point(2100, 1570),
+        point(2720, 1570),
+        point(3320, 1570),
+      ], 180, false),
+    ],
     shortcutPaths: [],
     raceSpawns: [],
     arenaSpawns: [
-      point(760, 710),
-      point(2840, 710),
-      point(760, 1780),
-      point(2840, 1780),
-      point(1800, 520),
-      point(1800, 1980),
+      point(760, 760),
+      point(3440, 700),
+      point(820, 2440),
+      point(3380, 2500),
+      point(2100, 540),
+      point(2100, 2760),
     ],
     pickupSpawns: [
-      point(980, 930),
-      point(2620, 930),
-      point(980, 1560),
-      point(2620, 1560),
-      point(1800, 1240),
-      point(1380, 1240),
-      point(2220, 1240),
+      point(1020, 980),
+      point(3220, 980),
+      point(1240, 1640),
+      point(2940, 1500),
+      point(2100, 1300),
+      point(1680, 2180),
+      point(2560, 2160),
+      point(2100, 2440),
     ],
     boostPads: [
-      { x: 1610, y: 420, w: 380, h: 48, angle: 0 },
-      { x: 1610, y: 2020, w: 380, h: 48, angle: Math.PI },
+      { x: 1880, y: 420, w: 440, h: 48, angle: 0 },
+      { x: 1880, y: 2720, w: 440, h: 48, angle: Math.PI },
+      { x: 560, y: 1480, w: 340, h: 48, angle: Math.PI * 0.5 },
+      { x: 3300, y: 1500, w: 340, h: 48, angle: -Math.PI * 0.5 },
     ],
     ramps: [
-      { x: 1110, y: 1190, w: 120, h: 120, angle: 0 },
-      { x: 2470, y: 1190, w: 120, h: 120, angle: Math.PI },
+      { x: 1500, y: 1030, w: 120, h: 120, angle: 0.2 },
+      { x: 2630, y: 920, w: 120, h: 120, angle: Math.PI * 0.8 },
+      { x: 1450, y: 2240, w: 120, h: 120, angle: -0.4 },
+      { x: 2740, y: 2140, w: 120, h: 120, angle: Math.PI + 0.3 },
     ],
     hazards: [
-      circle(1800, 1240, 170, "rgba(110,200,255,0.26)", "pulse"),
-      circle(1180, 650, 100, "rgba(255,76,99,0.25)", "damage"),
-      circle(2420, 1830, 100, "rgba(255,76,99,0.25)", "damage"),
-      { kind: "laserWall", type: "pulse", axis: "x", x: 1800, y: 1240, range: 620, length: 980, thickness: 34, speed: 0.82, phase: 2.1, color: "rgba(110,200,255,0.88)" },
+      circle(2100, 1580, 180, "rgba(110,200,255,0.26)", "pulse"),
+      circle(1120, 860, 110, "rgba(255,76,99,0.25)", "damage"),
+      circle(3030, 2360, 120, "rgba(255,76,99,0.25)", "damage"),
+      circle(1570, 2540, 120, "rgba(255, 177, 66, 0.22)", "sand"),
+      { kind: "laserWall", type: "pulse", axis: "x", x: 2100, y: 1580, range: 760, length: 1240, thickness: 34, speed: 0.86, phase: 2.1, color: "rgba(110,200,255,0.88)" },
+      { kind: "laserWall", type: "damage", axis: "y", x: 2480, y: 1560, range: 540, length: 1180, thickness: 30, speed: 0.68, phase: 0.8, color: "rgba(255,76,99,0.84)" },
     ],
     obstacles: [
-      rect(1300, 760, 260, 300, "#4f3f5a"),
-      rect(2040, 760, 260, 300, "#4f3f5a"),
-      rect(1300, 1420, 260, 300, "#4f3f5a"),
-      rect(2040, 1420, 260, 300, "#4f3f5a"),
+      rect(720, 720, 760, 280, "#4f3f5a"),
+      rect(2720, 620, 640, 300, "#4f3f5a"),
+      rect(1160, 1280, 360, 760, "#4f3f5a"),
+      rect(1880, 900, 340, 420, "#4f3f5a"),
+      rect(2440, 1440, 420, 760, "#4f3f5a"),
+      rect(760, 2340, 620, 260, "#4f3f5a"),
+      rect(2860, 2400, 700, 260, "#4f3f5a"),
     ],
     props: [
-      prop(980, 720, "tower"),
-      prop(2620, 720, "tower"),
-      prop(1800, 910, "canister"),
-      prop(1800, 1570, "canister"),
-      prop(1220, 1750, "barrier"),
-      prop(2380, 1750, "barrier"),
+      prop(980, 680, "tower"),
+      prop(3160, 680, "tower"),
+      prop(2100, 1060, "canister"),
+      prop(2100, 2110, "canister"),
+      prop(1480, 1880, "barrier"),
+      prop(2740, 1780, "barrier"),
+      prop(3440, 2220, "crate"),
     ],
     palette: {
       ground: "#110d16",
       road: "#2d2740",
       roadInner: "#463c66",
-      edge: "#9de9ff",
+      edge: "#d0f6ff",
       lane: "rgba(255,255,255,0.1)",
       glow: "rgba(157,233,255,0.12)",
       offroad: "#181121",
-      accent: "#ff6b2d",
+      accent: "#ff58b7",
     },
     surface: {
       roadTraction: 0.91,
@@ -569,7 +750,7 @@ const LEVELS = [
       offroadSpeed: 0.84,
       offroadAccel: 0.82,
     },
-    intro: "A sealed vault of relays and blast doors built for brutal short-range fights.",
+    intro: "An asymmetrical vault maze of blast doors, crossing beams, and ambush lanes.",
   },
 ];
 
@@ -587,41 +768,55 @@ function pathToCanvas(ctx, path, closed = true) {
   }
 }
 
+function drawRoadStroke(ctx, points, width, palette, closed = true) {
+  if (!points?.length || !width) {
+    return;
+  }
+
+  ctx.strokeStyle = palette.glow;
+  ctx.lineWidth = width + 70;
+  pathToCanvas(ctx, points, closed);
+  ctx.stroke();
+
+  ctx.strokeStyle = palette.edge;
+  ctx.lineWidth = width + 24;
+  pathToCanvas(ctx, points, closed);
+  ctx.stroke();
+
+  ctx.strokeStyle = palette.road;
+  ctx.lineWidth = width;
+  pathToCanvas(ctx, points, closed);
+  ctx.stroke();
+
+  ctx.strokeStyle = palette.roadInner;
+  ctx.lineWidth = width * 0.68;
+  pathToCanvas(ctx, points, closed);
+  ctx.stroke();
+
+  ctx.setLineDash([40, 28]);
+  ctx.strokeStyle = palette.lane;
+  ctx.lineWidth = 10;
+  pathToCanvas(ctx, points, closed);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
 function drawTrack(ctx, level) {
-  const { palette, trackPath, trackWidth, shortcutPaths } = level;
-  if (!trackPath?.length) {
+  const { palette, trackPath, trackWidth, shortcutPaths, roadPaths } = level;
+  if (!trackPath?.length && !roadPaths?.length) {
     return;
   }
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  ctx.strokeStyle = palette.glow;
-  ctx.lineWidth = trackWidth + 70;
-  pathToCanvas(ctx, trackPath, true);
-  ctx.stroke();
+  if (trackPath?.length) {
+    drawRoadStroke(ctx, trackPath, trackWidth, palette, true);
+  }
 
-  ctx.strokeStyle = palette.edge;
-  ctx.lineWidth = trackWidth + 24;
-  pathToCanvas(ctx, trackPath, true);
-  ctx.stroke();
-
-  ctx.strokeStyle = palette.road;
-  ctx.lineWidth = trackWidth;
-  pathToCanvas(ctx, trackPath, true);
-  ctx.stroke();
-
-  ctx.strokeStyle = palette.roadInner;
-  ctx.lineWidth = trackWidth * 0.68;
-  pathToCanvas(ctx, trackPath, true);
-  ctx.stroke();
-
-  ctx.setLineDash([40, 28]);
-  ctx.strokeStyle = palette.lane;
-  ctx.lineWidth = 10;
-  pathToCanvas(ctx, trackPath, true);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  for (const roadPath of roadPaths ?? []) {
+    drawRoadStroke(ctx, roadPath.points, roadPath.width, palette, roadPath.closed ?? false);
+  }
 
   for (const shortcut of shortcutPaths ?? []) {
     ctx.strokeStyle = "rgba(183,255,59,0.2)";
@@ -969,6 +1164,11 @@ export function getLevel(levelId) {
   return LEVELS.find((level) => level.id === levelId) ?? LEVELS[0];
 }
 
+export function getLevelPreviewPath(levelOrId) {
+  const level = typeof levelOrId === "string" ? getLevel(levelOrId) : levelOrId;
+  return `assets/images/maps/${level.id}.png`;
+}
+
 export function getLevelsForMode(modeId) {
   const mode = MODE_DEFS[modeId];
   if (!mode || mode.preferredCategory === "any") {
@@ -991,7 +1191,7 @@ export function getCheckpoint(level, index) {
 
 export function sampleSurface(level, x, y, time = 0) {
   const surface = {
-    onRoad: level.category === "arena",
+    onRoad: true,
     traction: level.surface.roadTraction,
     accelFactor: 1,
     speedFactor: 1,
@@ -1002,29 +1202,37 @@ export function sampleSurface(level, x, y, time = 0) {
     offroad: false,
   };
 
-  if (level.category === "race" && level.trackPath.length) {
-    const mainTrackDistance = distanceToPolyline(x, y, level.trackPath, true).distance;
-    let bestDistance = mainTrackDistance;
-    let insideShortcut = false;
+  const drivablePaths = [];
+  if (level.trackPath?.length) {
+    drivablePaths.push({
+      points: level.trackPath,
+      width: level.trackWidth,
+      closed: true,
+    });
+  }
+  for (const shortcut of level.shortcutPaths ?? []) {
+    drivablePaths.push({
+      points: shortcut.points,
+      width: shortcut.width,
+      closed: false,
+    });
+  }
+  for (const roadPath of level.roadPaths ?? []) {
+    drivablePaths.push({
+      points: roadPath.points,
+      width: roadPath.width,
+      closed: roadPath.closed ?? false,
+    });
+  }
 
-    for (const shortcut of level.shortcutPaths ?? []) {
-      const shortcutDistance = distanceToPolyline(x, y, shortcut.points, false).distance;
-      if (shortcutDistance < bestDistance) {
-        bestDistance = shortcutDistance;
-        insideShortcut = shortcutDistance <= shortcut.width * 0.5;
-      }
-    }
-
-    const onTrack = mainTrackDistance <= level.trackWidth * 0.5 || insideShortcut;
-    surface.onRoad = onTrack;
-    surface.offroad = !onTrack;
-    surface.traction = onTrack ? level.surface.roadTraction : level.surface.offroadTraction;
-    surface.speedFactor = onTrack ? 1 : level.surface.offroadSpeed;
-    surface.accelFactor = onTrack ? 1 : level.surface.offroadAccel;
-    surface.dragFactor = onTrack ? 1 : 1.15;
-  } else {
-    surface.onRoad = true;
-    surface.offroad = false;
+  if (drivablePaths.length) {
+    const onRoad = drivablePaths.some((path) => distanceToPolyline(x, y, path.points, path.closed).distance <= path.width * 0.5);
+    surface.onRoad = onRoad;
+    surface.offroad = !onRoad;
+    surface.traction = onRoad ? level.surface.roadTraction : level.surface.offroadTraction;
+    surface.speedFactor = onRoad ? 1 : level.surface.offroadSpeed;
+    surface.accelFactor = onRoad ? 1 : level.surface.offroadAccel;
+    surface.dragFactor = onRoad ? 1 : 1.18;
   }
 
   for (const pad of level.boostPads ?? []) {
@@ -1069,9 +1277,12 @@ export function sampleSurface(level, x, y, time = 0) {
 }
 
 export function renderLevel(ctx, level, time) {
-  drawBackdrop(ctx, level, time);
-  drawTrack(ctx, level);
-  drawObstacles(ctx, level);
+  const drewBackdropImage = drawLevelBackdropImage(ctx, level);
+  if (!drewBackdropImage) {
+    drawBackdrop(ctx, level, time);
+    drawTrack(ctx, level);
+    drawObstacles(ctx, level);
+  }
   drawHazards(ctx, level, time);
   drawPads(ctx, level, time);
 

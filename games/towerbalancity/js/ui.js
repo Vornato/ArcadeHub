@@ -326,9 +326,9 @@ class UIManager {
         const classSelector = slot.querySelector('.class-selector');
         const keyboardMappings = [
             'Move: Left/Right  |  Drop: Enter',
-            'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Brace: Q/E',
-            'Move: J L  |  Jump: I<br>Grab: O  |  Throw: P  |  Brace: U/Y',
-            'Move: Num4 Num6  |  Jump: Num8<br>Grab: Num7  |  Throw: Num9  |  Brace: Num1/Num3'
+            'Move: A D  |  Jump: Space  |  Drop Down: S+Space<br>Grab: F  |  Throw: G  |  Brace: Q/E',
+            'Move: J L  |  Jump: I  |  Drop Down: K+I<br>Grab: O  |  Throw: P  |  Brace: U/Y',
+            'Move: Num4 Num6  |  Jump: Num8  |  Drop Down: Num2+Num8<br>Grab: Num7  |  Throw: Num9  |  Brace: Num1/Num3'
         ];
         const joinPrompts = [
             'Arrow keys or Gamepad to join...',
@@ -346,7 +346,7 @@ class UIManager {
                 if (slotId === 0) {
                     mapping.innerHTML = 'Move: D-Pad/Stick  |  Drop: A / Cross';
                 } else {
-                    mapping.innerHTML = 'Jump: A  |  Grab: X  |  Throw: B<br>Brace: LB/RB  |  Pause: Start';
+                    mapping.innerHTML = 'Jump: A  |  Drop Down: Down+A<br>Grab: X  |  Throw: B  |  Brace: LB/RB  |  Pause: Start';
                 }
             } else {
                 mapping.innerHTML = 'AI Controlled';

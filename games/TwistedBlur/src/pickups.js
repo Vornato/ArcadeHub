@@ -9,12 +9,17 @@ export class PickupSystem {
   reset(level, modeId) {
     this.pickups = (level.pickupSpawns ?? []).map((spawn, index) => ({
       id: `pickup-${index}`,
+      spawnX: spawn.x,
+      spawnY: spawn.y,
       x: spawn.x,
       y: spawn.y,
+      vx: 0,
+      vy: 0,
       type: chooseWeighted(PICKUP_TABLE),
       active: true,
       respawn: 0,
       spin: index * 0.7,
+      pullTimer: 0,
       modeId,
     }));
   }
@@ -24,14 +29,29 @@ export class PickupSystem {
 
     for (const pickup of this.pickups) {
       pickup.spin += dt;
+      pickup.pullTimer = Math.max(0, (pickup.pullTimer ?? 0) - dt);
       if (!pickup.active) {
         pickup.respawn -= dt;
         if (pickup.respawn <= 0) {
           pickup.active = true;
+          pickup.x = pickup.spawnX;
+          pickup.y = pickup.spawnY;
+          pickup.vx = 0;
+          pickup.vy = 0;
+          pickup.pullTimer = 0;
           pickup.type = chooseWeighted(PICKUP_TABLE);
         }
         continue;
       }
+
+      pickup.vx = (pickup.vx ?? 0) * Math.max(0, 1 - 4.8 * dt);
+      pickup.vy = (pickup.vy ?? 0) * Math.max(0, 1 - 4.8 * dt);
+      if (pickup.pullTimer <= 0) {
+        pickup.vx += (pickup.spawnX - pickup.x) * 2.8 * dt;
+        pickup.vy += (pickup.spawnY - pickup.y) * 2.8 * dt;
+      }
+      pickup.x += pickup.vx * dt;
+      pickup.y += pickup.vy * dt;
 
       for (const participant of participants) {
         const vehicle = participant.vehicle;
@@ -46,6 +66,9 @@ export class PickupSystem {
         this.applyPickup(vehicle, pickup.type, effects, audio);
         pickup.active = false;
         pickup.respawn = modeId === "quickBattle" ? 4.2 : 6.2;
+        pickup.vx = 0;
+        pickup.vy = 0;
+        pickup.pullTimer = 0;
         events.push({ type: "pickup", vehicleId: vehicle.id, pickupType: pickup.type });
         break;
       }

@@ -1,14 +1,17 @@
 import { BOT_DIFFICULTIES } from "./constants.js";
-import { clamp, distance, signedAngleToTarget } from "./physics.js";
-import { getCheckpoint } from "./levelManager.js";
+import { clamp, distance, distanceToPolyline, lerp, signedAngleToTarget } from "./physics.js";
+import { getCheckpoint, sampleSurface } from "./levelManager.js";
 
-function scoreTarget(vehicle, target) {
+const pathMeasureCache = new WeakMap();
+
+function scoreTarget(vehicle, participant) {
+  const target = participant?.vehicle;
   if (!target?.isAlive()) {
     return -Infinity;
   }
   const dist = distance(vehicle.x, vehicle.y, target.x, target.y);
   const healthFactor = 1 - target.health / target.maxHealth;
-  return 900 - dist + healthFactor * 180 + target.kills * 30;
+  return 900 - dist + healthFactor * 180 + target.kills * 30 + (participant?.human ? 240 : 0);
 }
 
 function nearestEnemy(vehicle, participants) {
@@ -19,7 +22,7 @@ function nearestEnemy(vehicle, participants) {
     if (!target || target.id === vehicle.id || !target.isAlive()) {
       continue;
     }
-    const score = scoreTarget(vehicle, target);
+    const score = scoreTarget(vehicle, participant);
     if (score > bestScore) {
       bestScore = score;
       best = target;
@@ -59,6 +62,157 @@ function predictTarget(target, leadSeconds = 0.55) {
   return {
     x: target.x + target.vx * leadSeconds,
     y: target.y + target.vy * leadSeconds,
+  };
+}
+
+function getDrivePaths(level) {
+  const paths = [];
+  if (level.trackPath?.length) {
+    paths.push({
+      points: level.trackPath,
+      width: level.trackWidth,
+      closed: true,
+    });
+  }
+  for (const shortcut of level.shortcutPaths ?? []) {
+    paths.push({
+      points: shortcut.points,
+      width: shortcut.width,
+      closed: false,
+    });
+  }
+  for (const roadPath of level.roadPaths ?? []) {
+    paths.push({
+      points: roadPath.points,
+      width: roadPath.width,
+      closed: roadPath.closed ?? false,
+    });
+  }
+  return paths.filter((path) => path.points?.length >= 2);
+}
+
+function getPathMeasure(path) {
+  const cached = pathMeasureCache.get(path.points);
+  if (cached?.closed === path.closed) {
+    return cached;
+  }
+
+  const segmentLengths = [];
+  const cumulative = [0];
+  const end = path.closed ? path.points.length : path.points.length - 1;
+  for (let index = 0; index < end; index += 1) {
+    const a = path.points[index];
+    const b = path.points[(index + 1) % path.points.length];
+    const length = Math.max(1, distance(a.x, a.y, b.x, b.y));
+    segmentLengths.push(length);
+    cumulative.push(cumulative[cumulative.length - 1] + length);
+  }
+
+  const measure = {
+    closed: path.closed,
+    segmentLengths,
+    cumulative,
+    totalLength: cumulative[cumulative.length - 1],
+  };
+  pathMeasureCache.set(path.points, measure);
+  return measure;
+}
+
+function getPathProgress(path, projection) {
+  const measure = getPathMeasure(path);
+  if (projection.index < 0 || !measure.segmentLengths.length) {
+    return 0;
+  }
+  return measure.cumulative[projection.index] + measure.segmentLengths[projection.index] * projection.t;
+}
+
+function samplePathPosition(path, progress) {
+  const measure = getPathMeasure(path);
+  if (!measure.totalLength || !path.points.length) {
+    return path.points[0] ?? { x: 0, y: 0 };
+  }
+
+  let cursor = progress;
+  if (path.closed) {
+    cursor %= measure.totalLength;
+    if (cursor < 0) {
+      cursor += measure.totalLength;
+    }
+  } else {
+    cursor = clamp(cursor, 0, measure.totalLength);
+  }
+
+  let segmentIndex = measure.segmentLengths.length - 1;
+  for (let index = 0; index < measure.segmentLengths.length; index += 1) {
+    if (cursor <= measure.cumulative[index + 1]) {
+      segmentIndex = index;
+      break;
+    }
+  }
+
+  const segmentLength = measure.segmentLengths[segmentIndex] || 1;
+  const localT = clamp((cursor - measure.cumulative[segmentIndex]) / segmentLength, 0, 1);
+  const a = path.points[segmentIndex];
+  const b = path.points[(segmentIndex + 1) % path.points.length];
+  return {
+    x: lerp(a.x, b.x, localT),
+    y: lerp(a.y, b.y, localT),
+  };
+}
+
+function choosePathDirection(path, currentProgress, targetProgress) {
+  const measure = getPathMeasure(path);
+  if (!path.closed || !measure.totalLength) {
+    return targetProgress >= currentProgress ? 1 : -1;
+  }
+
+  const forwardDistance = (targetProgress - currentProgress + measure.totalLength) % measure.totalLength;
+  const backwardDistance = (currentProgress - targetProgress + measure.totalLength) % measure.totalLength;
+  return forwardDistance <= backwardDistance ? 1 : -1;
+}
+
+function chooseDriveGoal(level, vehicle, target, surface) {
+  const drivePaths = getDrivePaths(level);
+  if (!drivePaths.length) {
+    return target;
+  }
+
+  let best = null;
+  for (const path of drivePaths) {
+    const vehicleProjection = distanceToPolyline(vehicle.x, vehicle.y, path.points, path.closed);
+    const targetProjection = distanceToPolyline(target.x, target.y, path.points, path.closed);
+    const score = vehicleProjection.distance * (surface.offroad ? 1.6 : 1.05)
+      + targetProjection.distance * 1.25;
+    if (!best || score < best.score) {
+      best = {
+        path,
+        vehicleProjection,
+        targetProjection,
+        score,
+      };
+    }
+  }
+
+  if (!best) {
+    return target;
+  }
+
+  const currentProgress = getPathProgress(best.path, best.vehicleProjection);
+  const targetProgress = getPathProgress(best.path, best.targetProjection);
+  const direction = choosePathDirection(best.path, currentProgress, targetProgress);
+  const lookahead = clamp(220 + vehicle.speed * 0.45 + (surface.offroad ? 220 : 0), 200, best.path.closed ? 760 : 620);
+  const roadLead = samplePathPosition(best.path, currentProgress + direction * lookahead);
+  const targetLead = samplePathPosition(best.path, targetProgress);
+  const snapWeight = surface.offroad
+    ? 0.84
+    : clamp(best.vehicleProjection.distance / Math.max(60, (best.path.width ?? 140) * 0.65), 0.34, 0.7);
+  const blendedRoadTarget = {
+    x: lerp(roadLead.x, targetLead.x, 0.28),
+    y: lerp(roadLead.y, targetLead.y, 0.28),
+  };
+  return {
+    x: lerp(target.x, blendedRoadTarget.x, snapWeight),
+    y: lerp(target.y, blendedRoadTarget.y, snapWeight),
   };
 }
 
@@ -103,6 +257,7 @@ export class BotController {
     let primaryGoal = null;
     const pickup = nearestPickup(vehicle, pickupSystem);
     const healthRatio = vehicle.health / vehicle.maxHealth;
+    const surface = sampleSurface(level, vehicle.x, vehicle.y, game.time);
 
     if ((modeId === "combatRace" || modeId === "driftAttack") && level.checkpoints.length) {
       primaryGoal = racingGoal(level, vehicle);
@@ -134,6 +289,7 @@ export class BotController {
 
     attackTarget = attackTarget ?? nearestEnemy(vehicle, participants);
     primaryGoal = primaryGoal ?? attackTarget ?? { x: level.world.width * 0.5, y: level.world.height * 0.5 };
+    const navigationGoal = chooseDriveGoal(level, vehicle, primaryGoal, surface);
 
     if (vehicle.speed < 85) {
       this.stuckTimer += dt;
@@ -141,9 +297,10 @@ export class BotController {
       this.stuckTimer = Math.max(0, this.stuckTimer - dt * 2);
     }
 
-    const angleError = signedAngleToTarget(vehicle.angle, vehicle.x, vehicle.y, primaryGoal.x, primaryGoal.y) + Math.sin(game.time * 0.8 + this.wobble) * 0.035;
+    const angleError = signedAngleToTarget(vehicle.angle, vehicle.x, vehicle.y, navigationGoal.x, navigationGoal.y)
+      + Math.sin(game.time * 0.8 + this.wobble) * (surface.offroad ? 0.012 : 0.024);
     const steer = clamp(angleError * 1.9, -1, 1);
-    const distanceToGoal = distance(vehicle.x, vehicle.y, primaryGoal.x, primaryGoal.y);
+    const distanceToGoal = distance(vehicle.x, vehicle.y, navigationGoal.x, navigationGoal.y);
     const speedRatio = vehicle.speed / vehicle.definition.speed;
     const nextGoal = level.checkpoints.length ? getCheckpoint(level, vehicle.nextCheckpoint + 1) : primaryGoal;
     const exitAngle = signedAngleToTarget(vehicle.angle, vehicle.x, vehicle.y, nextGoal.x, nextGoal.y);
@@ -166,6 +323,11 @@ export class BotController {
     if (driftWindow) {
       brake = Math.max(brake, 0.24 + cornerSeverity * 0.28);
       accel = Math.max(accel, 0.54);
+    }
+
+    if (surface.offroad) {
+      accel = Math.min(accel, 0.72);
+      brake = Math.max(brake, 0.14 + cornerSeverity * 0.18);
     }
 
     if (this.stuckTimer > this.difficulty.recovery * 1.45) {
@@ -210,6 +372,7 @@ export class BotController {
     const boost = vehicle.boost > 32
       && cornerSeverity < 0.54
       && vehicle.forwardSpeed > 120
+      && !surface.offroad
       && (distanceToGoal > 280 || shouldBoostForChase)
       && (driftWindow ? Math.random() < this.difficulty.boostUse * 0.45 : Math.random() < this.difficulty.boostUse);
 

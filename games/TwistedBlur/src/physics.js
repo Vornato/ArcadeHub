@@ -1,4 +1,4 @@
-import { PHYSICS_TUNING, WORLD_MARGIN } from "./constants.js";
+import { PHYSICS_TUNING } from "./constants.js";
 
 export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -235,10 +235,10 @@ export function constrainVehicleToLevel(vehicle, level, extraObstacles = []) {
 
   let severity = 0;
   const r = vehicle.radius;
-  const minX = -WORLD_MARGIN;
-  const minY = -WORLD_MARGIN;
-  const maxX = level.world.width + WORLD_MARGIN;
-  const maxY = level.world.height + WORLD_MARGIN;
+  const minX = 0;
+  const minY = 0;
+  const maxX = level.world.width;
+  const maxY = level.world.height;
 
   if (vehicle.x - r < minX) {
     vehicle.x = minX + r;

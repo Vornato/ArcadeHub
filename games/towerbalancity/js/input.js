@@ -8,12 +8,14 @@ const KEYBOARD_MAPS = [
     { // Keyboard Slot 1 : Drop Player
         'Left': 'ArrowLeft',
         'Right': 'ArrowRight',
+        'Down': 'ArrowDown',
         'Action1': 'Enter', // Drop
         'Start': 'Escape'
     },
     { // Keyboard Slot 2 : Inside Player
         'Left': 'KeyA',
         'Right': 'KeyD',
+        'Down': 'KeyS',
         'Jump': 'Space',
         'Action1': 'KeyF',   // Grab
         'Action2': 'KeyG',   // Throw
@@ -24,6 +26,7 @@ const KEYBOARD_MAPS = [
     { // Keyboard Slot 3 : Inside Player
         'Left': 'KeyJ',
         'Right': 'KeyL',
+        'Down': 'KeyK',
         'Jump': 'KeyI',
         'Action1': 'KeyO',
         'Action2': 'KeyP',
@@ -34,6 +37,7 @@ const KEYBOARD_MAPS = [
     { // Keyboard Slot 4 : Inside Player
         'Left': 'Numpad4',
         'Right': 'Numpad6',
+        'Down': 'Numpad2',
         'Jump': 'Numpad8',
         'Action1': 'Numpad7',
         'Action2': 'Numpad9',
@@ -89,6 +93,9 @@ class InputManager {
     postUpdate() {
         // Copy keys to prevKeys for next frame 'justPressed' checks
         this.prevKeys = { ...this.keys };
+        if (this.gm && typeof this.gm.postUpdate === 'function') {
+            this.gm.postUpdate();
+        }
     }
 
     handleAnyKeyPress(code) {
@@ -134,7 +141,9 @@ class InputManager {
         const state = {
             left: false,
             right: false,
+            down: false,
             jump: false,
+            downJustPressed: false,
             jumpJustPressed: false,
             action1: false,
             action1JustPressed: false,
@@ -156,6 +165,10 @@ class InputManager {
 
             state.left = this.isKeyPressed(map.Left);
             state.right = this.isKeyPressed(map.Right);
+            if (map.Down) {
+                state.down = this.isKeyPressed(map.Down);
+                state.downJustPressed = this.isKeyJustPressed(map.Down);
+            }
 
             if (map.Jump) {
                 state.jump = this.isKeyPressed(map.Jump);
@@ -194,6 +207,7 @@ class InputManager {
             const gpIndex = mapping.index;
 
             const stickX = this.gm.getAxis(gpIndex, 'LeftStickX');
+            const stickY = this.gm.getAxis(gpIndex, 'LeftStickY');
 
             state.left =
                 this.gm.isButtonPressed(gpIndex, 'LEFT') ||
@@ -202,6 +216,11 @@ class InputManager {
             state.right =
                 this.gm.isButtonPressed(gpIndex, 'RIGHT') ||
                 stickX > 0.4;
+
+            state.down =
+                this.gm.isButtonPressed(gpIndex, 'DOWN') ||
+                stickY > 0.45;
+            state.downJustPressed = this.gm.isButtonJustPressed(gpIndex, 'DOWN');
 
             state.jump = this.gm.isButtonPressed(gpIndex, 'A');
             state.jumpJustPressed = this.gm.isButtonJustPressed(gpIndex, 'A');

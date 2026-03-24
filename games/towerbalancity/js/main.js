@@ -598,7 +598,9 @@ window.onload = () => {
     inputManager.onAnyInputCallback = setupInputCallback;
 
     function globalLoop() {
-        inputManager.update();
+        if (!game.isRunning || game.isPaused) {
+            inputManager.update();
+        }
 
         if (!game.isRunning || game.isPaused) {
             if (setupActive) {

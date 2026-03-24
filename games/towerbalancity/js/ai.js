@@ -178,3 +178,182 @@ class BotController {
         }
     }
 }
+
+class CraneBotController {
+    constructor(slotIndex, difficulty = 1) {
+        this.slot = slotIndex;
+        this.difficulty = difficulty; // 0=Rookie, 1=Normal, 2=Smart
+        this.state = this.getEmptyState();
+        this.lastPieceRef = null;
+        this.targetBias = 0;
+        this.releaseCharge = 0;
+        this.pieceAgeFrames = 0;
+    }
+
+    getEmptyState() {
+        return {
+            left: false, right: false,
+            jump: false, jumpJustPressed: false,
+            action1: false, action1JustPressed: false,
+            action2: false, action2JustPressed: false,
+            bumperL: false, bumperR: false,
+            bumperLJustPressed: false, bumperRJustPressed: false,
+            startJustPressed: false
+        };
+    }
+
+    refreshTargetProfile(nextPiece) {
+        this.lastPieceRef = nextPiece;
+        const biasRange = this.difficulty === 0 ? 8 : 0;
+        this.targetBias = Utils.random(-biasRange, biasRange);
+        this.releaseCharge = 0;
+        this.pieceAgeFrames = 0;
+    }
+
+    getPendingSupportBounds(nextPiece) {
+        const insetL = Math.max(nextPiece.wallLeft || 20, nextPiece.edgeInset || 0);
+        const insetR = Math.max(nextPiece.wallRight || 20, nextPiece.edgeInset || 0);
+        return {
+            insetL,
+            insetR,
+            supportW: Math.max(24, nextPiece.w - insetL - insetR)
+        };
+    }
+
+    getTopStableFloor(game) {
+        if (!game || !game.floors) return null;
+        for (let i = game.floors.length - 1; i >= 0; i--) {
+            const floor = game.floors[i];
+            if (!floor) continue;
+            if (i === 0 || !floor.isFalling) return floor;
+        }
+        return null;
+    }
+
+    hasPendingDrop(game) {
+        return !!(game && game.floors && game.floors.some((floor, index) => index > 0 && floor && floor.isFalling));
+    }
+
+    getSupportRatioAtX(candidateX, nextPiece, supportFloor) {
+        if (!supportFloor || typeof supportFloor.getSupportBounds !== 'function') return 0;
+        const pending = this.getPendingSupportBounds(nextPiece);
+        const baseBounds = supportFloor.getSupportBounds();
+        const left = candidateX + pending.insetL;
+        const right = left + pending.supportW;
+        const overlapLeft = Math.max(left, baseBounds.supportX);
+        const overlapRight = Math.min(right, baseBounds.supportX + baseBounds.supportW);
+        const overlapW = Math.max(0, overlapRight - overlapLeft);
+        return Utils.clamp(overlapW / Math.max(1, pending.supportW), 0, 1);
+    }
+
+    getPreferredDropX(dropPlayerRef, game, nextPiece, supportFloor) {
+        const pending = this.getPendingSupportBounds(nextPiece);
+        const perfectX = game.towerCenterX - (nextPiece.w / 2);
+        let baseTargetX = perfectX;
+
+        if (supportFloor && typeof supportFloor.getSupportBounds === 'function') {
+            const baseBounds = supportFloor.getSupportBounds();
+            const supportCenterX = baseBounds.supportX + (baseBounds.supportW / 2);
+            const stableX = supportCenterX - pending.insetL - (pending.supportW / 2);
+            const safePerfectSupport = this.getSupportRatioAtX(perfectX, nextPiece, supportFloor);
+            const perfectSupportThreshold = this.difficulty === 2 ? 0.94 : (this.difficulty === 1 ? 0.9 : 0.82);
+            baseTargetX = safePerfectSupport >= perfectSupportThreshold ? perfectX : stableX;
+        }
+
+        const windForce = game.progression ? game.progression.windForce : 0;
+        const driftLead =
+            (dropPlayerRef.carriageVelocity * (this.difficulty === 2 ? 0.8 : (this.difficulty === 1 ? 0.55 : 0.35))) +
+            (dropPlayerRef.loadLagVelocity * (this.difficulty === 2 ? 2.2 : (this.difficulty === 1 ? 1.5 : 0.9))) +
+            (dropPlayerRef.loadLagOffset * (this.difficulty === 2 ? 0.14 : (this.difficulty === 1 ? 0.08 : 0.04))) +
+            (windForce * (this.difficulty === 2 ? 0.75 : (this.difficulty === 1 ? 0.5 : 0.28)));
+
+        return Utils.clamp(
+            baseTargetX + this.targetBias - driftLead,
+            100,
+            dropPlayerRef.widthLimit - 100 - nextPiece.w
+        );
+    }
+
+    update(dropPlayerRef, game) {
+        this.state = this.getEmptyState();
+        if (!dropPlayerRef || !game || !game.upcomingPieces || game.upcomingPieces.length === 0) return;
+
+        const nextPiece = game.upcomingPieces[0];
+        if (nextPiece !== this.lastPieceRef) {
+            this.refreshTargetProfile(nextPiece);
+        }
+        this.pieceAgeFrames++;
+
+        const windForce = game.progression ? game.progression.windForce : 0;
+        const supportFloor = this.getTopStableFloor(game);
+        const targetX = this.getPreferredDropX(dropPlayerRef, game, nextPiece, supportFloor);
+        const predictedX =
+            dropPlayerRef.x +
+            (dropPlayerRef.carriageVelocity * 1.1) +
+            (dropPlayerRef.loadLagVelocity * 2.3) +
+            (dropPlayerRef.loadLagOffset * 0.12);
+        const error = targetX - predictedX;
+        const coarseZone = this.difficulty === 2 ? 18 : (this.difficulty === 1 ? 26 : 38);
+        const fineZone = this.difficulty === 2 ? 6 : (this.difficulty === 1 ? 10 : 16);
+        const dampingBias = dropPlayerRef.carriageVelocity + (dropPlayerRef.loadLagVelocity * 1.5);
+
+        if (Math.abs(error) > coarseZone) {
+            if (error < 0) this.state.left = true;
+            if (error > 0) this.state.right = true;
+        } else if (Math.abs(error) > fineZone) {
+            const settleControl = error - (dampingBias * (this.difficulty === 2 ? 5.8 : (this.difficulty === 1 ? 4.6 : 3.6)));
+            if (settleControl < -3) this.state.left = true;
+            if (settleControl > 3) this.state.right = true;
+        } else {
+            const brakeControl =
+                (-dampingBias * (this.difficulty === 2 ? 7.2 : (this.difficulty === 1 ? 5.8 : 4.4))) -
+                (dropPlayerRef.loadLagOffset * (this.difficulty === 2 ? 0.24 : (this.difficulty === 1 ? 0.16 : 0.1)));
+            if (brakeControl < -2.5) this.state.left = true;
+            if (brakeControl > 2.5) this.state.right = true;
+        }
+
+        if (dropPlayerRef.cooldown > 0) {
+            this.releaseCharge = 0;
+            return;
+        }
+
+        const pendingDropActive = this.hasPendingDrop(game);
+        const currentSupportRatio = this.getSupportRatioAtX(dropPlayerRef.x, nextPiece, supportFloor);
+        const lineTolerance = this.difficulty === 2 ? 8 : (this.difficulty === 1 ? 12 : 18);
+        const supportThreshold = this.difficulty === 2 ? 0.94 : (this.difficulty === 1 ? 0.87 : 0.8);
+        const stableSwing = Math.abs(dropPlayerRef.carriageVelocity) <= (this.difficulty === 2 ? 0.45 : (this.difficulty === 1 ? 0.85 : 1.1));
+        const stableLag = Math.abs(dropPlayerRef.loadLagOffset) <= (this.difficulty === 2 ? 7 : (this.difficulty === 1 ? 14 : 18));
+        const stableLagVelocity = Math.abs(dropPlayerRef.loadLagVelocity) <= (this.difficulty === 2 ? 0.38 : (this.difficulty === 1 ? 0.72 : 0.92));
+        const stableTower =
+            Math.abs(game.towerAngularVelocity) <= (this.difficulty === 2 ? 0.01 : (this.difficulty === 1 ? 0.02 : 0.026)) &&
+            game.dangerTimer === 0 &&
+            game.dangerLevel <= (this.difficulty === 2 ? 1 : 2);
+        const fallbackReady =
+            this.pieceAgeFrames >= (this.difficulty === 2 ? 9999 : (this.difficulty === 1 ? 170 : 220)) &&
+            game.dangerTimer === 0 &&
+            game.dangerLevel <= 2 &&
+            Math.abs(game.towerAngularVelocity) <= (this.difficulty === 1 ? 0.026 : 0.03) &&
+            currentSupportRatio >= (supportThreshold - (this.difficulty === 1 ? 0.04 : 0.05)) &&
+            Math.abs(dropPlayerRef.carriageVelocity) <= (this.difficulty === 1 ? 1.05 : 1.2) &&
+            Math.abs(dropPlayerRef.loadLagOffset) <= (this.difficulty === 1 ? 18 : 22);
+        const linedUp = Math.abs(targetX - dropPlayerRef.x) <= lineTolerance;
+
+        if (!pendingDropActive && linedUp && (
+            (currentSupportRatio >= supportThreshold && stableSwing && stableLag && stableLagVelocity && stableTower) ||
+            fallbackReady
+        )) {
+            this.releaseCharge++;
+        } else {
+            this.releaseCharge = Math.max(0, this.releaseCharge - (this.difficulty === 2 ? 3 : 2));
+        }
+
+        const settleFrames =
+            (this.difficulty === 2 ? 28 : (this.difficulty === 1 ? 38 : 52)) +
+            Math.round(Math.abs(windForce) * 0.9) +
+            Math.round(Math.abs(game.towerAngularVelocity) * 420);
+        if (this.releaseCharge >= settleFrames) {
+            this.state.action1JustPressed = true;
+            this.releaseCharge = 0;
+        }
+    }
+}

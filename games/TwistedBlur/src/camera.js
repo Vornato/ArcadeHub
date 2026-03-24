@@ -1,4 +1,4 @@
-import { CAMERA_TUNING, WORLD_MARGIN } from "./constants.js";
+import { CAMERA_TUNING } from "./constants.js";
 import { angleToVector, clamp, lerp, randomRange } from "./physics.js";
 
 export class Camera {
@@ -46,8 +46,12 @@ export class Camera {
 
     const halfWorldWidth = viewport.w / (2 * this.zoom);
     const halfWorldHeight = viewport.h / (2 * this.zoom);
-    this.x = clamp(this.x, -WORLD_MARGIN + halfWorldWidth, level.world.width + WORLD_MARGIN - halfWorldWidth);
-    this.y = clamp(this.y, -WORLD_MARGIN + halfWorldHeight, level.world.height + WORLD_MARGIN - halfWorldHeight);
+    const minCameraX = halfWorldWidth;
+    const maxCameraX = level.world.width - halfWorldWidth;
+    const minCameraY = halfWorldHeight;
+    const maxCameraY = level.world.height - halfWorldHeight;
+    this.x = minCameraX > maxCameraX ? level.world.width * 0.5 : clamp(this.x, minCameraX, maxCameraX);
+    this.y = minCameraY > maxCameraY ? level.world.height * 0.5 : clamp(this.y, minCameraY, maxCameraY);
   }
 
   begin(ctx, viewport) {

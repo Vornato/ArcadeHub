@@ -292,7 +292,7 @@ class Game {
         this.floors.push(baseFloor);
         this.updateStatics();
 
-        this.dropPlayer = new DropPlayer(0, this.canvas.width, this);
+        this.dropPlayer = new DropPlayer(0, this.canvas.width, this, botDifficulty);
 
         const colors = ['#3498db', '#2ecc71', '#9b59b6'];
         for (let i = 1; i < playerCount; i++) {
@@ -1950,6 +1950,7 @@ class Game {
         this.accumulator += delta * this.timeScale;
 
         while (this.accumulator >= this.fixedDeltaMs) {
+            this.inputManager.update();
             this.update();
             this.inputManager.postUpdate();
             this.accumulator -= this.fixedDeltaMs;

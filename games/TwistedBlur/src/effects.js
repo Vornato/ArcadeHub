@@ -115,24 +115,24 @@ export class EffectsSystem {
   }
 
   emitBoost(x, y, angle, color = "#2ef0ff") {
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 3; index += 1) {
       const spray = angle + Math.PI + randomRange(-0.26, 0.26);
       this.addParticle({
         x,
         y,
-        vx: Math.cos(spray) * randomRange(200, 390),
-        vy: Math.sin(spray) * randomRange(200, 390),
-        life: randomRange(0.14, 0.3),
-        size: randomRange(4, 10),
+        vx: Math.cos(spray) * randomRange(160, 300),
+        vy: Math.sin(spray) * randomRange(160, 300),
+        life: randomRange(0.1, 0.22),
+        size: randomRange(3, 7),
         drag: 2.6,
         color,
         glow: color,
         shape: "line",
-        stretch: randomRange(2.8, 4.4),
+        stretch: randomRange(2.1, 3.2),
         rotation: spray,
       });
     }
-    this.flash(color, 0.11, 0.08);
+    this.flash(color, 0.028, 0.035);
   }
 
   emitImpactBurst(x, y, direction, color = "#ff8b5d", intensity = 1) {
@@ -391,14 +391,14 @@ export class EffectsSystem {
     ctx.fill();
   }
 
-  renderViewportOverlay(ctx, viewport, speedRatio, lowHealthRatio, time) {
+  renderViewportOverlay(ctx, viewport, speedRatio, lowHealthRatio, time, boosting = false) {
     ctx.save();
     ctx.beginPath();
     ctx.rect(viewport.x, viewport.y, viewport.w, viewport.h);
     ctx.clip();
 
-    const lineCount = Math.floor(8 + speedRatio * 14);
-    ctx.strokeStyle = `rgba(46, 240, 255, ${0.025 + speedRatio * 0.08})`;
+    const lineCount = Math.floor(4 + speedRatio * (boosting ? 6 : 8));
+    ctx.strokeStyle = `rgba(46, 240, 255, ${0.01 + speedRatio * (boosting ? 0.032 : 0.04)})`;
     ctx.lineWidth = 2;
     for (let index = 0; index < lineCount; index += 1) {
       const offset = ((index * 97 + time * 520) % (viewport.w + viewport.h)) - viewport.h * 0.25;

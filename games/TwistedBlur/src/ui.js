@@ -1,7 +1,38 @@
 import { GAME_TITLE, MODE_DEFS, UI_COLORS, VEHICLE_DEFS } from "./constants.js";
 import { formatTime } from "./physics.js";
-import { getLevel, renderMinimap } from "./levelManager.js";
+import { getLevel, getLevelPreviewPath, renderMinimap } from "./levelManager.js";
 import { drawVehicleSpriteAt } from "./vehicleSprites.js";
+
+const levelPreviewCache = new Map();
+const menuBackgroundCache = new Map();
+const MENU_BACKGROUND_PATHS = {
+  title: [
+    "../assets/images/Menu/Splash.png",
+    "../assets/images/Menu/splash.png",
+  ],
+  lobby: [
+    "../assets/images/Menu/joining screen.png",
+    "../assets/images/Menu/Joining Screen.png",
+    "../assets/images/Menu/driver lobby.png",
+    "../assets/images/Menu/Driver Lobby.png",
+  ],
+  vehicleSelect: [
+    "../assets/images/Menu/vehicle select.png",
+    "../assets/images/Menu/Vehicle Select.png",
+  ],
+  modeSelect: [
+    "../assets/images/Menu/mode select.png",
+    "../assets/images/Menu/Mode Select.png",
+  ],
+  mapSelect: [
+    "../assets/images/Menu/map select.png",
+    "../assets/images/Menu/Map Select.png",
+  ],
+  launchConfirm: [
+    "../assets/images/Menu/match ready.png",
+    "../assets/images/Menu/Match Ready.png",
+  ],
+};
 
 function fillTextGlow(ctx, text, x, y, size, color = "#f4f8ff", align = "center") {
   ctx.save();
@@ -133,6 +164,140 @@ function drawBackground(ctx, width, height, time, accentA = UI_COLORS.accentCyan
   }
 }
 
+function getMenuBackgroundEntry(screenId) {
+  let entry = menuBackgroundCache.get(screenId);
+  if (entry) {
+    return entry;
+  }
+
+  const paths = MENU_BACKGROUND_PATHS[screenId] ?? [];
+  const image = new Image();
+  entry = {
+    image,
+    loaded: false,
+    failed: false,
+    pathIndex: 0,
+    paths,
+  };
+  image.decoding = "async";
+  image.onload = () => {
+    entry.loaded = true;
+    entry.failed = false;
+  };
+  image.onerror = () => {
+    entry.loaded = false;
+    entry.pathIndex += 1;
+    if (entry.pathIndex < entry.paths.length) {
+      image.src = new URL(entry.paths[entry.pathIndex], import.meta.url).href;
+      return;
+    }
+    entry.failed = true;
+  };
+
+  if (paths.length) {
+    image.src = new URL(paths[0], import.meta.url).href;
+  } else {
+    entry.failed = true;
+  }
+
+  menuBackgroundCache.set(screenId, entry);
+  return entry;
+}
+
+function drawFullscreenImage(ctx, image, x, y, width, height) {
+  ctx.drawImage(image, x, y, width, height);
+}
+
+function drawMenuBackground(
+  ctx,
+  width,
+  height,
+  time,
+  screenId,
+  accentA = UI_COLORS.accentCyan,
+  accentB = UI_COLORS.accentHot,
+  options = {},
+) {
+  const {
+    overlayAlpha = 0.32,
+    gridAlpha = 0.035,
+    glowAlpha = 0.24,
+    lineAlpha = 0.028,
+    showAnimatedLines = true,
+  } = options;
+  const background = getMenuBackgroundEntry(screenId);
+  if (!background.loaded || background.failed) {
+    drawBackground(ctx, width, height, time, accentA, accentB);
+    return false;
+  }
+
+  ctx.fillStyle = "#05070d";
+  ctx.fillRect(0, 0, width, height);
+  drawFullscreenImage(ctx, background.image, 0, 0, width, height);
+
+  const shade = ctx.createLinearGradient(0, 0, 0, height);
+  shade.addColorStop(0, `rgba(3,6,12,${Math.max(0.12, overlayAlpha - 0.08)})`);
+  shade.addColorStop(0.5, `rgba(3,6,12,${overlayAlpha})`);
+  shade.addColorStop(1, `rgba(3,6,12,${overlayAlpha + 0.12})`);
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, width, height);
+
+  const glowLeft = ctx.createRadialGradient(width * 0.14, height * 0.46, 20, width * 0.14, height * 0.46, width * 0.3);
+  glowLeft.addColorStop(0, withAlpha(accentA, glowAlpha));
+  glowLeft.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glowLeft;
+  ctx.fillRect(0, 0, width, height);
+
+  const glowRight = ctx.createRadialGradient(width * 0.86, height * 0.52, 20, width * 0.86, height * 0.52, width * 0.34);
+  glowRight.addColorStop(0, withAlpha(accentB, glowAlpha));
+  glowRight.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glowRight;
+  ctx.fillRect(0, 0, width, height);
+
+  if (gridAlpha > 0) {
+    ctx.strokeStyle = `rgba(255,255,255,${gridAlpha})`;
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= width; x += 70) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= height; y += 70) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+
+  if (showAnimatedLines && lineAlpha > 0) {
+    ctx.strokeStyle = `rgba(46,240,255,${lineAlpha})`;
+    ctx.lineWidth = 2;
+    for (let index = 0; index < 9; index += 1) {
+      const y = 104 + index * 92 + Math.sin(time * 0.7 + index) * 10;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y + Math.cos(time * 0.54 + index) * 16);
+      ctx.stroke();
+    }
+  }
+
+  const vignette = ctx.createRadialGradient(
+    width * 0.5,
+    height * 0.5,
+    Math.min(width, height) * 0.2,
+    width * 0.5,
+    height * 0.5,
+    Math.max(width, height) * 0.7,
+  );
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.42)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+  return true;
+}
+
 function drawVehicleGlyph(ctx, vehicle, x, y, scale = 1) {
   if (drawVehicleSpriteAt(ctx, vehicle, x, y, -Math.PI * 0.5, 38 * scale, 1)) {
     return;
@@ -174,66 +339,154 @@ function drawVehicleGlyph(ctx, vehicle, x, y, scale = 1) {
   ctx.restore();
 }
 
+function getLevelPreviewEntry(level) {
+  let entry = levelPreviewCache.get(level.id);
+  if (entry) {
+    return entry;
+  }
+
+  const image = new Image();
+  entry = {
+    image,
+    loaded: false,
+    failed: false,
+  };
+  image.onload = () => {
+    entry.loaded = true;
+  };
+  image.onerror = () => {
+    entry.failed = true;
+  };
+  image.src = getLevelPreviewPath(level);
+  levelPreviewCache.set(level.id, entry);
+  return entry;
+}
+
+function drawLevelPreview(ctx, level, x, y, width, height, accent = UI_COLORS.accentLime) {
+  const preview = getLevelPreviewEntry(level);
+
+  ctx.save();
+  ctx.fillStyle = "rgba(4,8,14,0.92)";
+  ctx.fillRect(x, y, width, height);
+
+  if (preview.loaded) {
+    ctx.drawImage(preview.image, x, y, width, height);
+    const overlay = ctx.createLinearGradient(x, y, x, y + height);
+    overlay.addColorStop(0, "rgba(4,8,14,0.04)");
+    overlay.addColorStop(1, "rgba(4,8,14,0.42)");
+    ctx.fillStyle = overlay;
+    ctx.fillRect(x, y, width, height);
+  } else {
+    renderMinimap(ctx, level, x, y, width, height, [], null);
+    if (preview.failed) {
+      ctx.fillStyle = "rgba(5,7,13,0.72)";
+      ctx.fillRect(x, y + height - 46, width, 46);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "16px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText("Preview image missing. Using live minimap fallback.", x + width * 0.5, y + height - 16);
+    }
+  }
+
+  ctx.strokeStyle = withAlpha(accent, 0.8);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, width, height);
+  ctx.fillStyle = withAlpha(accent, 0.42);
+  ctx.fillRect(x, y, width, 5);
+  ctx.restore();
+}
+
 export class UIRenderer {
   renderTitle(ctx, width, height, time, connectedGamepads = [], playerCount = 1) {
-    drawBackground(ctx, width, height, time, UI_COLORS.accentCyan, UI_COLORS.accentHot);
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      time,
+      "title",
+      UI_COLORS.accentCyan,
+      UI_COLORS.accentHot,
+      { overlayAlpha: 0.18, gridAlpha: 0.018, glowAlpha: 0.2, lineAlpha: 0.014 },
+    );
 
-    fillTextGlow(ctx, GAME_TITLE, width * 0.5, 170, 94, "#f4f8ff");
-    fillTextGlow(ctx, "ARCADE COMBAT RACING", width * 0.5, 226, 28, UI_COLORS.accentCyan);
+    if (!hasBackdrop) {
+      fillTextGlow(ctx, GAME_TITLE, width * 0.5, 170, 94, "#f4f8ff");
+      fillTextGlow(ctx, "ARCADE COMBAT RACING", width * 0.5, 226, 28, UI_COLORS.accentCyan);
 
-    drawCutPanel(ctx, width * 0.5 - 390, 290, 780, 250, UI_COLORS.accentHot);
-    ctx.fillStyle = UI_COLORS.text;
-    ctx.font = "22px Trebuchet MS";
-    ctx.textAlign = "center";
-    ctx.fillText("Boost. Slam. Fire. Finish.", width * 0.5, 346);
-    ctx.fillStyle = UI_COLORS.dim;
-    ctx.font = "18px Trebuchet MS";
-    [
-      "Original local multiplayer vehicle combat with split-screen chaos",
-      "Gamepad-first join flow, aggressive HUD, announcer calls, and arcade handling",
-      "Race circuits, arenas, weapons, destructible props, and AI rivals",
-    ].forEach((line, index) => ctx.fillText(line, width * 0.5, 394 + index * 34));
+      drawCutPanel(ctx, width * 0.5 - 390, 290, 780, 250, UI_COLORS.accentHot);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.font = "22px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText("Boost. Slam. Fire. Finish.", width * 0.5, 346);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "18px Trebuchet MS";
+      [
+        "Original local multiplayer vehicle combat with split-screen chaos",
+        "Gamepad-first join flow, aggressive HUD, announcer calls, and arcade handling",
+        "Race circuits, arenas, weapons, destructible props, and AI rivals",
+      ].forEach((line, index) => ctx.fillText(line, width * 0.5, 394 + index * 34));
 
-    drawPanel(ctx, 70, height - 250, 340, 160, UI_COLORS.accentCyan, 0.8);
-    ctx.fillStyle = UI_COLORS.text;
-    ctx.textAlign = "left";
-    ctx.font = "bold 24px Trebuchet MS";
-    ctx.fillText("Join Status", 96, height - 208);
-    ctx.font = "18px Trebuchet MS";
-    ctx.fillText(`Connected pads: ${connectedGamepads.length}`, 96, height - 164);
-    ctx.fillText(`Current local drivers: ${playerCount}`, 96, height - 132);
-    ctx.fillStyle = UI_COLORS.dim;
-    ctx.fillText("Press A/Start on a controller to pre-join", 96, height - 102);
+      drawPanel(ctx, 70, height - 250, 340, 160, UI_COLORS.accentCyan, 0.8);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.textAlign = "left";
+      ctx.font = "bold 24px Trebuchet MS";
+      ctx.fillText("Join Status", 96, height - 208);
+      ctx.font = "18px Trebuchet MS";
+      ctx.fillText(`Connected pads: ${connectedGamepads.length}`, 96, height - 164);
+      ctx.fillText(`Current local drivers: ${playerCount}`, 96, height - 132);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.fillText("Press A/Start on a controller to pre-join", 96, height - 102);
 
-    drawPanel(ctx, width - 410, height - 250, 340, 160, UI_COLORS.accentHot, 0.8);
-    ctx.fillStyle = UI_COLORS.text;
-    ctx.textAlign = "left";
-    ctx.font = "bold 24px Trebuchet MS";
-    ctx.fillText("Modes Online", width - 384, height - 208);
-    ctx.font = "18px Trebuchet MS";
-    ctx.fillText("Combat Race  |  Arena Deathmatch", width - 384, height - 164);
-    ctx.fillText("Survival  |  Drift Attack  |  Quick Battle", width - 384, height - 132);
-    ctx.fillStyle = UI_COLORS.dim;
-    ctx.fillText("Original vehicles, pickups, bots, and maps", width - 384, height - 102);
+      drawPanel(ctx, width - 410, height - 250, 340, 160, UI_COLORS.accentHot, 0.8);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.textAlign = "left";
+      ctx.font = "bold 24px Trebuchet MS";
+      ctx.fillText("Modes Online", width - 384, height - 208);
+      ctx.font = "18px Trebuchet MS";
+      ctx.fillText("Combat Race  |  Arena Deathmatch", width - 384, height - 164);
+      ctx.fillText("Survival  |  Drift Attack  |  Quick Battle", width - 384, height - 132);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.fillText("Original vehicles, pickups, bots, and maps", width - 384, height - 102);
+    } else {
+      ctx.fillStyle = "rgba(4,8,14,0.42)";
+      ctx.fillRect(width * 0.5 - 330, height - 118, 660, 64);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "18px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText(`${connectedGamepads.length} pads linked  |  ${playerCount} local drivers`, width * 0.5, height - 84);
+    }
 
     fillTextGlow(ctx, "PRESS ENTER, SPACE, A, OR START", width * 0.5, height - 72, 28, UI_COLORS.accentHot);
   }
 
   renderLobby(ctx, width, height, menu, connectedGamepads, time) {
-    drawBackground(ctx, width, height, time, UI_COLORS.accentCyan, UI_COLORS.accentLime);
-    fillTextGlow(ctx, "DRIVER LOBBY", width * 0.5, 92, 52, UI_COLORS.accentCyan);
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      time,
+      "lobby",
+      UI_COLORS.accentCyan,
+      UI_COLORS.accentHot,
+      { overlayAlpha: 0.22, gridAlpha: 0.022, glowAlpha: 0.26, lineAlpha: 0.018 },
+    );
+    if (!hasBackdrop) {
+      fillTextGlow(ctx, "DRIVER LOBBY", width * 0.5, 92, 52, UI_COLORS.accentCyan);
+    }
 
-    const panelWidth = Math.min(280, width * 0.2);
+    const panelWidth = hasBackdrop ? Math.min(236, width * 0.155) : Math.min(280, width * 0.2);
+    const panelHeight = hasBackdrop ? 248 : 300;
     const gap = 18;
     const totalWidth = panelWidth * 4 + gap * 3;
     const originX = width * 0.5 - totalWidth * 0.5;
+    const panelY = hasBackdrop ? 244 : 160;
 
     for (let index = 0; index < 4; index += 1) {
       const x = originX + index * (panelWidth + gap);
-      const y = 160;
+      const y = panelY;
       const player = menu.players[index];
       const accent = player ? player.color : "rgba(255,255,255,0.14)";
-      drawCutPanel(ctx, x, y, panelWidth, 300, accent, player ? 0.88 : 0.36);
+      drawCutPanel(ctx, x, y, panelWidth, panelHeight, accent, player ? (hasBackdrop ? 0.5 : 0.88) : (hasBackdrop ? 0.18 : 0.36));
 
       ctx.fillStyle = player ? UI_COLORS.text : UI_COLORS.dim;
       ctx.font = "bold 24px Trebuchet MS";
@@ -242,44 +495,65 @@ export class UIRenderer {
 
       if (player) {
         const vehicle = VEHICLE_DEFS.find((entry) => entry.id === player.vehicleId) ?? VEHICLE_DEFS[0];
-        drawVehicleGlyph(ctx, vehicle, x + panelWidth * 0.5, y + 128, 0.7);
+        drawVehicleGlyph(ctx, vehicle, x + panelWidth * 0.5, y + (hasBackdrop ? 118 : 128), hasBackdrop ? 0.62 : 0.7);
         ctx.fillStyle = UI_COLORS.text;
         ctx.font = "bold 20px Trebuchet MS";
-        ctx.fillText(vehicle.name, x + panelWidth * 0.5, y + 214);
+        ctx.fillText(vehicle.name, x + panelWidth * 0.5, y + (hasBackdrop ? 192 : 214));
         ctx.fillStyle = UI_COLORS.dim;
         ctx.font = "16px Trebuchet MS";
-        ctx.fillText(player.type === "gamepad" ? `Pad ${player.gamepadIndex + 1}` : `Keyboard ${player.schemeIndex + 1}`, x + panelWidth * 0.5, y + 246);
-        ctx.fillText(vehicle.archetype, x + panelWidth * 0.5, y + 272);
+        ctx.fillText(player.type === "gamepad" ? `Pad ${player.gamepadIndex + 1}` : `Keyboard ${player.schemeIndex + 1}`, x + panelWidth * 0.5, y + (hasBackdrop ? 220 : 246));
+        ctx.fillText(vehicle.archetype, x + panelWidth * 0.5, y + (hasBackdrop ? 242 : 272));
       } else {
         ctx.fillStyle = UI_COLORS.dim;
         ctx.font = "18px Trebuchet MS";
-        ctx.fillText("Press A / START", x + panelWidth * 0.5, y + 134);
-        ctx.fillText("or 2 / 3 / 4", x + panelWidth * 0.5, y + 168);
+        ctx.fillText("Press A / START", x + panelWidth * 0.5, y + (hasBackdrop ? 126 : 134));
+        ctx.fillText("or 2 / 3 / 4", x + panelWidth * 0.5, y + (hasBackdrop ? 160 : 168));
       }
     }
 
-    drawPanel(ctx, width * 0.5 - 430, 500, 860, 170, UI_COLORS.accentHot, 0.82);
-    ctx.fillStyle = UI_COLORS.text;
-    ctx.textAlign = "left";
-    ctx.font = "bold 20px Trebuchet MS";
-    ctx.fillText(`AI Fill: ${menu.aiFill}`, width * 0.5 - 392, 546);
-    ctx.fillText(`Bot Skill: ${menu.getBotDifficulty().name}`, width * 0.5 - 392, 582);
-    ctx.fillText(`Connected Pads: ${connectedGamepads.length}`, width * 0.5 - 392, 618);
-    ctx.fillStyle = UI_COLORS.dim;
-    ctx.font = "18px Trebuchet MS";
-    ctx.fillText("Left/Right changes AI fill. Up/Down changes bot skill.", width * 0.5 - 90, 546);
-    ctx.fillText("Press B on a joined gamepad to leave that slot.", width * 0.5 - 90, 582);
-    ctx.fillText("Delete removes the last human. Enter or Start locks the lobby.", width * 0.5 - 90, 618);
+    if (hasBackdrop) {
+      drawPanel(ctx, width * 0.5 - 470, height - 194, 940, 144, UI_COLORS.accentHot, 0.42);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.textAlign = "left";
+      ctx.font = "bold 22px Trebuchet MS";
+      ctx.fillText(`AI Fill: ${menu.aiFill}`, width * 0.5 - 428, height - 148);
+      ctx.fillText(`Bot Skill: ${menu.getBotDifficulty().name}`, width * 0.5 - 428, height - 106);
+      ctx.fillText(`Connected Pads: ${connectedGamepads.length}`, width * 0.5 - 428, height - 64);
+    } else {
+      drawPanel(ctx, width * 0.5 - 430, 500, 860, 170, UI_COLORS.accentHot, 0.82);
+      ctx.fillStyle = UI_COLORS.text;
+      ctx.textAlign = "left";
+      ctx.font = "bold 20px Trebuchet MS";
+      ctx.fillText(`AI Fill: ${menu.aiFill}`, width * 0.5 - 392, 546);
+      ctx.fillText(`Bot Skill: ${menu.getBotDifficulty().name}`, width * 0.5 - 392, 582);
+      ctx.fillText(`Connected Pads: ${connectedGamepads.length}`, width * 0.5 - 392, 618);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "18px Trebuchet MS";
+      ctx.fillText("Left/Right changes AI fill. Up/Down changes bot skill.", width * 0.5 - 90, 546);
+      ctx.fillText("Press B on a joined gamepad to leave that slot.", width * 0.5 - 90, 582);
+      ctx.fillText("Delete removes the last human. Enter or Start locks the lobby.", width * 0.5 - 90, 618);
+    }
   }
 
   renderVehicleSelect(ctx, width, height, menu) {
-    drawBackground(ctx, width, height, 0.6, UI_COLORS.accentHot, UI_COLORS.accentCyan);
-    fillTextGlow(ctx, "VEHICLE SELECT", width * 0.5, 88, 56, UI_COLORS.accentHot);
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      0.6,
+      "vehicleSelect",
+      UI_COLORS.accentCyan,
+      UI_COLORS.accentHot,
+      { overlayAlpha: 0.18, gridAlpha: 0.02, glowAlpha: 0.22, lineAlpha: 0.016 },
+    );
+    if (!hasBackdrop) {
+      fillTextGlow(ctx, "VEHICLE SELECT", width * 0.5, 88, 56, UI_COLORS.accentHot);
+    }
 
     const focusPlayer = menu.players[menu.vehicleCursor];
     const focusVehicle = VEHICLE_DEFS.find((entry) => entry.id === focusPlayer.vehicleId) ?? VEHICLE_DEFS[0];
 
-    drawCutPanel(ctx, 80, 150, 420, 520, focusPlayer.color, 0.9);
+    drawCutPanel(ctx, 80, 150, 420, 520, focusPlayer.color, hasBackdrop ? 0.36 : 0.9);
     drawVehicleGlyph(ctx, focusVehicle, 290, 310, 1.55);
     fillTextGlow(ctx, focusVehicle.name, 290, 430, 34, "#f4f8ff");
     fillTextGlow(ctx, focusVehicle.archetype, 290, 468, 18, UI_COLORS.dim);
@@ -288,12 +562,22 @@ export class UIRenderer {
     drawStatBar(ctx, 116, 588, "Handling", focusVehicle.handling, 3.1, UI_COLORS.accentLime, 250);
     drawStatBar(ctx, 116, 624, "Armor", focusVehicle.armor, 180, UI_COLORS.danger, 250);
 
-    drawPanel(ctx, 540, 150, width - 620, 520, UI_COLORS.accentCyan, 0.84);
-    fillTextGlow(ctx, "DRIVER GRID", 610, 196, 22, UI_COLORS.accentCyan, "left");
+    drawPanel(ctx, 540, 150, width - 620, 520, UI_COLORS.accentCyan, hasBackdrop ? 0.24 : 0.84);
+    if (!hasBackdrop) {
+      fillTextGlow(ctx, "DRIVER GRID", 610, 196, 22, UI_COLORS.accentCyan, "left");
+    }
     menu.players.forEach((player, index) => {
       const vehicle = VEHICLE_DEFS.find((entry) => entry.id === player.vehicleId) ?? VEHICLE_DEFS[0];
       const rowY = 238 + index * 96;
-      drawCutPanel(ctx, 574, rowY - 26, width - 688, 78, index === menu.vehicleCursor ? player.color : "rgba(255,255,255,0.14)", 0.84);
+      drawCutPanel(
+        ctx,
+        574,
+        rowY - 26,
+        width - 688,
+        78,
+        index === menu.vehicleCursor ? player.color : "rgba(255,255,255,0.14)",
+        index === menu.vehicleCursor ? (hasBackdrop ? 0.48 : 0.84) : (hasBackdrop ? 0.18 : 0.84),
+      );
       ctx.fillStyle = UI_COLORS.text;
       ctx.textAlign = "left";
       ctx.font = "bold 22px Trebuchet MS";
@@ -313,10 +597,19 @@ export class UIRenderer {
 
   renderModeSelect(ctx, width, height, menu) {
     const mode = MODE_DEFS[menu.modeId];
-    drawBackground(ctx, width, height, 0.4, UI_COLORS.accentCyan, UI_COLORS.accentHot);
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      0.4,
+      "modeSelect",
+      UI_COLORS.accentCyan,
+      UI_COLORS.accentHot,
+      { overlayAlpha: 0.28, gridAlpha: 0.018, glowAlpha: 0.18, lineAlpha: 0.012, showAnimatedLines: false },
+    );
     fillTextGlow(ctx, "MODE SELECT", width * 0.5, 92, 54, UI_COLORS.accentCyan);
 
-    drawCutPanel(ctx, width * 0.5 - 370, 180, 740, 360, UI_COLORS.accentCyan, 0.9);
+    drawCutPanel(ctx, width * 0.5 - 370, 180, 740, 360, UI_COLORS.accentCyan, hasBackdrop ? 0.72 : 0.9);
     fillTextGlow(ctx, mode.name, width * 0.5, 252, 44, "#f4f8ff");
     fillTextGlow(ctx, mode.description, width * 0.5, 308, 20, UI_COLORS.dim);
 
@@ -337,37 +630,92 @@ export class UIRenderer {
 
   renderMapSelect(ctx, width, height, menu) {
     const level = getLevel(menu.selectedLevelId);
-    drawBackground(ctx, width, height, 0.5, UI_COLORS.accentLime, UI_COLORS.accentCyan);
+    const levels = menu.getAvailableLevels();
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      0.5,
+      "mapSelect",
+      UI_COLORS.accentLime,
+      UI_COLORS.accentHot,
+      { overlayAlpha: 0.16, gridAlpha: 0.015, glowAlpha: 0.16, lineAlpha: 0.01, showAnimatedLines: false },
+    );
     fillTextGlow(ctx, "MAP SELECT", width * 0.5, 92, 54, UI_COLORS.accentLime);
 
-    drawCutPanel(ctx, width * 0.5 - 460, 154, 920, 500, UI_COLORS.accentLime, 0.9);
-    fillTextGlow(ctx, level.name, width * 0.5, 228, 42, "#f4f8ff");
-    fillTextGlow(ctx, level.intro, width * 0.5, 272, 20, UI_COLORS.dim);
-    fillTextGlow(ctx, `${level.category.toUpperCase()} MAP`, width * 0.5, 312, 18, UI_COLORS.accentHot);
+    if (hasBackdrop) {
+      ctx.fillStyle = "rgba(4,8,14,0.38)";
+      ctx.fillRect(width * 0.5 - 420, 132, 840, 110);
+    }
+    fillTextGlow(ctx, level.name, width * 0.5, 184, 40, "#f4f8ff");
+    fillTextGlow(ctx, level.intro, width * 0.5, 222, 18, UI_COLORS.dim);
+    fillTextGlow(ctx, `${level.category.toUpperCase()} MAP`, width * 0.5, 254, 18, UI_COLORS.accentHot);
 
-    renderMinimap(ctx, level, width * 0.5 - 300, 360, 600, 230, [], null);
+    const columns = Math.min(4, Math.max(1, levels.length));
+    const gapX = 24;
+    const gapY = 28;
+    const cardWidth = Math.min(300, Math.floor((width - 160 - gapX * Math.max(0, columns - 1)) / columns));
+    const cardHeight = Math.floor(cardWidth * 0.52);
+    const labelHeight = 52;
+    const gridWidth = columns * cardWidth + Math.max(0, columns - 1) * gapX;
+    const startX = Math.round(width * 0.5 - gridWidth * 0.5);
+    const startY = 296;
+
+    levels.forEach((entry, index) => {
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      const x = startX + col * (cardWidth + gapX);
+      const y = startY + row * (cardHeight + labelHeight + gapY);
+      const selected = entry.id === level.id;
+      drawLevelPreview(ctx, entry, x, y, cardWidth, cardHeight, selected ? UI_COLORS.accentLime : "rgba(255,255,255,0.28)");
+      ctx.fillStyle = selected ? UI_COLORS.text : UI_COLORS.dim;
+      ctx.textAlign = "center";
+      ctx.font = selected ? "bold 20px Trebuchet MS" : "bold 18px Trebuchet MS";
+      ctx.fillText(entry.name, x + cardWidth * 0.5, y + cardHeight + 26);
+      ctx.fillStyle = selected ? UI_COLORS.accentHot : "rgba(255,255,255,0.65)";
+      ctx.font = "14px Trebuchet MS";
+      ctx.fillText(entry.category.toUpperCase(), x + cardWidth * 0.5, y + cardHeight + 46);
+    });
+
     fillTextGlow(ctx, "LEFT / RIGHT changes map. ENTER opens the ready check.", width * 0.5, height - 76, 22, UI_COLORS.dim);
   }
 
   renderLaunchConfirm(ctx, width, height, menu) {
     const level = getLevel(menu.selectedLevelId);
     const mode = MODE_DEFS[menu.modeId];
-    drawBackground(ctx, width, height, 0.45, UI_COLORS.accentHot, UI_COLORS.accentLime);
+    const hasBackdrop = drawMenuBackground(
+      ctx,
+      width,
+      height,
+      0.45,
+      "launchConfirm",
+      UI_COLORS.accentHot,
+      UI_COLORS.accentLime,
+      { overlayAlpha: 0.24, gridAlpha: 0.014, glowAlpha: 0.18, lineAlpha: 0.012, showAnimatedLines: false },
+    );
     fillTextGlow(ctx, "MATCH READY", width * 0.5, 90, 54, UI_COLORS.accentHot);
 
-    drawCutPanel(ctx, width * 0.5 - 430, 150, 860, 238, UI_COLORS.accentHot, 0.9);
+    drawCutPanel(ctx, width * 0.5 - 430, 150, 860, 238, UI_COLORS.accentHot, hasBackdrop ? 0.68 : 0.9);
     fillTextGlow(ctx, mode.name, width * 0.5, 220, 40, "#f4f8ff");
     fillTextGlow(ctx, level.name, width * 0.5, 264, 24, UI_COLORS.accentCyan);
     fillTextGlow(ctx, mode.description, width * 0.5, 306, 20, UI_COLORS.dim);
     fillTextGlow(ctx, level.intro, width * 0.5, 340, 18, UI_COLORS.dim);
 
-    drawPanel(ctx, width * 0.5 - 430, 420, 860, 200, UI_COLORS.accentCyan, 0.84);
+    drawPanel(ctx, width * 0.5 - 430, 420, 860, 200, UI_COLORS.accentCyan, hasBackdrop ? 0.42 : 0.84);
     menu.players.forEach((player, index) => {
       const cardWidth = 190;
       const gap = 18;
       const totalWidth = menu.players.length * cardWidth + Math.max(0, menu.players.length - 1) * gap;
       const x = width * 0.5 - totalWidth * 0.5 + index * (cardWidth + gap);
-      drawCutPanel(ctx, x, 454, cardWidth, 120, player.ready ? player.color : "rgba(255,255,255,0.16)", player.ready ? 0.9 : 0.55);
+      drawCutPanel(
+        ctx,
+        x,
+        454,
+        cardWidth,
+        120,
+        player.ready ? player.color : "rgba(255,255,255,0.16)",
+        player.ready ? (hasBackdrop ? 0.72 : 0.9) : (hasBackdrop ? 0.28 : 0.55),
+      );
       ctx.fillStyle = UI_COLORS.text;
       ctx.font = "bold 24px Trebuchet MS";
       ctx.textAlign = "center";
@@ -475,8 +823,13 @@ export class UIRenderer {
       hookLabel = `HOOK DRAG ${Math.round(grapple.tetherTension * 100)}%`;
       hookColor = participant.color;
     } else if (grapple.state === "attached_world") {
-      hookLabel = `HOOK SWING ${Math.round(grapple.tetherTension * 100)}%`;
-      hookColor = UI_COLORS.accentCyan;
+      if (grapple.anchorKind === "pickup") {
+        hookLabel = `HOOK LOOT ${Math.round(grapple.tetherTension * 100)}%`;
+        hookColor = UI_COLORS.accentLime;
+      } else {
+        hookLabel = `HOOK SWING ${Math.round(grapple.tetherTension * 100)}%`;
+        hookColor = UI_COLORS.accentCyan;
+      }
     } else if (grapple.state === "fired") {
       hookLabel = "HOOK OUT";
       hookColor = UI_COLORS.warning;

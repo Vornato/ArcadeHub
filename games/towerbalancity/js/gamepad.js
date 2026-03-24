@@ -120,6 +120,16 @@ class GamepadManager {
         }
     }
 
+    postUpdate() {
+        for (let pad of Object.values(this.gamepads)) {
+            if (!pad) continue;
+            pad.prevButtons = (pad.buttons || []).map(btn => ({
+                pressed: btn.pressed,
+                value: btn.value
+            }));
+        }
+    }
+
     // Check if any button is pressed on a specific gamepad index
     anyButtonPressed(index) {
         const pad = this.gamepads[index];

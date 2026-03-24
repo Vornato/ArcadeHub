@@ -36,6 +36,8 @@ class InsidePlayer {
         this.braceCharge = 0;
         this.stumbleMeter = 0;
         this.stumbleLock = 0;
+        this.dropThroughFloor = null;
+        this.dropThroughTimer = 0;
 
         // Animation State
         this.walkTimer = 0;
@@ -54,6 +56,16 @@ class InsidePlayer {
     update(state, physics, statics, interactables, audio, particles, allPlayers, meta = null, game = null) {
         let moving = false;
         const supportFloor = game ? game.getSupportingFloor(this) : null;
+        const standingCenterX = this.x + this.w / 2;
+        if (this.dropThroughFloor) {
+            this.dropThroughTimer = Math.max(0, this.dropThroughTimer - 1);
+            const dropFloorTop = typeof this.dropThroughFloor.getSurfaceYAt === 'function'
+                ? this.dropThroughFloor.getSurfaceYAt(standingCenterX)
+                : this.dropThroughFloor.y;
+            if (this.dropThroughTimer <= 0 || this.y > dropFloorTop + 8) {
+                this.dropThroughFloor = null;
+            }
+        }
         // Movement
         let currentSpeed = this.speed;
         let carryPenalty = 0;
@@ -95,8 +107,8 @@ class InsidePlayer {
         const decelAir = 0.12;
         const turnBrake = this.onGround ? (0.82 + (this.stability * 0.05)) : 0.92;
 
-        this.coyoteTimer = this.onGround ? 7 : Math.max(0, this.coyoteTimer - 1);
-        if (state.jumpJustPressed) this.jumpBuffer = 7;
+        this.coyoteTimer = this.onGround ? 9 : Math.max(0, this.coyoteTimer - 1);
+        if (state.jumpJustPressed) this.jumpBuffer = 9;
         else this.jumpBuffer = Math.max(0, this.jumpBuffer - 1);
 
         if (inputDir !== 0) {
@@ -155,8 +167,19 @@ class InsidePlayer {
             this.walkTimer = 0;
         }
 
+        const wantsDropThrough = !!(state.down && state.jumpJustPressed && this.onGround && supportFloor && !supportFloor.isFoundation);
+        if (wantsDropThrough) {
+            this.dropThroughFloor = supportFloor;
+            this.dropThroughTimer = 14;
+            this.onGround = false;
+            this.jumpBuffer = 0;
+            this.coyoteTimer = 0;
+            this.vy = Math.max(this.vy, 3.6);
+            this.y += 6;
+        }
+
         // Jump
-        if (this.jumpBuffer > 0 && (this.onGround || this.coyoteTimer > 0)) {
+        if (!wantsDropThrough && this.jumpBuffer > 0 && (this.onGround || this.coyoteTimer > 0)) {
             this.vy = this.jumpForce - Math.min(1.1, Math.abs(this.vx) * 0.035);
             const jumpFlow = Math.sign((Math.sin(game ? game.towerAngle : 0) * 0.8) + (supportFloor ? supportFloor.getLocalSlopeAt(this.x + this.w / 2) : 0));
             if (jumpFlow && Math.sign(this.vx || inputDir || jumpFlow) === jumpFlow) {
@@ -192,28 +215,54 @@ class InsidePlayer {
                 this.heldObject = null;
                 audio.play('grab');
             } else {
-                let r = this.charClass.stats.grabRange;
-                const grabBox = { x: this.x - r/2, y: this.y - 10, w: this.w + r, h: this.h + 20 };
+                const r = (this.charClass.stats.grabRange || 30) + 14;
+                const grabBox = {
+                    x: this.x - (r * 0.55),
+                    y: this.y - 18,
+                    w: this.w + (r * 1.1),
+                    h: this.h + 34
+                };
+                const playerCenterX = this.x + (this.w / 2);
+                const playerCenterY = this.y + (this.h * 0.55);
+                let handoffCandidate = null;
+                let handoffScore = Infinity;
+                let pickupCandidate = null;
+                let pickupScore = Infinity;
+
                 for (let obj of interactables) {
-                    if (obj.heldBy && !obj.helper && obj.mass >= 70 && Utils.checkAABB(grabBox, obj)) {
-                        obj.helper = this;
-                        this.heldObject = obj;
-                        if (game) game.ui.showActionCallout('HAND-OFF!', 'heroic');
-                        audio.play('grab');
-                        break;
+                    const probe = { x: obj.x - 10, y: obj.y - 8, w: obj.w + 20, h: obj.h + 16 };
+                    if (!Utils.checkAABB(grabBox, probe)) continue;
+
+                    const objCenterX = obj.x + (obj.w / 2);
+                    const objCenterY = obj.y + (obj.h / 2);
+                    const score = Math.abs(objCenterX - playerCenterX) + (Math.abs(objCenterY - playerCenterY) * 0.45);
+
+                    if (obj.heldBy && !obj.helper && obj.mass >= 70) {
+                        if (score < handoffScore) {
+                            handoffCandidate = obj;
+                            handoffScore = score;
+                        }
+                    } else if (!obj.heldBy && score < pickupScore) {
+                        pickupCandidate = obj;
+                        pickupScore = score;
                     }
-                    if (!obj.heldBy && Utils.checkAABB(grabBox, obj)) {
-                        obj.heldBy = this;
-                        this.heldObject = obj;
-                        obj.isThrown = false;
-                        obj.carryLagX = 0;
-                        obj.carryLagY = 0;
-                        obj.spinVelocity = 0;
-                        this.scaleX = 1.2; // feedback
-                        this.scaleY = 0.8;
-                        audio.play('grab');
-                        break;
-                    }
+                }
+
+                if (handoffCandidate) {
+                    handoffCandidate.helper = this;
+                    this.heldObject = handoffCandidate;
+                    if (game) game.ui.showActionCallout('HAND-OFF!', 'heroic');
+                    audio.play('grab');
+                } else if (pickupCandidate) {
+                    pickupCandidate.heldBy = this;
+                    this.heldObject = pickupCandidate;
+                    pickupCandidate.isThrown = false;
+                    pickupCandidate.carryLagX = 0;
+                    pickupCandidate.carryLagY = 0;
+                    pickupCandidate.spinVelocity = 0;
+                    this.scaleX = 1.2; // feedback
+                    this.scaleY = 0.8;
+                    audio.play('grab');
                 }
             }
         }
@@ -417,7 +466,7 @@ class InsidePlayer {
 }
 
 class DropPlayer {
-    constructor(slot, gameWidth, gameRef) {
+    constructor(slot, gameWidth, gameRef, botDifficulty = 1) {
         this.slot = slot;
         this.x = gameWidth / 2;
         this.y = 30;
@@ -438,10 +487,16 @@ class DropPlayer {
         this.cooldown = 0;
         this.cableStretch = 0;
         this.cableVelocity = 0;
+        this.isBot = !!(this.game.inputManager.playerMappings[this.slot] && this.game.inputManager.playerMappings[this.slot].type === 'bot');
+        this.botController = this.isBot ? new CraneBotController(slot, botDifficulty) : null;
     }
 
     update() {
-        const state = this.game.inputManager.getPlayerState(this.slot);
+        let state = this.game.inputManager.getPlayerState(this.slot);
+        if (this.botController) {
+            this.botController.update(this, this.game);
+            state = this.botController.state;
+        }
         let nextPiece = this.game.upcomingPieces[0];
         this.currentFloorW = nextPiece.w;
         this.currentFloorH = nextPiece.h;

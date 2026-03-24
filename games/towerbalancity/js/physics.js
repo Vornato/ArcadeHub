@@ -24,6 +24,8 @@ class PhysicsEngine {
         }
 
         const attemptedVX = entity.vx;
+        const prevY = entity.y;
+        const prevBottom = prevY + entity.h;
         entity.x += entity.vx;
         let collideX = false;
         let hitColliderX = null;
@@ -31,6 +33,9 @@ class PhysicsEngine {
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
                 hitColliderX = s;
+                if (entity.isPlayer && s.isFloor) {
+                    continue;
+                }
                 if (s.isFloor && (entity.y + entity.h) <= (s.y + 10)) {
                     continue;
                 }
@@ -59,6 +64,17 @@ class PhysicsEngine {
         const collisionsY = [];
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
+                if (entity.isPlayer && s.isFloor) {
+                    if (entity.vy < 0) {
+                        continue;
+                    }
+                    if (entity.dropThroughFloor && s.floorRef === entity.dropThroughFloor) {
+                        continue;
+                    }
+                    if (prevBottom > (s.y + 6)) {
+                        continue;
+                    }
+                }
                 collisionsY.push(s);
             }
         }

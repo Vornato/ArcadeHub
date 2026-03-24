@@ -1,5 +1,5 @@
 import { GRAPPLE_STATES, GRAPPLE_TUNING } from "./constants.js";
-import { angleToVector, clamp, distance, dot, segmentCircleHit, segmentRectHit } from "./physics.js";
+import { angleToVector, clamp, distance, dot, projectPointToSegment, segmentCircleHit, segmentRectHit } from "./physics.js";
 import { getHookDebugAnchors, getHookableProps } from "./levelManager.js";
 
 function getMountPoint(vehicle) {
@@ -82,19 +82,33 @@ function getVehicleResistance(vehicle, extraScale = 1) {
 export class GrappleSystem {
   constructor() {
     this.debug = false;
+    this.lineHitCooldowns = new Map();
+  }
+
+  reset() {
+    this.lineHitCooldowns.clear();
   }
 
   toggleDebug() {
     this.debug = !this.debug;
   }
 
-  update(dt, participants, level, props, effects, audio) {
+  update(dt, participants, level, props, pickups, effects, audio) {
+    for (const [key, value] of this.lineHitCooldowns.entries()) {
+      const next = value - dt;
+      if (next <= 0) {
+        this.lineHitCooldowns.delete(key);
+      } else {
+        this.lineHitCooldowns.set(key, next);
+      }
+    }
+
     const vehiclesById = new Map(participants.map((participant) => [participant.id, participant.vehicle]));
     const hookableProps = getHookableProps(props);
     const events = [];
 
     for (const participant of participants) {
-      this.updateVehicle(dt, participant, participants, vehiclesById, level, props, hookableProps, effects, audio, events);
+      this.updateVehicle(dt, participant, participants, vehiclesById, level, props, pickups, hookableProps, effects, audio, events);
     }
 
     return events;
@@ -114,7 +128,7 @@ export class GrappleSystem {
     this.breakTether(vehicle, "WALL SNAP", effects, audio, true);
   }
 
-  updateVehicle(dt, participant, participants, vehiclesById, level, props, hookableProps, effects, audio, events) {
+  updateVehicle(dt, participant, participants, vehiclesById, level, props, pickups, hookableProps, effects, audio, events) {
     const vehicle = participant.vehicle;
     const controls = participant.controls ?? {};
     const hook = vehicle.grapple;
@@ -145,11 +159,11 @@ export class GrappleSystem {
     }
 
     if (hook.state === GRAPPLE_STATES.fired) {
-      this.updateProjectile(dt, vehicle, participants, level, props, hookableProps, effects, audio, events);
+      this.updateProjectile(dt, vehicle, participants, level, props, pickups, hookableProps, effects, audio, events);
     } else if (hook.state === GRAPPLE_STATES.attachedVehicle) {
       this.updateVehicleTether(dt, vehicle, controls, vehiclesById, effects, audio, events);
     } else if (hook.state === GRAPPLE_STATES.attachedWorld) {
-      this.updateWorldTether(dt, vehicle, controls, props, effects, audio, events);
+      this.updateWorldTether(dt, vehicle, controls, participants, props, pickups, effects, audio, events);
     } else if (hook.state === GRAPPLE_STATES.retracting) {
       this.updateRetraction(dt, vehicle);
     }
@@ -179,7 +193,7 @@ export class GrappleSystem {
     audio.playSfx("grappleFire", 0.24);
   }
 
-  updateProjectile(dt, vehicle, participants, level, props, hookableProps, effects, audio, events) {
+  updateProjectile(dt, vehicle, participants, level, props, pickups, hookableProps, effects, audio, events) {
     const hook = vehicle.grapple;
     hook.projectilePrevX = hook.projectileX;
     hook.projectilePrevY = hook.projectileY;
@@ -226,6 +240,25 @@ export class GrappleSystem {
       }
     }
 
+    for (const pickup of pickups ?? []) {
+      if (!pickup.active) {
+        continue;
+      }
+      if (!segmentCircleHit(hook.projectilePrevX, hook.projectilePrevY, hook.projectileX, hook.projectileY, pickup.x, pickup.y, 24)) {
+        continue;
+      }
+      const hitDistance = distance(hook.projectilePrevX, hook.projectilePrevY, pickup.x, pickup.y);
+      if (hitDistance < bestDistance) {
+        bestDistance = hitDistance;
+        bestHit = {
+          kind: "pickup",
+          target: pickup,
+          x: pickup.x,
+          y: pickup.y,
+        };
+      }
+    }
+
     for (const propState of props) {
       if (hookableProps.includes(propState) || !propState.active) {
         continue;
@@ -266,6 +299,13 @@ export class GrappleSystem {
     }
     if (bestHit?.kind === "world_prop") {
       this.attachWorld(vehicle, bestHit.x, bestHit.y, "prop", bestHit.target.id, effects, audio, events);
+      return;
+    }
+    if (bestHit?.kind === "pickup") {
+      this.attachWorld(vehicle, bestHit.x, bestHit.y, "pickup", bestHit.target.id, effects, audio, events);
+      if (vehicle.isHuman) {
+        vehicle.queueHudMessage("PICKUP SNAG", "Reeling it in", vehicle.color, 0.8);
+      }
       return;
     }
     if (bestHit?.kind === "world_rect") {
@@ -401,7 +441,7 @@ export class GrappleSystem {
     }
   }
 
-  updateWorldTether(dt, vehicle, controls, props, effects, audio, events) {
+  updateWorldTether(dt, vehicle, controls, participants, props, pickups, effects, audio, events) {
     const hook = vehicle.grapple;
     if (hook.anchorKind === "prop") {
       const propState = props.find((entry) => entry.id === hook.anchorSourceId);
@@ -411,6 +451,14 @@ export class GrappleSystem {
       }
       hook.anchorX = propState.x;
       hook.anchorY = propState.y;
+    } else if (hook.anchorKind === "pickup") {
+      const pickup = (pickups ?? []).find((entry) => entry.id === hook.anchorSourceId && entry.active);
+      if (!pickup) {
+        this.breakTether(vehicle, "ANCHOR LOST", effects, audio, false);
+        return;
+      }
+      this.updatePickupTether(dt, vehicle, pickup, effects, audio);
+      return;
     }
 
     const mount = getMountPoint(vehicle);
@@ -431,7 +479,12 @@ export class GrappleSystem {
     const resistance = getVehicleResistance(vehicle, GRAPPLE_TUNING.worldResistanceScale);
     const pullForce = (GRAPPLE_TUNING.worldPullForce + stretch * GRAPPLE_TUNING.worldSpringForce)
       * (vehicle.airborne ? GRAPPLE_TUNING.airPullScale : 1);
-    const inwardImpulse = (pullForce * tension * dt) / resistance;
+    const tangentX = -dirY;
+    const tangentY = dirX;
+    const tangentSpeed = dot(vehicle.vx, vehicle.vy, tangentX, tangentY);
+    const tangentCarry = clamp(Math.abs(tangentSpeed) / Math.max(180, vehicle.definition.speed * 0.7), 0, 1.25);
+    const inwardScale = clamp(1 - tangentCarry * GRAPPLE_TUNING.worldInwardReduction, 0.38, 1);
+    const inwardImpulse = (pullForce * tension * dt * inwardScale) / resistance;
     vehicle.vx += dirX * inwardImpulse;
     vehicle.vy += dirY * inwardImpulse;
 
@@ -442,16 +495,22 @@ export class GrappleSystem {
       vehicle.vy += dirY * clampImpulse;
     }
 
-    const tangentX = -dirY;
-    const tangentY = dirX;
-    const tangentSpeed = dot(vehicle.vx, vehicle.vy, tangentX, tangentY);
     const tangentSign = signWithFallback(tangentSpeed + (controls.steer ?? 0) * 150, vehicle.forwardSpeed);
     const throttleFactor = clamp((controls.accel ?? 0) - (controls.brake ?? 0) * 0.2 + (vehicle.boosting ? GRAPPLE_TUNING.boostSwingBonus : 0), 0, 1.8);
     const swingImpulse = (GRAPPLE_TUNING.worldSwingAssist * throttleFactor * tension * dt) / resistance;
+    const orbitCarryImpulse = (Math.abs(tangentSpeed) * GRAPPLE_TUNING.worldOrbitCarry * tension * dt) / resistance;
     vehicle.vx += tangentX * tangentSign * swingImpulse;
     vehicle.vy += tangentY * tangentSign * swingImpulse;
-    vehicle.angle += clamp((controls.steer ?? 0) + tangentSign * 0.22 * throttleFactor, -1.2, 1.2)
+    vehicle.vx += tangentX * tangentSign * orbitCarryImpulse;
+    vehicle.vy += tangentY * tangentSign * orbitCarryImpulse;
+    vehicle.angle += clamp((controls.steer ?? 0) + tangentSign * (0.22 * throttleFactor + tangentCarry * 0.28), -1.4, 1.4)
       * GRAPPLE_TUNING.worldYawAssist
+      * tension
+      * dt
+      / Math.max(0.9, vehicle.mass);
+    vehicle.angle += tangentSign
+      * GRAPPLE_TUNING.worldDriftYawAssist
+      * tangentCarry
       * tension
       * dt
       / Math.max(0.9, vehicle.mass);
@@ -463,6 +522,100 @@ export class GrappleSystem {
 
     if (tension > 0.72 && vehicle.boosting) {
       events.push({ type: "shake", x: vehicle.x, y: vehicle.y, amount: 1.6 + tension * 1.8 });
+    }
+
+    this.processCableHits(vehicle, participants, new Set(), effects, audio, events);
+  }
+
+  updatePickupTether(dt, vehicle, pickup, effects, audio) {
+    const hook = vehicle.grapple;
+    const mount = getMountPoint(vehicle);
+    const dx = pickup.x - mount.x;
+    const dy = pickup.y - mount.y;
+    const currentDistance = Math.hypot(dx, dy) || 1;
+    const dirX = dx / currentDistance;
+    const dirY = dy / currentDistance;
+    hook.anchorX = pickup.x;
+    hook.anchorY = pickup.y;
+    hook.tetherTension = clamp(currentDistance / Math.max(120, GRAPPLE_TUNING.range), 0.16, 1);
+
+    if (currentDistance > hook.breakDistance || hook.holdTimer <= 0) {
+      this.breakTether(vehicle, "CABLE CUT", effects, audio, true);
+      return;
+    }
+
+    const carryFactor = 1 + clamp(vehicle.speed / Math.max(1, vehicle.definition.speed), 0, 1.2) * GRAPPLE_TUNING.pickupCarryFactor;
+    const pullImpulse = GRAPPLE_TUNING.pickupPullForce * carryFactor * dt;
+    pickup.vx -= dirX * pullImpulse;
+    pickup.vy -= dirY * pullImpulse;
+    pickup.pullTimer = Math.max(pickup.pullTimer ?? 0, 0.18);
+
+    vehicle.vx -= dirX * (GRAPPLE_TUNING.pickupRecoil * dt) / Math.max(0.9, vehicle.mass);
+    vehicle.vy -= dirY * (GRAPPLE_TUNING.pickupRecoil * dt) / Math.max(0.9, vehicle.mass);
+
+    if (currentDistance <= GRAPPLE_TUNING.pickupSnapDistance && hook.effectTimer <= 0) {
+      effects.emitGrappleTension(mount.x + dx * 0.5, mount.y + dy * 0.5, Math.atan2(dy, dx), vehicle.trimColor, 0.7);
+      hook.effectTimer = 0.05;
+    }
+  }
+
+  processCableHits(vehicle, participants, ignoredIds, effects, audio, events) {
+    const hook = vehicle.grapple;
+    if ((hook.state !== GRAPPLE_STATES.attachedVehicle && hook.state !== GRAPPLE_STATES.attachedWorld)
+      || hook.anchorKind === "pickup"
+      || hook.tetherTension < 0.2) {
+      return;
+    }
+
+    const mount = getMountPoint(vehicle);
+    const endX = hook.anchorX;
+    const endY = hook.anchorY;
+    if (distance(mount.x, mount.y, endX, endY) < 90) {
+      return;
+    }
+
+    if (hook.targetId) {
+      ignoredIds.add(hook.targetId);
+    }
+
+    for (const participant of participants) {
+      const target = participant.vehicle;
+      if (!target || !target.isAlive() || target.id === vehicle.id || ignoredIds.has(target.id) || target.airborne) {
+        continue;
+      }
+      if (target.speed < GRAPPLE_TUNING.lineHitSpeedThreshold) {
+        continue;
+      }
+
+      const hitKey = `${vehicle.id}:${target.id}`;
+      if (this.lineHitCooldowns.has(hitKey)) {
+        continue;
+      }
+      if (!segmentCircleHit(mount.x, mount.y, endX, endY, target.x, target.y, target.radius + 8)) {
+        continue;
+      }
+
+      const impactPoint = projectPointToSegment(target.x, target.y, mount.x, mount.y, endX, endY);
+      if (impactPoint.t <= 0.08 || impactPoint.t >= 0.92) {
+        continue;
+      }
+
+      this.lineHitCooldowns.set(hitKey, GRAPPLE_TUNING.lineHitCooldown);
+      const damage = clamp(
+        target.speed * GRAPPLE_TUNING.lineHitDamageScale * (0.8 + hook.tetherTension * 0.45),
+        GRAPPLE_TUNING.lineHitDamageMin,
+        GRAPPLE_TUNING.lineHitDamageMax,
+      );
+      effects.emitImpactBurst(impactPoint.x, impactPoint.y, Math.atan2(endY - mount.y, endX - mount.x), vehicle.trimColor, 0.62);
+      audio.playSfx("grappleLatch", 0.16);
+      events.push({
+        type: "line_hit",
+        sourceId: vehicle.id,
+        targetId: target.id,
+        damage,
+        x: impactPoint.x,
+        y: impactPoint.y,
+      });
     }
   }
 
@@ -565,7 +718,8 @@ export class GrappleSystem {
   renderHookVisuals(ctx, vehicle, controls, time) {
     const hook = vehicle.grapple;
     const mount = getMountPoint(vehicle);
-    const canPreview = hook.state === GRAPPLE_STATES.idle || hook.state === GRAPPLE_STATES.aiming || hook.state === GRAPPLE_STATES.cooldown;
+    const aimActive = Math.hypot(controls.aimX ?? 0, controls.aimY ?? 0) >= GRAPPLE_TUNING.aimDeadzone;
+    const canPreview = aimActive && (hook.state === GRAPPLE_STATES.idle || hook.state === GRAPPLE_STATES.aiming || hook.state === GRAPPLE_STATES.cooldown);
 
     if (canPreview) {
       const previewAlpha = hook.state === GRAPPLE_STATES.cooldown ? 0.22 : 0.42 + hook.aimStrength * 0.28;
