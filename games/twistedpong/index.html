@@ -949,10 +949,21 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener("gamepadconnected", (e) => { gamepads[e.gamepad.index] = true; });
 window.addEventListener("gamepaddisconnected", (e) => { delete gamepads[e.gamepad.index]; });
 
+const POWER_CATCH_EFFECT = "Power Catch";
+const POWER_CATCH_AUTO_FIRE = 4;
+const POWER_CATCH_RANGE = 38;
+const POWER_CATCH_SWEEP = 0.72;
+const KEYBOARD_CHARGE_BINDINGS = {
+  0: { code: "KeyE", label: "E" },
+  1: { code: "ShiftRight", label: "Right Shift" },
+  2: { code: "KeyF", label: "F" },
+  3: { code: "KeyI", label: "I" }
+};
+
 function getGamepadInput(index) {
   let pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let pad = pads[index];
-  if (!pad) return { x: 0, y: 0 };
+  if (!pad) return { x: 0, y: 0, action: false };
   let x = pad.axes[0] || 0;
   let y = pad.axes[1] || 0;
   // Apply deadzone
@@ -962,7 +973,40 @@ function getGamepadInput(index) {
   if (pad.buttons[15] && pad.buttons[15].pressed) x = 1;  // Dpad right
   if (pad.buttons[12] && pad.buttons[12].pressed) y = -1; // Dpad up
   if (pad.buttons[13] && pad.buttons[13].pressed) y = 1;  // Dpad down
-  return { x, y };
+  let action = !!((pad.buttons[0] && pad.buttons[0].pressed) || (pad.buttons[7] && pad.buttons[7].pressed));
+  return { x, y, action };
+}
+
+function getKeyboardChargeBinding(side) {
+  return KEYBOARD_CHARGE_BINDINGS[side] || KEYBOARD_CHARGE_BINDINGS[0];
+}
+
+function getSlotPadIndex(slot) {
+  if (!slot) return -1;
+  if (slot.input === "GP0") return 0;
+  if (slot.input === "GP1") return 1;
+  if (slot.input === "GP2") return 2;
+  if (slot.input === "GP3") return 3;
+  return -1;
+}
+
+function getSetupSideMap(count) {
+  return { 2:["Left","Right"], 3:["Left","Right","Bottom"], 4:["Left","Right","Top","Bottom"] }[count] || [];
+}
+
+function getSetupControlHint(slotIndex, slot) {
+  let sideMap = getSetupSideMap(playerCount);
+  let sideName = sideMap[slotIndex] || "Player";
+  if (!slot || slot.type !== "Human") return `${sideName}: bot controlled`;
+  if (slot.input && slot.input !== "Keyboard") return `${sideName}: move with stick or D-pad, charge with A / RT`;
+
+  let keyboardHints = {
+    Left: "W / S move, E charges a held shot",
+    Right: "Arrow keys move, Right Shift charges a held shot",
+    Bottom: "A / D move, F charges a held shot",
+    Top: "J / L move, I charges a held shot"
+  };
+  return keyboardHints[sideName] || "Keyboard controls active";
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1158,6 +1202,20 @@ const AudioSys = (() => {
     _osc(NOTE.E5, 'triangle', sfxGain, t+0.1, t+0.3, 0.1);
   }
 
+  function sfx_ballLock() {
+    if (!AC) return;
+    const t = _now();
+    _oscSlide(NOTE.E4, NOTE.A4, 'triangle', sfxGain, t, t+0.18, 0.16);
+    _osc(NOTE.C5, 'sine', sfxGain, t+0.06, t+0.16, 0.08);
+  }
+
+  function sfx_chargedFire() {
+    if (!AC) return;
+    const t = _now();
+    _oscSlide(NOTE.A4, NOTE.E5, 'sawtooth', sfxGain, t, t+0.16, 0.2);
+    _noise(sfxGain, t+0.02, 0.07, 0.05);
+  }
+
   // ── Music Engine ───────────────────────────────────────
   // Chord progressions (frequencies)
   const CHORDS = {
@@ -1338,6 +1396,8 @@ const AudioSys = (() => {
     stageIntro()      { sfx_stageIntro(); },
     eliminate()       { sfx_eliminate(); },
     shield()          { sfx_shield(); },
+    ballLock()        { sfx_ballLock(); },
+    chargedFire()     { sfx_chargedFire(); },
     uiHover()         { sfx_uiHover(); },
     uiSelect()        { sfx_uiSelect(); },
 
@@ -1468,8 +1528,9 @@ const ui = {
     for(let i=0; i<playerCount; i++) {
         let type = slots[i]? slots[i].type : (i===0?"Human":"Bot");
         let level = slots[i]? slots[i].botLevel : 2;
-        let sideMap = {2:["Left","Right"], 3:["Left","Right","Bottom"], 4:["Left","Right","Top","Bottom"]}[playerCount];
+        let sideMap = getSetupSideMap(playerCount);
         let sideName = sideMap[i];
+        let slotConfig = slots[i] || { type, input: "Keyboard" };
         
         html += `<div class="setup-card">
           <h3>Player ${i+1} (${sideName})</h3>
@@ -1488,6 +1549,9 @@ const ui = {
             <option value="2" ${level==2?"selected":""}>Bot: Med</option>
             <option value="3" ${level==3?"selected":""}>Bot: Hard</option>
           </select>
+          <div id="slot-controls-${i}" style="margin-top:10px; color:rgba(255,255,255,0.72); font-size:0.78rem; line-height:1.45;">
+            ${getSetupControlHint(i, slotConfig)}
+          </div>
         </div>`;
     }
     html += '</div>';
@@ -1516,6 +1580,14 @@ const ui = {
         if(inp && oldSlots[i] && oldSlots[i].input) inp.value = oldSlots[i].input;
         let sk = document.getElementById(`slot-skin-${i}`);
         if(sk && oldSlots[i] && oldSlots[i].skin) sk.value = oldSlots[i].skin;
+    }
+    this.refreshSetupHints();
+  },
+  refreshSetupHints() {
+    for (let i=0; i<playerCount; i++) {
+      let hintEl = document.getElementById(`slot-controls-${i}`);
+      if (!hintEl) continue;
+      hintEl.textContent = getSetupControlHint(i, slots[i]);
     }
   },
   showStageIntro(title, desc, cb) {
@@ -1647,6 +1719,8 @@ const ui = {
        html += `<div class="hud-panel" style="position:absolute; ${pos} color:${pColor}; font-weight:bold; font-size:1.2rem; box-shadow:0 0 15px rgba(${pColor===('#ff00ea')?'255,0,234':'0,255,255'},0.3);">
           <div>PLAYER ${p.idx+1}</div>
           <div style="font-size:1.8rem;">Lives: ${p.lives}</div>
+          ${p.effects[POWER_CATCH_EFFECT] ? `<div style="font-size:0.82rem;">Power Catch: ${Math.max(0, p.effects[POWER_CATCH_EFFECT]).toFixed(1)}s</div>` : ''}
+          ${p.heldBall ? `<div style="font-size:0.82rem;">Charged Shot: ${Math.max(0, POWER_CATCH_AUTO_FIRE - p.chargeTimer).toFixed(1)}s</div>` : ''}
        </div>`;
     });
     document.getElementById('hud').innerHTML = html;
@@ -1706,6 +1780,11 @@ class Player {
     this.lives = 5;
     this.speed = 400 + (level*100 || 0);
     this.effects = {};
+    this.actionHeld = false;
+    this.heldBall = null;
+    this.chargeTimer = 0;
+    this.aimPhase = 0;
+    this.aimAngle = this.getBaseAimAngle();
     this.initPos();
   }
   initPos() {
@@ -1714,8 +1793,117 @@ class Player {
     if (this.side === 2) { this.w=100; this.h=20; this.x = cw/2 - this.w/2; this.y = ch - 50; }
     if (this.side === 3) { this.w=100; this.h=20; this.x = cw/2 - this.w/2; this.y = 30; }
   }
+  getBaseAimAngle() {
+    if (this.side === 0) return 0;
+    if (this.side === 1) return Math.PI;
+    if (this.side === 2) return -Math.PI / 2;
+    return Math.PI / 2;
+  }
+  getSlotConfig() {
+    return slots.find(s => slots.indexOf(s) === this.idx);
+  }
+  getInputState() {
+    if (this.isBot) return { move: 0, action: false };
+
+    let move = 0;
+    let action = false;
+    let slot = this.getSlotConfig();
+    let padIdx = getSlotPadIndex(slot);
+    let rev = this.effects["Reverse Controls"] ? -1 : 1;
+
+    if (padIdx >= 0) {
+      let pad = getGamepadInput(padIdx);
+      move = (this.side === 0 || this.side === 1 ? pad.y : pad.x) * rev;
+      action = pad.action;
+      return { move, action };
+    }
+
+    let binding = getKeyboardChargeBinding(this.side);
+    action = !!keys[binding.code];
+
+    if (this.side === 0) {
+      if (keys['KeyW']) move = -1 * rev;
+      if (keys['KeyS']) move = 1 * rev;
+    } else if (this.side === 1) {
+      if (keys['ArrowUp']) move = -1 * rev;
+      if (keys['ArrowDown']) move = 1 * rev;
+    } else if (this.side === 2) {
+      if (keys['KeyA']) move = -1 * rev;
+      if (keys['KeyD']) move = 1 * rev;
+    } else if (this.side === 3) {
+      if (keys['KeyJ']) move = -1 * rev;
+      if (keys['KeyL']) move = 1 * rev;
+    }
+
+    return { move, action };
+  }
+  hasPowerCatch() {
+    return !!this.effects[POWER_CATCH_EFFECT];
+  }
+  syncHeldBallPosition() {
+    if (!this.heldBall) return;
+    let rw = this.renderW || this.w;
+    let rh = this.renderH || this.h;
+    let cx = this.x + rw / 2;
+    let cy = this.y + rh / 2;
+
+    if (this.side === 0) {
+      this.heldBall.x = this.x + rw + this.heldBall.r + 12;
+      this.heldBall.y = cy;
+    } else if (this.side === 1) {
+      this.heldBall.x = this.x - this.heldBall.r - 12;
+      this.heldBall.y = cy;
+    } else if (this.side === 2) {
+      this.heldBall.x = cx;
+      this.heldBall.y = this.y - this.heldBall.r - 12;
+    } else {
+      this.heldBall.x = cx;
+      this.heldBall.y = this.y + rh + this.heldBall.r + 12;
+    }
+  }
+  captureBall(ball) {
+    if (!ball || this.heldBall) return;
+    this.heldBall = ball;
+    this.chargeTimer = 0;
+    this.aimPhase = 0;
+    this.aimAngle = this.getBaseAimAngle();
+    ball.heldBy = this;
+    ball.captureLock = 0.15;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.trail = [];
+    ball.r = ball.baseRadius;
+    this.syncHeldBallPosition();
+    AudioSys.ballLock();
+    spawnParticles(ball.x, ball.y, "#7cffb2", 12);
+    ui.floatingText(ball.x, ball.y, "LOCKED", "#7cffb2");
+  }
+  releaseHeldBall(autoFired=false) {
+    if (!this.heldBall) return;
+    let ball = this.heldBall;
+    let chargeRatio = Math.min(this.chargeTimer / POWER_CATCH_AUTO_FIRE, 1);
+    let launchSpeed = Math.max(ball.speed, 420) * (1 + chargeRatio * 0.75);
+    this.syncHeldBallPosition();
+    ball.heldBy = null;
+    ball.speed = launchSpeed;
+    ball.vx = Math.cos(this.aimAngle) * launchSpeed;
+    ball.vy = Math.sin(this.aimAngle) * launchSpeed;
+    ball.r = ball.baseRadius * (1 + chargeRatio);
+    ball.captureLock = 0.35;
+    ball.trail = [];
+    AudioSys.chargedFire();
+    spawnParticles(ball.x, ball.y, "#ffffff", 14);
+    ui.floatingText(ball.x, ball.y, autoFired ? "AUTO FIRE" : "FIRE", "#ffffff");
+    this.heldBall = null;
+    this.chargeTimer = 0;
+    this.aimAngle = this.getBaseAimAngle();
+  }
   update(dt) {
-    if (this.isWall) return; // Acts as solid wall
+    if (this.isWall) {
+      this.actionHeld = false;
+      if (this.heldBall) this.releaseHeldBall(true);
+      return;
+    }
     
     // Effects decrement
     let currentSpeed = this.speed;
@@ -1737,35 +1925,10 @@ class Player {
 
     // Movement
     let move = 0;
+    let inputState = this.getInputState();
+    this.actionHeld = inputState.action;
     if (!this.isBot) {
-        let padIdx = -1;
-        let slot = slots.find(s=>s.type==="Human" && slots.indexOf(s)===this.idx);
-        if (slot) {
-            if (slot.input === "GP0") padIdx = 0;
-            if (slot.input === "GP1") padIdx = 1;
-            if (slot.input === "GP2") padIdx = 2;
-            if (slot.input === "GP3") padIdx = 3;
-        }
-        
-        if (padIdx >= 0) {
-            let pad = getGamepadInput(padIdx);
-            if (this.side === 0 || this.side === 1) move = pad.y * rev;
-            else move = pad.x * rev;
-        } else {
-            if (this.side === 0) {
-                if (keys['KeyW']) move = -1 * rev;
-                if (keys['KeyS']) move = 1 * rev;
-            } else if (this.side === 1) {
-                if (keys['ArrowUp']) move = -1 * rev;
-                if (keys['ArrowDown']) move = 1 * rev;
-            } else if (this.side === 2) {
-                if (keys['KeyA']) move = -1 * rev;
-                if (keys['KeyD']) move = 1 * rev;
-            } else if (this.side === 3) {
-                if (keys['KeyJ']) move = -1 * rev;
-                if (keys['KeyL']) move = 1 * rev;
-            }
-        }
+        move = inputState.move;
     } else {
         // AI Logic
         let tarBall = this.getClosestBall();
@@ -1789,6 +1952,21 @@ class Player {
     } else {
         this.x += move * currentSpeed * dt * timeScale;
         this.x = Math.max(10, Math.min(cw - currentW - 10, this.x));
+    }
+
+    if (this.heldBall) {
+        this.chargeTimer += dt;
+        this.aimPhase += dt * 3.2;
+        this.aimAngle = this.getBaseAimAngle() + Math.sin(this.aimPhase) * POWER_CATCH_SWEEP;
+        let chargeRatio = Math.min(this.chargeTimer / POWER_CATCH_AUTO_FIRE, 1);
+        this.heldBall.r = this.heldBall.baseRadius * (1 + chargeRatio * 1.6);
+        this.syncHeldBallPosition();
+        if (!this.actionHeld || this.chargeTimer >= POWER_CATCH_AUTO_FIRE) {
+            this.releaseHeldBall(this.chargeTimer >= POWER_CATCH_AUTO_FIRE);
+        }
+    } else {
+        this.chargeTimer = 0;
+        this.aimAngle = this.getBaseAimAngle();
     }
   }
   
@@ -1852,6 +2030,43 @@ class Player {
       } else {
           ctx.fillRect(this.x, this.y, rw, rh);
       }
+
+      if (!this.isWall && this.effects[POWER_CATCH_EFFECT]) {
+          ctx.save();
+          let glowColor = this.heldBall ? "#ffffff" : ctx.fillStyle;
+          ctx.strokeStyle = glowColor;
+          ctx.globalAlpha = this.heldBall ? 1 : 0.35;
+          ctx.lineWidth = this.heldBall ? 3 : 2;
+          ctx.strokeRect(this.x - 4, this.y - 4, rw + 8, rh + 8);
+
+          if (this.heldBall) {
+              const originX = this.heldBall.x;
+              const originY = this.heldBall.y;
+              const len = 125;
+              const endX = originX + Math.cos(this.aimAngle) * len;
+              const endY = originY + Math.sin(this.aimAngle) * len;
+              ctx.beginPath();
+              ctx.moveTo(originX, originY);
+              ctx.lineTo(endX, endY);
+              ctx.stroke();
+
+              const head = 16;
+              ctx.beginPath();
+              ctx.moveTo(endX, endY);
+              ctx.lineTo(endX - Math.cos(this.aimAngle - 0.42) * head, endY - Math.sin(this.aimAngle - 0.42) * head);
+              ctx.moveTo(endX, endY);
+              ctx.lineTo(endX - Math.cos(this.aimAngle + 0.42) * head, endY - Math.sin(this.aimAngle + 0.42) * head);
+              ctx.stroke();
+
+              const timerWidth = 70;
+              const timerRatio = Math.min(this.chargeTimer / POWER_CATCH_AUTO_FIRE, 1);
+              ctx.fillStyle = "rgba(255,255,255,0.18)";
+              ctx.fillRect(originX - timerWidth / 2, originY + 24, timerWidth, 6);
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(originX - timerWidth / 2, originY + 24, timerWidth * timerRatio, 6);
+          }
+          ctx.restore();
+      }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
   }
@@ -1860,15 +2075,25 @@ class Player {
 class Ball {
   constructor(x, y, vx, vy) {
       this.x = x; this.y = y; this.vx = vx; this.vy = vy;
-      this.r = 8;
+      this.baseRadius = 8;
+      this.r = this.baseRadius;
       this.speed = Math.hypot(vx, vy);
       this.trail = [];
       this.ghost = false;
       this.isClone = false;
+      this.heldBy = null;
+      this.captureLock = 0;
   }
   update(dt) {
+      if (this.heldBy) {
+          this.trail = [];
+          return;
+      }
+
       this.trail.unshift({x:this.x, y:this.y});
       if(this.trail.length > 10) this.trail.pop();
+      this.captureLock = Math.max(0, this.captureLock - dt);
+      if (this.r > this.baseRadius) this.r = Math.max(this.baseRadius, this.r - dt * 8);
       
       if (playMode==="Chaos") {
           let mag = powerups.find(p=>p.active && p.type==="Magnet Paddle" && p.owner);
@@ -1942,10 +2167,33 @@ class Ball {
       spawnParticles(this.x, this.y, "#fff", 10);
       camShake.ticks = 5;
   }
+  tryPowerCatch(p, rw, rh) {
+      if (this.heldBy || this.captureLock > 0 || !p || p.isWall || p.heldBall || !p.hasPowerCatch() || !p.actionHeld) return false;
+
+      let approaching = false;
+      if (p.side === 0) approaching = this.vx < 0;
+      if (p.side === 1) approaching = this.vx > 0;
+      if (p.side === 2) approaching = this.vy > 0;
+      if (p.side === 3) approaching = this.vy < 0;
+      if (!approaching) return false;
+
+      let expandedOverlap =
+          this.x + this.r > p.x - POWER_CATCH_RANGE &&
+          this.x - this.r < p.x + rw + POWER_CATCH_RANGE &&
+          this.y + this.r > p.y - POWER_CATCH_RANGE &&
+          this.y - this.r < p.y + rh + POWER_CATCH_RANGE;
+
+      if (!expandedOverlap) return false;
+
+      p.captureBall(this);
+      return true;
+  }
   handleCollisions() {
       for(let p of players) {
           let rw = p.renderW || p.w;
           let rh = p.renderH || p.h;
+
+          if (this.tryPowerCatch(p, rw, rh)) return;
           
           if (this.x + this.r > p.x && this.x - this.r < p.x + rw &&
               this.y + this.r > p.y && this.y - this.r < p.y + rh) {
@@ -1982,14 +2230,26 @@ class Ball {
       }
   }
   reset() {
+      if (this.heldBy) {
+          this.heldBy.heldBall = null;
+          this.heldBy.chargeTimer = 0;
+      }
+      this.heldBy = null;
       this.x = cw/2; this.y = ch/2;
       let ang = (Math.random() - 0.5) * Math.PI/2 + (Math.random()>0.5?0:Math.PI);
       this.speed = 300 * STAGES[stageIdx].speedMode;
       this.vx = Math.cos(ang) * this.speed;
       this.vy = Math.sin(ang) * this.speed;
+      this.r = this.baseRadius;
+      this.captureLock = 0.25;
       this.trail = [];
   }
   draw(ctx) {
+      if (this.heldBy) {
+          ctx.save();
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = "rgba(255,255,255,0.9)";
+      }
       if (this.isClone) ctx.globalAlpha = 0.5;
       ctx.fillStyle = this.ghost ? "rgba(255,255,255,0.3)" : "#fff";
       ctx.beginPath();
@@ -2003,6 +2263,7 @@ class Ball {
           ctx.arc(this.trail[i].x, this.trail[i].y, this.r * 0.8, 0, Math.PI*2);
           ctx.fill();
       }
+      if (this.heldBy) ctx.restore();
       ctx.globalAlpha = 1;
   }
 }
@@ -2015,7 +2276,7 @@ class PowerUp {
         this.life = 10;
         this.active = false;
         this.owner = null;
-        let types = ["Multi Ball", "Giant Paddle", "Tiny Paddle Curse", "Speed Burst", "Slow Time", "Ghost Ball", "Reverse Controls", "Shield", "Clone Ball"];
+        let types = ["Multi Ball", "Giant Paddle", "Tiny Paddle Curse", "Speed Burst", "Slow Time", "Ghost Ball", "Reverse Controls", "Shield", "Clone Ball", POWER_CATCH_EFFECT];
         this.type = types[Math.floor(Math.random()*types.length)];
         this.color = `hsl(${Math.random()*360}, 100%, 50%)`;
     }
@@ -2043,6 +2304,8 @@ class PowerUp {
         ui.floatingText(this.x, this.y, this.type, this.color);
         this.active = true;
         this.life = 5; // duration
+        sysData.stats.powerups++;
+        sysData.save();
         // determine who hit it
         let p = null;
         if(b.vx > 0 && Math.abs(b.vx)>Math.abs(b.vy)) p = players.find(x=>x.side===0);
@@ -2061,6 +2324,10 @@ class PowerUp {
                 cb.isClone = true;
                 balls.push(cb);
             }
+            this.life = 0;
+        } else if (this.type===POWER_CATCH_EFFECT) {
+            this.life = 8;
+            this.owner.effects[this.type] = this.life;
             this.life = 0;
         } else if (this.type==="Giant Paddle" || this.type==="Shield") {
             this.owner.effects[this.type] = this.life;

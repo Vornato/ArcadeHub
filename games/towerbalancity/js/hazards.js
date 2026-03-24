@@ -47,6 +47,11 @@ class FireHazard {
         ctx.translate(cx, cy);
         
         // Draw fire base
+        ctx.fillStyle = 'rgba(255, 120, 60, 0.18)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.w * 0.8, this.h * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = 'rgba(231, 76, 60, 0.8)'; // Red
         ctx.beginPath();
         ctx.moveTo(-this.w/2, 0);
@@ -74,7 +79,7 @@ class FireHazard {
 }
 
 class MeteorHazard {
-    constructor(x, y, direction = 0) {
+    constructor(x, y, direction = 0, targetY = null) {
         this.x = x;
         this.y = y;
         this.w = 40;
@@ -83,6 +88,7 @@ class MeteorHazard {
         this.vy = 3;
         this.pierce = 2;
         this.done = false;
+        this.targetY = targetY;
     }
 
     update(game, particles) {
@@ -120,6 +126,15 @@ class MeteorHazard {
 
     draw(ctx) {
         if (this.done) return;
+        if (this.targetY !== null) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 159, 67, 0.55)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(this.x + this.w / 2, this.targetY, 26, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
         ctx.save();
         ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
         ctx.fillStyle = '#ff9f43';
@@ -169,6 +184,11 @@ class DemolitionCrewHazard {
         ctx.fillRect(x, y, 14, 10);
         ctx.fillStyle = '#dfe4ea';
         ctx.fillRect(x + (this.side < 0 ? 12 : -12), y + 2, 12, 4);
+        ctx.strokeStyle = 'rgba(255, 209, 102, 0.65)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x + 6, y + 5, 18, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
     }
 }

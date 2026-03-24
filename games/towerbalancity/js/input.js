@@ -1,9 +1,9 @@
 // input.js
 // Merges Gamepad and Keyboard input into logical Player Actions
 
-// Keyboard map for 2 players fallback
-// Player 1 (Keyboard): Arrow keys, Enter to Drop
-// Player 2 (Keyboard): WASD, Space to Jump, F to grab, G to throw
+// Keyboard map for 4 local players fallback
+// Slot 0: Crane
+// Slot 1-3: Builders
 const KEYBOARD_MAPS = [
     { // Keyboard Slot 1 : Drop Player
         'Left': 'ArrowLeft',
@@ -19,6 +19,26 @@ const KEYBOARD_MAPS = [
         'Action2': 'KeyG',   // Throw
         'BumperL': 'KeyQ',   // Class Left
         'BumperR': 'KeyE',   // Class Right
+        'Start': 'Escape'
+    },
+    { // Keyboard Slot 3 : Inside Player
+        'Left': 'KeyJ',
+        'Right': 'KeyL',
+        'Jump': 'KeyI',
+        'Action1': 'KeyO',
+        'Action2': 'KeyP',
+        'BumperL': 'KeyU',
+        'BumperR': 'KeyY',
+        'Start': 'Escape'
+    },
+    { // Keyboard Slot 4 : Inside Player
+        'Left': 'Numpad4',
+        'Right': 'Numpad6',
+        'Jump': 'Numpad8',
+        'Action1': 'Numpad7',
+        'Action2': 'Numpad9',
+        'BumperL': 'Numpad1',
+        'BumperR': 'Numpad3',
         'Start': 'Escape'
     }
 ];
@@ -36,7 +56,7 @@ class InputManager {
 
         window.addEventListener('keydown', (e) => {
             // Prevent default browser scrolling/actions for game keys
-            const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Enter'];
+            const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Enter', 'Numpad1', 'Numpad3', 'Numpad4', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9'];
             if (gameKeys.includes(e.code)) {
                 e.preventDefault();
             }
@@ -73,10 +93,12 @@ class InputManager {
 
     handleAnyKeyPress(code) {
         if (this.onAnyInputCallback) {
-            // Determine if this is kb setup 1 or 2
             let kbIndex = 0;
-            if (Object.values(KEYBOARD_MAPS[1]).includes(code)) {
-                kbIndex = 1;
+            for (let i = 0; i < KEYBOARD_MAPS.length; i++) {
+                if (Object.values(KEYBOARD_MAPS[i]).includes(code)) {
+                    kbIndex = i;
+                    break;
+                }
             }
             this.onAnyInputCallback({ type: 'keyboard', index: kbIndex, code: code });
         }

@@ -1,0 +1,99 @@
+Twisted Pong
+
+Type
+- Neon-styled arena pong game with local multiplayer, bots, power-ups, campaign progression, and boss encounters.
+- The game is a single self-contained HTML page with canvas rendering, menu overlays, procedural audio, and local save data.
+
+Core Loop
+- Start from the animated menu, choose a mode, then set player count and player slots.
+- Launch a match where paddles defend arena sides while one or more balls ricochet through the field.
+- Survive, score, or eliminate rivals depending on mode.
+- Collect power-ups during live play.
+- Finish the match, unlock cosmetics or progression rewards, and continue through arcade or campaign structure.
+
+Main Modes
+- Versus: custom local multiplayer with human and bot slot setup.
+- Chaos: much higher power-up density and more unpredictable ball states.
+- Survival: last paddle standing wins.
+- Boss Rush: fight special boss-controlled paddles.
+- Campaign: chapter-based progression with locked and unlockable stages.
+- Arcade progression also exists through the stage list and moves forward if Player 1 wins.
+
+Player Counts
+- Supports 2, 3, and 4 active players.
+- When fewer than four real competitors are active, wall paddles are inserted on missing sides to preserve the arena shape.
+- Paddles can occupy left, right, top, and bottom sides depending on player count.
+
+Match Structure
+- Balls start from the arena center and bounce off paddles and walls.
+- If a ball exits through a player's defended side, that side loses a life.
+- The game checks for last-survivor conditions and resolves the winner after a short delay.
+- Arcade and campaign progression can automatically move to the next stage or chapter after a win.
+
+Stages And Campaign
+- Arcade stages currently include Neon Valley, Signal Drift, Glitch Core, Void Pulse, and System Burn.
+- These stages alter background color, speed pressure, and glitch effects.
+- Campaign chapters vary player count and can inject boss fights like Sentinel Wall and Void Mirror.
+- Campaign progress is saved in localStorage and used to unlock later chapters from the map screen.
+
+Power-Ups
+- Current random power-up pool includes:
+- Multi Ball
+- Giant Paddle
+- Tiny Paddle Curse
+- Speed Burst
+- Slow Time
+- Ghost Ball
+- Reverse Controls
+- Shield
+- Clone Ball
+- Power Catch
+- Power-ups can be instant, timed owner buffs, or timed curses applied to opponents.
+- Chaos mode increases power-up spawn frequency.
+
+Power Catch System
+- Power Catch is more advanced than a normal hit modifier.
+- A paddle with the effect can trap an incoming ball, charge the shot, sweep the aim angle, and release a stronger manual launch.
+- The game renders a held-ball arrow and a charge display for that state.
+
+Bosses
+- Boss Rush and some campaign chapters can replace a normal side with a boss paddle.
+- Implemented boss types include Sentinel Wall, Glitch Hydra, and Void Mirror.
+- Bosses modify paddle size, speed, effects, and special behavior instead of being simple health sponges.
+
+Bots And Slot Setup
+- Setup screen allows human and bot slot assignment.
+- Bots have levels and use side-aware movement plus ball prediction with deliberate error based on skill.
+- The gamepad status bar and slot setup screen show who is connected and which side they will control.
+
+Controls
+- Menu navigation supports keyboard and gamepad.
+- Gamepads can move through menu focus, confirm options, and drive paddle movement in matches.
+- Keyboard charge bindings exist per side for held-shot behavior.
+- The game also supports standard movement and action bindings per side for keyboard users.
+
+Presentation And Audio
+- The game uses a heavy neon/CRT visual theme with animated menu panels.
+- Arena grid backgrounds, trails, glitch flashes, floating text, and HUD overlays are all rendered directly on canvas.
+- Audio is generated procedurally with the Web Audio API.
+- Separate music states exist for menu, normal play, and intense play.
+- Music intensity can react to life totals and boss situations.
+
+Persistence
+- Local storage saves stats, unlockable skins, achievements, and campaign progress.
+- Unlock checks currently reward skins after enough wins, power-up pickups, or boss victories.
+
+What Works Today
+- Main menu, stats menu, campaign map, and player setup flow.
+- 2P, 3P, and 4P arena logic.
+- Human and bot slot support.
+- Campaign progression and chapter locking.
+- Arcade stage progression.
+- Boss fights.
+- Power-up spawning and effect application.
+- Procedural music and SFX.
+- Match results, rematch, and next-chapter flow.
+
+Current Scope
+- This is much more than a basic pong clone.
+- The implemented feature set makes it a party arena game with progression systems, boss encounters, unlocks, and mode-specific rule sets layered onto the core paddle-and-ball format.

@@ -1,0 +1,69 @@
+Aliens Domination
+
+Type
+- Local co-op UFO action game built with HTML, CSS, JavaScript, and Three.js.
+- The game is structured around a surface phase and an orbit station phase.
+
+Core Loop
+- Start from the main menu, choose split-screen orientation and gameplay options, then drop onto a planet surface.
+- Fly one or two UFOs over a 1000x1000 toroidal world. Crossing one edge wraps you to the opposite side.
+- Harvest cows for orbit access, collect tech parts from defeated enemies and crops, destroy threats, and advance the objective chain.
+- Once you have at least 10 cows, you can ascend to orbit. The game converts 10 cows into 1 fuel when orbit entry succeeds.
+- In orbit you spend tech parts on permanent upgrades, buy consumable items, change UFO color, choose a planet, optionally apply a build preset, and use the time machine.
+- Descend back to the surface and continue the run with saved upgrades, items, epoch, and selected planet.
+
+What Works On The Surface
+- Player 1 is mouse-and-keyboard driven. Left click sets movement targets. F fires. Space boosts. I opens inventory. X uses the selected item. Q pings. O ascends when you have enough cows. P pauses.
+- Player 2 can join through gamepad controls. The project supports split-screen co-op and keeps separate hotbar selection per player.
+- UFO movement is acceleration-based instead of instant. The craft eases toward its move target, blends retargeting, and uses damping instead of sharp stops.
+- Boost is a timed burst with duration and cooldown. Upgrades can lengthen the burst and reduce recovery time.
+- The basic weapon is a laser with a heat meter. Repeated firing causes overheat, temporarily locking weapons until the cooldown finishes.
+- Bombs, EMP, scan pulse, scan drone, repair, nano repair, seeds, and speed boosters are all implemented as consumable inventory actions.
+- Seed packs only work on valid farm zones. Mature crops later convert into more tech parts when harvested.
+- Repair kits heal instantly, speed boosters apply a temporary movement buff, EMP disables nearby enemies, and nano repair heals both players over time.
+
+Objectives And Progression
+- Objectives are sequential, not optional. The active chain is:
+- Harvest 8 cows.
+- Destroy 4 towers.
+- Collect 14 tech parts.
+- Plant 3 crop patches.
+- Survive 3 minutes.
+- The HUD tracks all objective progress, both player heat/health states, selected hotbar items, and full inventory resources.
+- Resources are persistent inside the current save: cows, tech parts, fuel, and item counts.
+
+Planets, World, And Evolution
+- Planet A is a coastal map with sea, port, towns, church, farms, and inland mountains.
+- Planet B is a different terrain layout with lakes, canyon-like spaces, and ruins.
+- The world generator also tracks an epoch value. Using the time machine advances the epoch by 500 years.
+- Epoch shifts world tinting and modifies the spawn mix. Higher eras can add evolved creatures and altered biome feel.
+
+Enemies And NPCs
+- The surface includes modern and ancient threats such as towers, planes, ships, clan camps, catapults, and evolved creatures.
+- Enemy deaths can spawn tech parts, which are the main orbit-station currency.
+- Civilians and allies exist on the map. Civilians react to nearby UFO activity rather than standing still as decoration.
+- Enemy projectiles can hit players, allied drone shots can hit enemies, bombs and radius damage work, and EMP affects enemy groups.
+
+Orbit Station
+- Upgrade tree includes Boost, Weapon Cooling, Hull Plating, Maneuver Thrusters, and Beam Amplifier.
+- Each upgrade affects real stats such as max speed, acceleration, turn rate, laser range, laser damage, heat cap, overheat cooldown, max health, and damage resistance.
+- Presets are implemented for speed, tank, and laser-focused builds.
+- Orbit also includes a shop for Laser Bomb, Seed Pack, Repair Kit, EMP Pulse, Scan Drone, and Nano Repair.
+- You can switch planets before descending.
+- UFO color is cosmetic and persists through the upgrade system state.
+
+UI And Systems
+- Split-screen can be vertical or horizontal.
+- Minimap draws players, enemies, cows, tech pickups, and objective markers.
+- Save data stores inventory resources, upgrade levels, selected planet, epoch, and options.
+- Menu options affect densities, loot rate, time machine chaos, day-night speed, camera smoothing, look-ahead, deadzone, VFX intensity, split-screen mode, and audio volume.
+- The game has pause/menu states, orbit UI, inventory UI, prompt notifications, and a developer panel toggle.
+
+Failure And Recovery
+- Players can take damage, heal, overheat, and get downed.
+- Co-op recovery exists: one player can continue after the other takes damage, and the game handles respawn/reset logic instead of hard-locking the run.
+- Progress is autosaved during play, so orbit choices and upgrade progression persist between sessions unless the save is reset.
+
+Current Scope
+- This folder contains a playable prototype with real systems for movement, combat, inventory, objectives, upgrades, world spawning, minimap, split-screen, saving, and orbit progression.
+- It is still a prototype rather than a content-complete game, but the code already supports a full play loop from surface play to orbit upgrades and back.

@@ -6,11 +6,13 @@ class UIManager {
         this.scrMenu = document.getElementById('screen-menu');
         this.scrSetup = document.getElementById('screen-setup');
         this.scrGameover = document.getElementById('screen-gameover');
+        this.scrVictory = document.getElementById('screen-victory');
         this.scrPause = document.getElementById('screen-pause');
         this.scrOptions = document.getElementById('screen-options');
         this.hud = document.getElementById('hud');
 
         this.btnPlay = document.getElementById('btn-play');
+        this.btnPlayDaily = document.getElementById('btn-daily');
         this.btnPlayChaos = document.getElementById('btn-chaos');
         this.btnStartGame = document.getElementById('btn-start-game');
         this.btnAddBot = document.getElementById('btn-add-bot');
@@ -18,6 +20,8 @@ class UIManager {
         this.btnBackMenu = document.getElementById('btn-back-menu');
         this.btnRestart = document.getElementById('btn-restart');
         this.btnQuit = document.getElementById('btn-quit');
+        this.btnVictoryRestart = document.getElementById('btn-victory-restart');
+        this.btnVictoryQuit = document.getElementById('btn-victory-quit');
 
         // Options
         this.btnOptions = document.getElementById('btn-options');
@@ -57,10 +61,32 @@ class UIManager {
         this.minimap = document.getElementById('tower-minimap');
         this.minimapCtx = this.minimap ? this.minimap.getContext('2d') : null;
         this.queueTooltip = document.getElementById('queue-tooltip');
+        this.goalProject = document.getElementById('goal-project');
+        this.goalHeight = document.getElementById('goal-height');
+        this.goalSeed = document.getElementById('goal-seed');
+        this.contractEls = [0, 1, 2].map(i => document.getElementById(`contract-${i}`));
         
         this.finalScoreItem = document.getElementById('final-score');
         this.finalHeightItem = document.getElementById('final-height');
+        this.finalXPItem = document.getElementById('final-xp');
+        this.finalMedalItem = document.getElementById('final-medal');
+        this.finalContractsItem = document.getElementById('final-contracts');
         this.gameoverEpitaph = document.getElementById('gameover-epitaph');
+        this.victoryScoreItem = document.getElementById('victory-score');
+        this.victoryHeightItem = document.getElementById('victory-height');
+        this.victoryXPItem = document.getElementById('victory-xp');
+        this.victoryMedalItem = document.getElementById('victory-medal');
+        this.victoryContractsItem = document.getElementById('victory-contracts');
+        this.victoryEpitaph = document.getElementById('victory-epitaph');
+        this.menuXP = document.getElementById('menu-xp');
+        this.menuBest = document.getElementById('menu-best');
+        this.menuClears = document.getElementById('menu-clears');
+        this.menuBestMedal = document.getElementById('menu-best-medal');
+        this.menuNextUnlock = document.getElementById('menu-next-unlock');
+        this.menuDailySeed = document.getElementById('menu-daily-seed');
+        this.setupModeLabel = document.getElementById('setup-mode-label');
+        this.setupGoalHeight = document.getElementById('setup-goal-height');
+        this.setupContracts = document.getElementById('setup-contracts');
 
         // Progression Elements
         this.flavorToast = document.getElementById('flavor-toast');
@@ -84,14 +110,17 @@ class UIManager {
     }
 
     bindEvents(callbacks) {
-        this.btnPlay.addEventListener('click', () => callbacks.onPlayClicked(false));
-        if (this.btnPlayChaos) this.btnPlayChaos.addEventListener('click', () => callbacks.onPlayClicked(true));
+        this.btnPlay.addEventListener('click', () => callbacks.onPlayClicked('normal'));
+        if (this.btnPlayDaily) this.btnPlayDaily.addEventListener('click', () => callbacks.onPlayClicked('daily'));
+        if (this.btnPlayChaos) this.btnPlayChaos.addEventListener('click', () => callbacks.onPlayClicked('chaos'));
         this.btnStartGame.addEventListener('click', callbacks.onStartGameClicked);
         if (this.btnAddBot) this.btnAddBot.addEventListener('click', callbacks.onAddBotClicked);
         if (this.btnBotDiff) this.btnBotDiff.addEventListener('click', callbacks.onBotDiffClicked);
         this.btnBackMenu.addEventListener('click', callbacks.onBackClicked);
         this.btnRestart.addEventListener('click', callbacks.onRestartClicked);
         this.btnQuit.addEventListener('click', callbacks.onQuitClicked);
+        if (this.btnVictoryRestart) this.btnVictoryRestart.addEventListener('click', callbacks.onRestartClicked);
+        if (this.btnVictoryQuit) this.btnVictoryQuit.addEventListener('click', callbacks.onQuitClicked);
         this.btnResume.addEventListener('click', callbacks.onResumeClicked);
         this.btnQuitPause.addEventListener('click', callbacks.onQuitClicked);
         
@@ -134,16 +163,71 @@ class UIManager {
         this.lblSfx.innerText = Math.round(config.sfx * 100) + '%';
     }
 
+    updateMenuMeta(summary, dailyChallenge) {
+        if (!summary) return;
+        if (this.menuXP) this.menuXP.innerText = summary.xp;
+        if (this.menuBest) this.menuBest.innerText = `${summary.maxHeightOverall}m`;
+        if (this.menuClears) this.menuClears.innerText = summary.districtClears || 0;
+        if (this.menuBestMedal) {
+            this.menuBestMedal.innerText = summary.bestMedal || 'NONE';
+            this.menuBestMedal.style.color = this.resolveMedalColor(summary.bestMedal || 'NONE');
+        }
+        if (this.menuNextUnlock) {
+            this.menuNextUnlock.innerText = summary.nextUnlock
+                ? `${summary.nextUnlock.name} @ ${summary.nextUnlock.reqXP} XP`
+                : 'All systems online';
+        }
+        if (this.menuDailySeed) {
+            this.menuDailySeed.innerText = dailyChallenge
+                ? `${dailyChallenge.seedKey} / ${dailyChallenge.themeName}`
+                : '---';
+        }
+    }
+
+    resolveMedalColor(medal) {
+        const colors = {
+            NONE: '#7f8c8d',
+            BRONZE: '#cd7f32',
+            SILVER: '#cfd8dc',
+            GOLD: '#f1c40f',
+            PLATINUM: '#7bedff'
+        };
+        return colors[medal] || colors.NONE;
+    }
+
+    setPlayMode(modeLabel, chaosUnlocked = true) {
+        if (this.btnPlayChaos) {
+            this.btnPlayChaos.disabled = !chaosUnlocked;
+            this.btnPlayChaos.innerText = chaosUnlocked ? 'PLAY (CHAOS)' : 'CHAOS LOCKED';
+        }
+        if (this.setupModeLabel) this.setupModeLabel.innerText = modeLabel;
+    }
+
+    updateSetupBrief(goalSummary, contracts = []) {
+        if (!goalSummary) return;
+        if (this.setupGoalHeight) {
+            const prefix = goalSummary.isDaily ? 'Daily district' : 'District goal';
+            this.setupGoalHeight.innerText = `${prefix}: clear ${goalSummary.targetHeight}m`;
+        }
+        if (this.setupContracts) {
+            this.setupContracts.innerHTML = contracts.length > 0
+                ? contracts.map(c => `&bull; ${c.desc}`).join('<br>')
+                : 'Contracts load on run start.';
+        }
+    }
+
     showScreen(screenName) {
         this.scrMenu.classList.add('hidden');
         this.scrSetup.classList.add('hidden');
         this.scrGameover.classList.add('hidden');
+        if (this.scrVictory) this.scrVictory.classList.add('hidden');
         this.scrPause.classList.add('hidden');
         this.scrOptions.classList.add('hidden');
 
         if (screenName === 'menu') this.scrMenu.classList.remove('hidden');
         if (screenName === 'setup') this.scrSetup.classList.remove('hidden');
         if (screenName === 'gameover') this.scrGameover.classList.remove('hidden');
+        if (screenName === 'victory' && this.scrVictory) this.scrVictory.classList.remove('hidden');
         if (screenName === 'pause') this.scrPause.classList.remove('hidden');
         if (screenName === 'options') this.scrOptions.classList.remove('hidden');
     }
@@ -153,13 +237,38 @@ class UIManager {
     showPause() { this.scrPause.classList.remove('hidden'); }
     hidePause() { this.scrPause.classList.add('hidden'); }
 
-    showGameOver(score, height, epitaph) {
+    showGameOver(score, height, epitaph, summary = null) {
         if (this.finalScoreItem) this.finalScoreItem.innerText = score;
         if (this.finalHeightItem) this.finalHeightItem.innerText = `${height}m`;
         if (this.gameoverEpitaph) this.gameoverEpitaph.innerText = epitaph;
+        if (summary) {
+            if (this.finalXPItem) this.finalXPItem.innerText = `+${summary.xpGained} XP`;
+            if (this.finalMedalItem) {
+                this.finalMedalItem.innerText = summary.medal;
+                this.finalMedalItem.style.color = summary.medalColor || '#fff';
+            }
+            if (this.finalContractsItem) this.finalContractsItem.innerText = `${summary.completedContracts}/${summary.totalContracts}`;
+        }
         this.weatherOverlay.style.opacity = '0';
         this.darknessOverlay.style.opacity = '0';
         this.showScreen('gameover');
+    }
+
+    showVictory(score, height, epitaph, summary) {
+        if (this.victoryScoreItem) this.victoryScoreItem.innerText = score;
+        if (this.victoryHeightItem) this.victoryHeightItem.innerText = `${height}m`;
+        if (this.victoryEpitaph) this.victoryEpitaph.innerText = epitaph;
+        if (summary) {
+            if (this.victoryXPItem) this.victoryXPItem.innerText = `+${summary.xpGained} XP`;
+            if (this.victoryMedalItem) {
+                this.victoryMedalItem.innerText = summary.medal;
+                this.victoryMedalItem.style.color = summary.medalColor || '#fff';
+            }
+            if (this.victoryContractsItem) this.victoryContractsItem.innerText = `${summary.completedContracts}/${summary.totalContracts}`;
+        }
+        this.weatherOverlay.style.opacity = '0';
+        this.darknessOverlay.style.opacity = '0';
+        this.showScreen('victory');
     }
 
     setSkyColors(colors) {
@@ -209,19 +318,24 @@ class UIManager {
         const status = slot.querySelector('.status');
         const mapping = slot.querySelector('.mapping');
         const classSelector = slot.querySelector('.class-selector');
+        const keyboardMappings = [
+            'Move: Left/Right  |  Drop: Enter',
+            'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Brace: Q/E',
+            'Move: J L  |  Jump: I<br>Grab: O  |  Throw: P  |  Brace: U/Y',
+            'Move: Num4 Num6  |  Jump: Num8<br>Grab: Num7  |  Throw: Num9  |  Brace: Num1/Num3'
+        ];
+        const joinPrompts = [
+            'Arrow keys or Gamepad to join...',
+            'A/D keys or Gamepad to join...',
+            'J/L keys or Gamepad to join...',
+            'Numpad 4/6 or Gamepad to join...'
+        ];
 
         if (assigned) {
             slot.classList.add('active');
             status.innerText = `Joined! (${inputType.toUpperCase()})`;
-            // Show the right control hints based on input type
             if (inputType === 'keyboard') {
-                if (slotId === 0) {
-                    // Crane / Drop Player - keyboard slot 0
-                    mapping.innerHTML = 'Move: ← →  |  Drop: Enter';
-                } else {
-                    // Inside Player - keyboard slot 1
-                    mapping.innerHTML = 'Move: A D  |  Jump: Space<br>Grab: F  |  Throw: G  |  Brace: Q/E';
-                }
+                mapping.innerHTML = keyboardMappings[slotId] || keyboardMappings[1];
             } else if (inputType === 'gamepad') {
                 if (slotId === 0) {
                     mapping.innerHTML = 'Move: D-Pad/Stick  |  Drop: A / Cross';
@@ -235,11 +349,7 @@ class UIManager {
             if (classSelector && slotId > 0) classSelector.classList.remove('hidden');
         } else {
             slot.classList.remove('active');
-            if (slotId === 0) {
-                status.innerText = 'Arrow keys or Gamepad to join...';
-            } else {
-                status.innerText = 'A/D keys or Gamepad to join...';
-            }
+            status.innerText = joinPrompts[slotId] || joinPrompts[1];
             mapping.classList.add('hidden');
             if (classSelector) classSelector.classList.add('hidden');
         }
@@ -260,15 +370,17 @@ class UIManager {
         }, 4000);
     }
 
-    updateClassSelector(slotId, classData) {
+    updateClassSelector(slotId, classData, isLocked = false) {
         const slot = document.getElementById(`slot-${slotId + 1}`);
         const className = slot.querySelector('.class-name');
         const classDesc = slot.querySelector('.class-desc');
         
         if (className && classDesc) {
-            className.innerText = classData.name;
-            className.style.color = classData.color;
-            classDesc.innerText = classData.desc;
+            className.innerText = isLocked ? `${classData.name} (LOCKED)` : classData.name;
+            className.style.color = isLocked ? '#7f8c8d' : classData.color;
+            classDesc.innerText = isLocked
+                ? `Earn ${classData.unlockId ? classData.unlockId.replace('class_', '').toUpperCase() : 'XP'} to unlock.`
+                : classData.desc;
         }
     }
 
@@ -279,6 +391,32 @@ class UIManager {
     updateScore(amount, height) {
         this.scoreDisp.innerText = amount;
         this.heightDisp.innerText = height + "m";
+    }
+
+    updateGoalPanel(goalSummary) {
+        if (!goalSummary) return;
+        if (this.goalProject) this.goalProject.innerText = goalSummary.projectName || 'District';
+        if (this.goalHeight) this.goalHeight.innerText = `Clear ${goalSummary.targetHeight}m`;
+        if (this.goalSeed) {
+            this.goalSeed.innerText = goalSummary.isDaily
+                ? `Daily seed ${goalSummary.dailySeed}`
+                : `${goalSummary.completedContracts}/${goalSummary.totalContracts} contracts complete`;
+        }
+    }
+
+    updateContracts(contracts = []) {
+        for (let i = 0; i < this.contractEls.length; i++) {
+            const el = this.contractEls[i];
+            if (!el) continue;
+            const contract = contracts[i];
+            if (!contract) {
+                el.innerText = '---';
+                el.className = 'contract-entry';
+                continue;
+            }
+            el.innerText = `${contract.done ? 'DONE' : `${Math.min(contract.progress || 0, contract.target)}/${contract.target}`}  ${contract.desc}`;
+            el.className = `contract-entry${contract.done ? ' done' : ''}`;
+        }
     }
 
     updateBalance(balanceValue, dangerLevel, comState = 0) {

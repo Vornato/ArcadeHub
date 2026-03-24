@@ -1,0 +1,90 @@
+StoneShooter
+
+Important Note
+- The shipped playable page in this folder is the large self-contained build inside index.html.
+- That page is titled "Trio Breaker: Puzzle Versus."
+- The extra modular JavaScript files in the folder look like a partial refactor, but the actual browser game currently runs from the inline script in index.html.
+
+Type
+- Arcade puzzle action game with solo play and local versus play.
+- The board is based on column picking rather than free swapping or falling-piece placement.
+
+Main Rule Set
+- Stones are stacked in columns.
+- You can only take the bottom-most stone from a column.
+- The goal is to collect exactly three stones of the same color in a row to clear a set.
+- Once you take one color, your active chain is locked to that color until you either finish the triplet or break the chain.
+- If you finish the triplet, the stones clear, combo state rises, and versus garbage can be sent.
+- If you break the color sequence, the chain resets and you lose combo momentum.
+
+Modes
+- Solo Practice creates one board and measures your clear time.
+- Local Versus supports 2P, 3P, and 4P.
+- Versus is round-based. The winner of a round scores a point.
+- A full versus match ends when someone reaches 5 points.
+
+Board And Match Structure
+- The board uses 8 columns.
+- The current playable inline version uses 10 rows.
+- Each round starts with a randomized puzzle board.
+- In versus, each active player gets their own board.
+- The HUD shows either solo timer information or versus score information depending on mode.
+
+Controls
+- Player 1:
+- Move cursor left/right with A and D or the left/right arrow keys.
+- Pick the current bottom stone with Space or Enter.
+- Reset your current board state with R.
+- Player 2:
+- Move with J and L.
+- Pick with Right Shift or Numpad 0.
+- Reset with U.
+- Gamepads are also polled. Standard D-pad or left stick can move, A confirms, B resets, and Start pauses.
+- P pauses.
+- M returns to menu from an active match.
+- G toggles the debug panel.
+
+Versus Mechanics
+- Clearing a triplet sends garbage to another board.
+- Garbage is inserted as a blocking row rather than a normal color-clear piece.
+- The center HUD shows the running round score for every joined player.
+- If one player clears their board first, the round ends after a short delay and either advances to the next round or ends the full match at 5 points.
+
+Combos And Pressure
+- Combo state exists and is time-based.
+- Successive clears inside the combo window build combo count.
+- Combo pressure can send more garbage and rewards efficient route planning instead of random picking.
+- The board also supports garbage queues and impact-style feedback such as flash, hit stop, and sound cues.
+
+UI Flow
+- Menu screen supports Solo Practice, 2P Versus, 3P Versus, 4P Versus, and How to Play.
+- Pause screen supports resume, restart, and quit to menu.
+- Game-over screen supports replay and menu return.
+- The page uses one canvas plus overlay menus instead of separate screens or route changes.
+
+Audio And Feedback
+- The game uses Web Audio API tones instead of external music tracks.
+- Movement, pickup, garbage, and other actions all trigger simple synthesized sound effects.
+- The page also uses screen flash, colorful animated menu backgrounds, and board-side visual feedback for clears and impacts.
+
+Win And Loss Conditions
+- In solo, you win by clearing the board.
+- In solo, failing to resolve the board or filling the danger state can end the run.
+- In versus, a round win comes from clearing your board before opponents do.
+- The match winner is the first player to 5 round wins.
+
+What Works Today
+- Menu flow.
+- Solo timing.
+- 2P, 3P, and 4P versus round flow.
+- Keyboard and gamepad polling.
+- Bottom-stone-only selection rule.
+- Triplet chain logic.
+- Combo handling.
+- Garbage attacks.
+- Pause and restart flow.
+- Debug panel support.
+
+Current Scope
+- This is already a complete playable puzzle-versus loop, not just a visual mockup.
+- The strongest unique mechanic is the forced bottom-pick chain system, which makes the game play differently from normal match-three or falling-block formats.

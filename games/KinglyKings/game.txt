@@ -1,0 +1,95 @@
+Kingly Kings
+
+Type
+- Open-world survival skirmish rendered on an HTML5 canvas.
+- Supports solo play, two-player local play, and a browser LAN mode built around direct peer connection exchange.
+
+Core Loop
+- Start a run from the menu by choosing Solo Commander or Two Players, split orientation, difficulty, doctrine, and graphics quality.
+- Spawn in a large forest frontier around the center meadow.
+- Move through the world, collide with enemy warbands to trigger melee exchanges, defeat them, and convert their army size into your recruit count.
+- Use coins and souls earned during combat to improve survivability through the vendor and altar systems.
+- Survive ambient patrols, minute-based wave spawns, and the late boss encounter.
+
+Player Controls And Inputs
+- Player 1 uses hold-left-click movement. The hero moves toward the mouse while the button is held.
+- Mouse wheel, plus, and minus adjust zoom.
+- Space is dash.
+- Q, W, and E are hero skills.
+- 1, 2, and 3 consume inventory slots.
+- F opens the vendor when you stand near the vendor house.
+- R opens the soul altar when you stand near the altar.
+- Tab opens or closes the controls sheet.
+- Player 2 is gamepad-first, but arrow-key fallback movement also exists for local testing.
+- Gamepad buttons map to dash, hero skills, item usage, vendor, and altar interactions.
+
+Character Growth
+- Each player has recruits, XP, level, coins, souls, health, cooldowns, and blessings.
+- Health is not flat. It scales from base health, level growth, recruit count, and doctrine vitality modifiers.
+- Defeating enemies increases recruits and XP, so survival and damage output both rise as the run progresses.
+- Level gates matter: W unlocks at level 3 and E unlocks at level 6.
+
+Doctrines
+- Marshal is the balanced doctrine. It improves recruit growth and gives the Q skill Royal Slash.
+- Vanguard is the heavy bruiser doctrine. It trades speed for stronger damage and uses Iron Cleave on Q.
+- Pathfinder is the fast skirmisher doctrine. It boosts movement and gives Q a beam-style ranged attack.
+- Doctrine selection changes movement, damage, vitality, recruit growth, and the primary hero skill.
+
+Hero Skills
+- Dash repositions the player in the aimed direction and has a cooldown.
+- Q is doctrine-specific: a slash burst, a cleave radius, or a beam line attack.
+- W is Blink Crush, a short-range teleport with an impact burst.
+- E summons temporary shadow clones that orbit and attack.
+- These skills are real combat systems, not menu-only descriptions.
+
+Vendor, Altar, And Items
+- The vendor sells usable combat items for coins.
+- Implemented items include Shooting Bomb, Elixir of Health, Long Spear, AK47, Golden Desert Eagle, Laser Beam Gun, and Meteor Strike Curse.
+- Items live in three inventory slots and track remaining ammo or charges.
+- The soul altar trades souls for blessings.
+- Blessings currently improve strength, speed, health, regeneration, and rebirth chance.
+- Rebirth is meaningful: when triggered, a death becomes a short return timer instead of a full collapse.
+
+Enemies And Encounter Scaling
+- Enemy factions include vampires, werewolves, orcs, ogres, witches, skeleton knights, goblin sappers, treants, boar riders, and cultists.
+- Enemy types unlock over time instead of all appearing at the start.
+- Ambient patrols spawn every 10 to 16 seconds.
+- Full wave attacks arrive every 60 seconds until the boss threshold is reached.
+- At 10 minutes the boss event can spawn.
+- Some enemies are neutral or wandering types, so not everything behaves like a direct front-line assault.
+
+Difficulty And Run Pressure
+- Explorer reduces enemy damage and health and slightly boosts coin flow.
+- Standard is the baseline ruleset.
+- Warlord increases enemy stats and wave scale.
+- The game constantly tracks world pressure, next wave timing, kills, and boss state through the HUD.
+
+Revive And Death Handling
+- A fallen player does not always end the run immediately.
+- Allies can revive a downed player by touching them for 2 seconds before the 15-second respawn expires.
+- If no ally is available, normal respawn logic restores the hero later.
+- Blessings can shorten or bypass the normal death penalty.
+
+Presentation And World Systems
+- The map is large and populated with trees, rocks, ruins, bushes, and campfires.
+- The world includes major landmarks: a central altar and a vendor house.
+- Camera follow is smooth and respects split-screen mode.
+- High and ultra graphics settings affect world detail and drawing density.
+- Music playback rotates between included audio tracks, and the HUD updates on a short timer instead of every single draw call.
+
+Multiplayer And LAN
+- Local two-player mode is built in.
+- Split-screen can be vertical or horizontal.
+- A LAN browser flow exists inside the game. Host and join actions use a direct peer connection handshake and replicate state snapshots.
+- The host runs the real simulation. The remote side receives snapshots and sends input back.
+- Shop and altar interactions also sync through that network layer.
+
+What The HUD Tracks
+- Per-player HP bars and max HP.
+- Coins, souls, level, XP-to-next-level, recruit count, cooldowns, and item inventory.
+- World time, enemy count, next event timing, total kills, and interaction hints.
+- LAN status when a session is active.
+
+Current Scope
+- This is a fully playable survival-combat prototype with movement, combat, leveling, recruit growth, split-screen cameras, items, blessings, boss escalation, local co-op, and browser LAN support.
+- The code is concentrated in a single large gameplay file, but the implemented feature set is broader than a simple arena prototype.

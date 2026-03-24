@@ -6,12 +6,11 @@ class BotController {
         this.slot = slotIndex;
         this.difficulty = difficulty; // 0=Rookie, 1=Normal, 2=Smart
         this.state = this.getEmptyState();
-        
-        // Behavioral timers
         this.thinkTimer = 0;
         this.targetX = null;
         this.targetObject = null;
-        this.stateMachine = 'IDLE'; // IDLE, MOVE_TO_WEIGHT, GRAB_JUNK, THROW_JUNK
+        this.targetHazard = null;
+        this.stateMachine = 'IDLE';
     }
 
     getEmptyState() {
@@ -20,119 +19,162 @@ class BotController {
             jump: false, jumpJustPressed: false,
             action1: false, action1JustPressed: false,
             action2: false, action2JustPressed: false,
+            bumperL: false, bumperR: false,
             bumperLJustPressed: false, bumperRJustPressed: false,
             startJustPressed: false
         };
     }
 
-    update(playerRef, gameBalance, towerCenterX, objects, dangerLevel) {
+    clampToSupport(targetX, floor) {
+        if (!floor) return targetX;
+        const bounds = floor.getSupportBounds();
+        return Utils.clamp(targetX, bounds.supportX + 16, bounds.supportX + bounds.supportW - 16);
+    }
+
+    getFloorForTarget(game, entity) {
+        return game ? game.getSupportingFloor(entity) : null;
+    }
+
+    getNearestFire(game, floor, playerRef) {
+        if (!game || !floor) return null;
+        const fires = game.hazards.filter(h => typeof h.extinguish === 'function' && !h.isExtinguished);
+        if (fires.length === 0) return null;
+        fires.sort((a, b) => Math.abs((a.x + a.w / 2) - (playerRef.x + playerRef.w / 2)) - Math.abs((b.x + b.w / 2) - (playerRef.x + playerRef.w / 2)));
+        const hazard = fires[0];
+        const hazardFloor = this.getFloorForTarget(game, hazard);
+        return hazardFloor === floor ? hazard : null;
+    }
+
+    getBestLooseObject(game, playerRef, floor, preferHeavy = false) {
+        if (!game || !floor) return null;
+        const candidates = game.objects.filter(obj => {
+            if (obj.helper && obj.heldBy && obj.heldBy !== playerRef) return false;
+            const objFloor = this.getFloorForTarget(game, obj);
+            if (objFloor !== floor) return false;
+            if (!obj.heldBy || obj.heldBy === playerRef || obj.helper) return true;
+            return obj.mass >= 70 && !obj.helper;
+        });
+        candidates.sort((a, b) => {
+            const distanceA = Math.abs((a.x + a.w / 2) - (playerRef.x + playerRef.w / 2));
+            const distanceB = Math.abs((b.x + b.w / 2) - (playerRef.x + playerRef.w / 2));
+            const weightBiasA = preferHeavy ? -a.mass : a.mass;
+            const weightBiasB = preferHeavy ? -b.mass : b.mass;
+            return (distanceA + weightBiasA) - (distanceB + weightBiasB);
+        });
+        return candidates[0] || null;
+    }
+
+    update(playerRef, gameBalance, towerCenterX, objects, dangerLevel, game = null) {
         this.state = this.getEmptyState();
-        
-        // Don't do much if dead/falling
-        if (playerRef.y > towerCenterX + 800) return;
+
+        if (!game || playerRef.y > game.canvas.height + Math.abs(game.cameraDirector.y) + 500) return;
 
         this.thinkTimer--;
-        
-        let pCenterX = playerRef.x + playerRef.w/2;
-        
-        // High danger: Run to the opposite side of the lean
-        // Rookie only panics at level 3, Normal at 2, Smart at 1
-        let panicThreshold = this.difficulty === 0 ? 3 : (this.difficulty === 1 ? 2 : 1);
-        if (dangerLevel >= panicThreshold) {
+
+        const pCenterX = playerRef.x + playerRef.w / 2;
+        const supportFloor = game.getSupportingFloor(playerRef);
+        const floorBounds = supportFloor ? supportFloor.getSupportBounds() : null;
+        const localSlope = supportFloor ? Math.abs(supportFloor.getLocalSlopeAt(pCenterX)) : 0;
+        const fireTarget = this.getNearestFire(game, supportFloor, playerRef);
+        const panicThreshold = this.difficulty === 0 ? 3 : (this.difficulty === 1 ? 2 : 1);
+        const shouldBrace = playerRef.onGround && (dangerLevel >= panicThreshold || localSlope > 0.085 || Math.abs(game.towerAngularVelocity) > 0.018);
+
+        if (shouldBrace) {
+            this.state.bumperL = true;
+        }
+
+        if (playerRef.heldObject) {
+            this.stateMachine = fireTarget ? 'FIRE_RESPONSE' : 'THROW_JUNK';
+        }
+
+        if (fireTarget) {
+            this.stateMachine = 'FIRE_RESPONSE';
+            this.targetHazard = fireTarget;
+            this.targetX = fireTarget.x + fireTarget.w / 2;
+            const fireObject = this.getBestLooseObject(game, playerRef, supportFloor, true);
+            if (!playerRef.heldObject && fireObject) {
+                this.targetObject = fireObject;
+                this.stateMachine = 'FETCH_FIRE_PAYLOAD';
+                this.targetX = fireObject.x + fireObject.w / 2;
+            }
+        } else if (dangerLevel >= panicThreshold) {
             this.stateMachine = 'MOVE_TO_WEIGHT';
-            // Smart bots don't go as far to edge so they don't overcorrect
-            let runDist = this.difficulty === 2 ? 100 : 150;
-            this.targetX = towerCenterX + (gameBalance < 0 ? runDist : -runDist);
+            const runDist = this.difficulty === 2 ? 92 : 138;
+            const dir = gameBalance < 0 ? 1 : -1;
+            this.targetX = towerCenterX + (dir * runDist);
         } else if (this.thinkTimer <= 0) {
-            // Think faster if smarter
-            let baseThink = this.difficulty === 0 ? 90 : (this.difficulty === 1 ? 60 : 30);
-            this.thinkTimer = baseThink + Utils.randomInt(0, 30);
-            
-            if (this.stateMachine === 'IDLE' || this.stateMachine === 'MOVE_TO_WEIGHT') {
-                // Find loose junk
-                let myFloorY = playerRef.y;
-                let nearbyJunk = objects.filter(o => 
-                    !o.heldBy && Math.abs(o.y - myFloorY) < 100 && o.mass < 60
-                );
-                
-                // Smart bots try to find the heaviest bad junk
-                if (this.difficulty === 2) {
-                     nearbyJunk.sort((a,b) => b.mass - a.mass);
-                }
-                
-                if (nearbyJunk.length > 0 && (this.difficulty > 0 || Math.random() < 0.5)) {
-                    this.stateMachine = 'GRAB_JUNK';
-                    this.targetObject = nearbyJunk[0];
-                    this.targetX = this.targetObject.x + this.targetObject.w/2;
-                } else {
-                    this.stateMachine = 'MOVE_TO_WEIGHT';
-                    
-                    if (this.difficulty === 2 && dangerLevel === 0) {
-                        // Smart bots stay center when perfectly fine
-                        this.targetX = towerCenterX + Utils.random(-15, 15);
-                    } else {
-                        // Rookie bots sometimes run the wrong way!
-                        let dir = gameBalance < 0 ? 1 : -1;
-                        if (this.difficulty === 0 && Math.random() < 0.2) dir *= -1;
-                        
-                        this.targetX = towerCenterX + (dir * 80) + Utils.random(-40, 40);
-                    }
+            const baseThink = this.difficulty === 0 ? 90 : (this.difficulty === 1 ? 55 : 26);
+            this.thinkTimer = baseThink + Utils.randomInt(0, 18);
+
+            const heavyTarget = this.getBestLooseObject(game, playerRef, supportFloor, this.difficulty >= 1);
+            if (heavyTarget && (heavyTarget.mass >= 45 || heavyTarget.isBoss)) {
+                this.stateMachine = 'GRAB_JUNK';
+                this.targetObject = heavyTarget;
+                this.targetX = heavyTarget.x + heavyTarget.w / 2;
+            } else {
+                this.stateMachine = 'MOVE_TO_WEIGHT';
+                const calmBand = this.difficulty === 2 ? 26 : 46;
+                const dir = gameBalance < 0 ? 1 : -1;
+                const drift = dangerLevel === 0 ? Utils.random(-calmBand, calmBand) : dir * (55 + Utils.random(-18, 18));
+                this.targetX = towerCenterX + drift;
+            }
+        }
+
+        if (this.targetX !== null) {
+            this.targetX = this.clampToSupport(this.targetX, supportFloor);
+            const dist = this.targetX - pCenterX;
+            if (Math.abs(dist) > 13) {
+                if (dist < 0) this.state.left = true;
+                if (dist > 0) this.state.right = true;
+            }
+        }
+
+        if (this.stateMachine === 'GRAB_JUNK' || this.stateMachine === 'FETCH_FIRE_PAYLOAD') {
+            if (this.targetObject) {
+                if (Math.abs((this.targetObject.x + this.targetObject.w / 2) - pCenterX) < 22) {
+                    this.state.action1JustPressed = true;
+                    this.thinkTimer = 8;
                 }
             }
         }
 
-        // Execute State
-        if (this.stateMachine === 'MOVE_TO_WEIGHT' || this.stateMachine === 'GRAB_JUNK') {
-            
-            // Rookie bots randomly jump sometimes
-            if (this.difficulty === 0 && Math.random() < 0.005) {
-                this.state.jumpJustPressed = true;
-            }
-            if (this.targetX !== null) {
-                let dist = this.targetX - pCenterX;
-                if (Math.abs(dist) > 15) {
-                    if (dist < 0) this.state.left = true;
-                    if (dist > 0) this.state.right = true;
-                } else if (this.stateMachine === 'GRAB_JUNK' && this.targetObject && !playerRef.heldObject) {
-                    this.state.action1JustPressed = true;
-                    this.stateMachine = 'THROW_JUNK';
-                    this.thinkTimer = 10;
+        if (this.stateMachine === 'FIRE_RESPONSE' && playerRef.heldObject && this.targetHazard) {
+            const fireDist = (this.targetHazard.x + this.targetHazard.w / 2) - pCenterX;
+            if (Math.abs(fireDist) < 32) {
+                if (playerRef.facing !== Math.sign(fireDist || playerRef.facing || 1)) {
+                    if (fireDist < 0) this.state.left = true;
+                    if (fireDist > 0) this.state.right = true;
+                } else {
+                    this.state.action2JustPressed = true;
                 }
             }
-            
-            // Hop over gaps occasionally?
-            if (Math.random() < 0.01 && (this.state.left || this.state.right)) {
+        } else if (this.stateMachine === 'THROW_JUNK' || (playerRef.heldObject && this.stateMachine === 'MOVE_TO_WEIGHT')) {
+            const throwDir = gameBalance < 0 ? 1 : -1;
+            if (playerRef.facing !== throwDir) {
+                if (throwDir === 1) this.state.right = true;
+                else this.state.left = true;
+            } else if (Math.abs((towerCenterX + (throwDir * 90)) - pCenterX) < 30) {
+                this.state.action2JustPressed = true;
+            }
+        }
+
+        if (playerRef.heldObject && playerRef.heldObject.helper && playerRef.heldObject.heldBy !== playerRef) {
+            const leadHolder = playerRef.heldObject.heldBy;
+            if (leadHolder && Math.abs((leadHolder.x + leadHolder.w / 2) - pCenterX) > 18) {
+                if ((leadHolder.x + leadHolder.w / 2) < pCenterX) this.state.left = true;
+                else this.state.right = true;
+            }
+        }
+
+        if (Math.random() < 0.008 && (this.state.left || this.state.right) && floorBounds) {
+            const atEdge = pCenterX < floorBounds.supportX + 26 || pCenterX > floorBounds.supportX + floorBounds.supportW - 26;
+            if (atEdge || localSlope > 0.06) {
                 this.state.jumpJustPressed = true;
             }
         }
-        
-        if (this.stateMachine === 'THROW_JUNK') {
-            if (playerRef.heldObject) {
-                // Rookie bots might accidentally drop instead of throw
-                if (this.difficulty === 0 && Math.random() < 0.1) {
-                     this.state.action1JustPressed = true;
-                     this.stateMachine = 'IDLE';
-                     this.thinkTimer = 30;
-                     return;
-                }
-                
-                // Determine which way to throw to help balance
-                let throwDir = gameBalance < 0 ? 1 : -1;
-                
-                // Smart bots sometimes reposition to throw further from center if needed? Complex. 
-                // Just let them throw.
-                
-                if (playerRef.facing !== throwDir) {
-                    if (throwDir === 1) this.state.right = true;
-                    else this.state.left = true;
-                } else {
-                    this.state.action2JustPressed = true;
-                    this.stateMachine = 'IDLE';
-                    this.thinkTimer = this.difficulty === 2 ? 10 : 30; // 
-                }
-            } else {
-                this.stateMachine = 'IDLE'; // missed grab
-            }
+
+        if (!playerRef.heldObject && shouldBrace && Math.abs(gameBalance) < 8 && supportFloor) {
+            this.targetX = towerCenterX;
         }
     }
 }

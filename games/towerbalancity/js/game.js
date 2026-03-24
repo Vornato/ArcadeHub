@@ -82,6 +82,10 @@ class Game {
         this.timeScale = 1;
         this.slowMoTimer = 0;
         this.lastLightningFlash = 0;
+        this.currentMode = 'normal';
+        this.dailyChallenge = null;
+        this.victoryTriggered = false;
+        this.lastContractsCompleted = 0;
 
         this.clouds = [];
         this.cityBuildings = [];
@@ -178,7 +182,7 @@ class Game {
         }
     }
 
-    start(playerCount, isChaosMode = false, playerClasses = [], botDifficulty = 1, projectThemeId = "random") {
+    start(playerCount, isChaosMode = false, playerClasses = [], botDifficulty = 1, projectThemeId = "random", dailyChallenge = null, runMode = 'normal') {
         this.isRunning = true;
         this.isPaused = false;
         this.startGraceTimer = 60;
@@ -223,6 +227,10 @@ class Game {
         this.timeScale = 1;
         this.slowMoTimer = 0;
         this.lastLightningFlash = 0;
+        this.currentMode = runMode;
+        this.dailyChallenge = dailyChallenge;
+        this.victoryTriggered = false;
+        this.lastContractsCompleted = 0;
 
         let humanCount = 0;
         for (let i = 0; i < 4; i++) {
@@ -248,7 +256,7 @@ class Game {
 
         this.progression.projectManager.setProject(projectThemeId);
         this.initializeBackdrop();
-        this.meta.startRun();
+        this.meta.startRun(this.progression.projectManager.selectedProject, { dailyChallenge: this.dailyChallenge });
         this.progression.startRun();
         this.music.start();
 
@@ -287,6 +295,8 @@ class Game {
 
         this.ui.showHUD();
         this.ui.updateScore(this.score, this.height);
+        this.ui.updateGoalPanel(this.meta.getGoalSummary());
+        this.ui.updateContracts(this.meta.getContractSnapshot());
         this.ui.updatePieceQueue(this.upcomingPieces);
         this.loop();
     }
@@ -301,7 +311,7 @@ class Game {
         this.audio.updateTension(0, 0, 0);
         this.ui.hideHUD();
 
-        const xpGained = this.meta.endRun(this.height);
+        const runSummary = this.meta.endRun(this.height, false);
         const runStats = { maxHeight: this.height };
         let epitaph = this.progression.getGameOverSummary(runStats);
 
@@ -314,12 +324,24 @@ class Game {
             );
         }
 
-        this.ui.showGameOver(this.score, this.height, epitaph);
+        this.ui.showGameOver(this.score, this.height, epitaph, runSummary);
 
         const perfectsEl = document.getElementById('final-perfects');
-        const xpEl = document.getElementById('final-xp');
         if (perfectsEl) perfectsEl.innerText = this.meta.currentRunStats.perfectDrops;
-        if (xpEl) xpEl.innerText = "+" + xpGained + " XP";
+    }
+
+    winRun() {
+        if (this.victoryTriggered) return;
+        this.victoryTriggered = true;
+        this.isRunning = false;
+        this.music.stop();
+        this.audio.updateTension(0, 0, 0);
+        this.ui.hideHUD();
+
+        const runSummary = this.meta.endRun(this.height, true);
+        const epitaph = `District certified. ${this.progression.projectManager.selectedProject.name} reached ${this.height}m without a terminal collapse.`;
+        this.audio.play('victory');
+        this.ui.showVictory(this.score, this.height, epitaph, runSummary);
     }
 
     pause() {
@@ -542,6 +564,119 @@ class Game {
         }
     }
 
+    getFloorIndex(floor) {
+        return this.floors.indexOf(floor);
+    }
+
+    getSupportMetrics(floor, supportingFloor) {
+        if (!floor || !supportingFloor) {
+            return { overlap: 0, supportRatio: 0, overhangLeft: floor ? floor.w * 0.5 : 0, overhangRight: floor ? floor.w * 0.5 : 0 };
+        }
+        const topBounds = floor.getSupportBounds();
+        const baseBounds = supportingFloor.getSupportBounds();
+        const overlapLeft = Math.max(topBounds.supportX, baseBounds.supportX);
+        const overlapRight = Math.min(topBounds.supportX + topBounds.supportW, baseBounds.supportX + baseBounds.supportW);
+        const overlap = Math.max(0, overlapRight - overlapLeft);
+        const supportRatio = Utils.clamp(overlap / Math.max(1, topBounds.supportW), 0, 1);
+        const overhangLeft = Math.max(0, baseBounds.supportX - topBounds.supportX);
+        const overhangRight = Math.max(0, (topBounds.supportX + topBounds.supportW) - (baseBounds.supportX + baseBounds.supportW));
+        return { overlap, supportRatio, overhangLeft, overhangRight };
+    }
+
+    applyFloorSupportState(floor, supportingFloor) {
+        if (!floor || !supportingFloor || floor.isFoundation) return;
+        const metrics = this.getSupportMetrics(floor, supportingFloor);
+        floor.supportRatio = metrics.supportRatio;
+
+        if (metrics.supportRatio < 0.82) {
+            const supportDamage = (0.82 - metrics.supportRatio) * 0.02;
+            const direction = metrics.overhangRight > metrics.overhangLeft ? 1 : -1;
+            floor.applyStructureDamage(supportDamage, direction);
+        } else {
+            floor.connectionIntegrity = Utils.lerp(floor.connectionIntegrity, 1, 0.008);
+            floor.crackSeverity = Utils.lerp(floor.crackSeverity, Math.max(0, 1 - floor.connectionIntegrity), 0.04);
+        }
+
+        floor.failureWarning = Math.max(0, (floor.failureWarning || 0) - 0.018);
+        floor.localDebris = Math.max(0, floor.localDebris - 0.02);
+        floor.shearDrift = Utils.lerp(floor.shearDrift || 0, 0, 0.04);
+    }
+
+    joltObjectsOnFloor(floor, impulseX = 0, impulseY = 0) {
+        if (!floor) return;
+        const floorIndex = this.getFloorIndex(floor);
+        for (let obj of this.objects) {
+            if (obj.heldBy) continue;
+            const supportFloor = this.getSupportingFloor(obj);
+            const supportIndex = this.getFloorIndex(supportFloor);
+            const floorDelta = Math.abs(supportIndex - floorIndex);
+            if (floorDelta > 1) continue;
+            const attenuation = floorDelta === 0 ? 1 : 0.45;
+            obj.vx += (impulseX * attenuation) / Math.max(1, obj.mass / 18);
+            obj.vy -= (impulseY * attenuation) / Math.max(1, obj.mass / 24);
+        }
+    }
+
+    detachUpperTower(startIndex, direction = 1) {
+        if (startIndex <= 0 || startIndex >= this.floors.length) return;
+        const detachedFloors = this.floors.slice(startIndex);
+        if (detachedFloors.length === 0) return;
+
+        for (let i = 0; i < detachedFloors.length; i++) {
+            const floor = detachedFloors[i];
+            floor.isFalling = true;
+            floor.connectionIntegrity = 0;
+            floor.crackSeverity = 1;
+            floor.vy = -Utils.random(0.5, 2.5) - (i * 0.25);
+            floor.vx = direction * (2 + (i * 0.6));
+            floor.failureWarning = 1;
+        }
+
+        this.triggerShake(18, 26);
+        this.audio.play('snap', 180);
+        this.particles.emitDebris(this.towerCenterX + (direction * 40), detachedFloors[0].y + detachedFloors[0].h);
+    }
+
+    updateStructureIntegrity() {
+        for (let i = 1; i < this.floors.length; i++) {
+            const floor = this.floors[i];
+            if (floor.isFalling) continue;
+            const supportingFloor = this.floors[i - 1];
+            this.applyFloorSupportState(floor, supportingFloor);
+
+            const stressLoad = Utils.clamp(
+                (Math.abs(this.towerAngle) * 1.6) +
+                (Math.abs(this.towerAngularVelocity) * 14) +
+                ((1 - floor.supportRatio) * 1.35),
+                0,
+                1.2
+            );
+
+            if (stressLoad > 0.42) {
+                const direction = Math.sign(this.centerOfMassOffset || this.towerAngle || 1);
+                floor.applyStructureDamage((stressLoad - 0.4) * 0.0036, direction);
+            }
+
+            if (floor.connectionIntegrity < 0.82) {
+                const shearStep = ((1 - floor.connectionIntegrity) * 0.12) + ((floor.shearDrift || 0) * 0.0025);
+                floor.updatePosition(floor.x + (Math.sign(this.centerOfMassOffset || this.towerAngle || 1) * shearStep), floor.y);
+            }
+
+            if (stressLoad > 0.7 && Math.random() < 0.08) {
+                this.particles.emitDebris(floor.x + floor.w / 2, floor.y + floor.h - 12);
+            }
+
+            const shouldBreakWindows = floor.connectionIntegrity < 0.62 || floor.demolitionProgress > 0.35;
+            if (shouldBreakWindows && !floor.windowBrokenLeft && Math.random() < 0.02) floor.breakWindow('left');
+            if (shouldBreakWindows && !floor.windowBrokenRight && Math.random() < 0.02) floor.breakWindow('right');
+
+            if (floor.connectionIntegrity < 0.28 && i >= Math.max(2, this.floors.length - 3)) {
+                this.detachUpperTower(i, Math.sign(this.centerOfMassOffset || 1));
+                break;
+            }
+        }
+    }
+
     resolveObjectCollisions() {
         for (let i = 0; i < this.objects.length; i++) {
             const a = this.objects[i];
@@ -630,14 +765,8 @@ class Game {
         this.updateStatics();
 
         this.audio.play('throw'); // sound for releasing the drop
-
-        // Teleport players to the dropping floor
-        for (let p of this.players) {
-            p.x = x + w / 2 - p.w / 2 + Utils.random(-10, 10);
-            p.y = newFloor.getSurfaceYAt(p.x + p.w / 2) - p.h - 1;
-            p.vx = 0;
-            p.vy = 0;
-            this.particles.emitImpactDust(p.x + p.w / 2, p.y + p.h, 5);
+        if (this.floors.length === 3) {
+            this.ui.showFlavorText('Builders stay where they are. Maintain the tower and climb when ready.', 'relief');
         }
 
         const nextArchetype = Utils.choose(Object.values(FloorArchetypes));
@@ -671,13 +800,26 @@ class Game {
         let offset = Math.abs(cx - this.towerCenterX);
         let archetype = newFloor.dropArchetype;
         let theme = newFloor.dropTheme;
+        const supportingFloor = this.floors.length > 1 ? this.floors[this.floors.length - 2] : null;
+        const supportMetrics = this.getSupportMetrics(newFloor, supportingFloor);
 
         if (archetype.isBoss) {
             newFloor.bossDef = archetype.bossDef;
         }
 
+        newFloor.supportRatio = supportMetrics.supportRatio;
+        newFloor.connectionIntegrity = Utils.clamp(0.42 + (supportMetrics.supportRatio * 0.58), 0.12, 1);
+        newFloor.crackSeverity = Utils.clamp(1 - newFloor.connectionIntegrity, 0, 1);
+        if (supportMetrics.supportRatio < 0.8) {
+            const supportDamage = (0.8 - supportMetrics.supportRatio) * 0.35;
+            newFloor.applyStructureDamage(supportDamage, Math.sign(newFloor.x + newFloor.w / 2 - this.towerCenterX || 1));
+            this.ui.showActionCallout('BAD SUPPORT!', 'warning');
+            this.triggerShake(18, 34);
+        }
+
         if (Math.abs(offset) < 15 && this.dangerTimer === 0) {
             this.audio.play('perfect');
+            this.audio.play(`land_${newFloor.material}`);
             this.cameraDirector.doPerfectDropZoom();
             this.score += 500;
             this.towerAngle *= 0.65;
@@ -691,6 +833,7 @@ class Game {
             this.particles.emitImpactDust(cx, y + h, 50);
             this.triggerShake(15, 30);
         } else {
+            this.audio.play(`land_${newFloor.material}`);
             this.audio.play('drop', newFloor.mass);
             this.score += 100;
             this.triggerShake(12, 30);
@@ -698,11 +841,24 @@ class Game {
             this.vibrateAll(200, 0.5, 0.5);
         }
 
+        if (newFloor.mass >= 650 || supportMetrics.supportRatio < 0.9) {
+            this.meta.recordStat('heavyLandings');
+        }
+
         this.dangerTimer = 0;
 
         this.height = this.floors.length - 1;
         this.ui.updateScore(this.score, this.height);
         this.meta.recordHeight(this.height);
+        this.ui.updateGoalPanel(this.meta.getGoalSummary());
+        this.ui.updateContracts(this.meta.getContractSnapshot());
+
+        const completedContracts = this.meta.getCompletedContractsCount();
+        if (completedContracts > this.lastContractsCompleted) {
+            this.lastContractsCompleted = completedContracts;
+            this.audio.play('contract');
+            this.ui.showActionCallout('CONTRACT!', 'heroic');
+        }
 
         for (let obj of this.objects) {
             if (obj.onGround) obj.triggerBounce();
@@ -739,10 +895,12 @@ class Game {
                 this.triggerShake(10, 40);
                 this.audio.play('creak');
             } else if (evName === "Meteor Strike") {
+                const targetFloor = this.floors[Math.max(1, this.floors.length - 1)];
                 this.hazards.push(new MeteorHazard(
                     this.towerCenterX + Utils.random(-220, 220),
-                    this.floors[Math.max(1, this.floors.length - 1)].y - 520,
-                    Utils.random(-2, 2)
+                    targetFloor.y - 520,
+                    Utils.random(-2, 2),
+                    targetFloor.y + targetFloor.h - 20
                 ));
                 this.ui.showActionCallout('METEOR!', 'warning');
                 this.audio.play('meteor');
@@ -786,6 +944,22 @@ class Game {
         }
 
         this.progression.updateEnvironment();
+        if (this.progression.rainIntensity > 0.18 && this.floors.length > 0) {
+            const topFloor = this.floors[this.floors.length - 1];
+            if (Math.random() < (0.12 + this.progression.rainIntensity * 0.2)) {
+                this.particles.particles.push({
+                    x: Utils.random(topFloor.x + 20, topFloor.x + topFloor.w - 20),
+                    y: topFloor.y + topFloor.h - 24,
+                    vx: Utils.random(-0.8, 0.8),
+                    vy: Utils.random(-1.8, -0.8),
+                    life: 0.7,
+                    decay: 0.08,
+                    size: Utils.random(2, 5),
+                    color: 'rgba(117, 183, 255, 0.85)',
+                    type: 'dust'
+                });
+            }
+        }
         for (let f of this.floors) {
             if (typeof f.updateDynamicState === 'function') {
                 f.updateDynamicState(this);
@@ -871,6 +1045,8 @@ class Game {
             }
         }
 
+        this.updateStructureIntegrity();
+        this.updateStatics();
         this.dropPlayer.update();
         this.ui.updatePieceQueue(this.upcomingPieces);
 
@@ -880,7 +1056,7 @@ class Game {
             p.panicMode = this.dangerLevel >= 2;
             let state;
             if (p.isBot) {
-                p.botController.update(p, this.balance, this.towerCenterX, this.objects, this.dangerLevel);
+                p.botController.update(p, this.balance, this.towerCenterX, this.objects, this.dangerLevel, this);
                 state = p.botController.state;
             } else {
                 state = this.inputManager.getPlayerState(p.slot);
@@ -918,6 +1094,14 @@ class Game {
                 }
 
                 if (hits.collideX || hits.collideY) {
+                    if (hits.hitColliderX && hits.hitColliderX.isWindow && Math.abs(hits.impactVx) > 3.4) {
+                        hits.hitColliderX.floorRef.breakWindow(hits.hitColliderX.windowSide);
+                        obj.x += Math.sign(hits.impactVx || 1) * 12;
+                        obj.vx = hits.impactVx * 0.72;
+                        this.audio.play('snap');
+                        this.particles.emitDebris(obj.x + obj.w / 2, obj.y + obj.h / 2);
+                        continue;
+                    }
                     obj.spinVelocity *= 0.82;
                     if (hits.collideY && obj.onGround) {
                         obj.isThrown = false;
@@ -925,12 +1109,25 @@ class Game {
                         obj.triggerBounce(Utils.clamp(Math.abs(hits.impactVy) / 10, 0.55, 1.5));
                         this.addObjectImpactImpulse(obj, hits.impactVy, hits.impactVx);
                         this.particles.emitImpactDust(obj.x + obj.w / 2, obj.y + obj.h, Math.max(4, Math.floor(obj.mass / 20)));
+                        const landingMaterial = hits.groundCollider && hits.groundCollider.floorRef ? hits.groundCollider.floorRef.material : null;
+                        if (landingMaterial) this.audio.play(`land_${landingMaterial}`);
                         this.audio.play('drop', obj.mass);
+                        if (hits.groundCollider && hits.groundCollider.floorRef) {
+                            const impactFloor = hits.groundCollider.floorRef;
+                            impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 14000, 0, 0.08), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
+                            this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.18, Math.abs(hits.impactVy) * 0.12);
+                        }
 
                         for (let h of this.hazards) {
                             if (typeof h.extinguish === 'function' && !h.isExtinguished && Math.abs(obj.x - h.x) < 60 && Math.abs(obj.y - h.y) < 60) {
+                                const wasAlive = !h.isExtinguished;
                                 h.extinguish(obj.mass / 20);
                                 this.particles.emitImpactDust(h.x + h.w / 2, h.y + h.h, 10);
+                                if (wasAlive && h.isExtinguished) {
+                                    this.meta.recordStat('firesExtinguished');
+                                    this.ui.updateContracts(this.meta.getContractSnapshot());
+                                    this.ui.showActionCallout('FIRE OUT!', 'heroic');
+                                }
                             }
                         }
                     }
@@ -979,10 +1176,25 @@ class Game {
                 const wasOnGround = obj.onGround;
                 const hits = this.physics.moveAndCollide(obj, this.statics, windForce);
 
+                if (hits.hitColliderX && hits.hitColliderX.isWindow && Math.abs(hits.impactVx) > 2.4) {
+                    hits.hitColliderX.floorRef.breakWindow(hits.hitColliderX.windowSide);
+                    obj.x += Math.sign(hits.impactVx || 1) * 10;
+                    obj.vx = hits.impactVx * 0.58;
+                    this.audio.play('snap');
+                    this.particles.emitDebris(obj.x + obj.w / 2, obj.y + obj.h / 2);
+                }
+
                 if (obj.onGround && !wasOnGround) {
                     obj.triggerBounce(Utils.clamp(Math.abs(hits.impactVy) / 11, 0.4, 1.25));
                     this.addObjectImpactImpulse(obj, hits.impactVy, hits.impactVx);
+                    const landingMaterial = hits.groundCollider && hits.groundCollider.floorRef ? hits.groundCollider.floorRef.material : null;
+                    if (landingMaterial) this.audio.play(`land_${landingMaterial}`);
                     this.audio.play('drop', obj.mass);
+                    if (hits.groundCollider && hits.groundCollider.floorRef) {
+                        const impactFloor = hits.groundCollider.floorRef;
+                        impactFloor.applyStructureDamage(Utils.clamp((Math.abs(hits.impactVy) * obj.mass) / 22000, 0, 0.04), Math.sign(obj.x + obj.w / 2 - this.towerCenterX || 1));
+                        this.joltObjectsOnFloor(hits.groundCollider.floorRef, hits.impactVx * 0.1, Math.abs(hits.impactVy) * 0.08);
+                    }
                 }
 
                 if (obj.onGround && obj.restTimer > 14) {
@@ -1066,6 +1278,7 @@ class Game {
 
         if (previousDangerLevel >= 2 && this.dangerLevel <= 1) {
             this.meta.recordStat('recoveries');
+            this.ui.updateContracts(this.meta.getContractSnapshot());
             this.ui.showActionCallout('HEROIC SAVE!', 'heroic');
         }
 
@@ -1080,11 +1293,20 @@ class Game {
         this.ui.updateWeatherStates(this.progression.getWeatherState());
         const showWeather = this.meta.audioConfig ? this.meta.audioConfig.weatherEffects !== false : true;
         this.ui.setWeather(showWeather ? (this.progression.rainIntensity || 0) : 0, showWeather ? (this.progression.darkness || 0) : 0);
+        this.ui.updateGoalPanel(this.meta.getGoalSummary());
+        this.ui.updateContracts(this.meta.getContractSnapshot());
         this.ui.updateMinimap(this.floors, this.players, this.objects, this.towerCenterX, {
             horizontalOffset: this.centerOfMassOffset,
             centerX: this.centerOfMassX,
             centerY: this.centerOfMassY
         });
+
+        const completedContracts = this.meta.getCompletedContractsCount();
+        if (completedContracts > this.lastContractsCompleted) {
+            this.lastContractsCompleted = completedContracts;
+            this.audio.play('contract');
+            this.ui.showActionCallout('CONTRACT!', 'heroic');
+        }
         this.audio.updateTension(this.motionStress, this.progression.stormLevel || 0, this.progression.rainIntensity || 0);
 
         if (this.progression.lightningFlash > 0.9 && this.lastLightningFlash <= 0.9) {
@@ -1119,6 +1341,15 @@ class Game {
 
         if (this.overRotationTime > 45 && this.motionStress > 0.9) {
             this.stop();
+        }
+
+        if (!this.victoryTriggered) {
+            const targetHeight = this.meta.getGoalSummary().targetHeight;
+            const noFallingFloors = this.floors.every((floor, index) => index === 0 || !floor.isFalling);
+            if (this.height >= targetHeight && noFallingFloors && this.dangerLevel <= 1 && this.dangerTimer === 0) {
+                this.winRun();
+                return;
+            }
         }
 
         const dLevel = this.dangerTimer > 0 ? 2 : (this.motionStress > 0.45 ? 1 : 0);
@@ -1172,6 +1403,24 @@ class Game {
         ctx.scale(1 + (this.towerCompression * 0.06), 1 - (this.towerCompression * 0.16));
         ctx.transform(1, 0, this.towerAngle * 0.08, 1, 0, 0);
         ctx.translate(-this.towerCenterX, -this.canvas.height);
+
+        if (this.floors.length > 0) {
+            const foundation = this.floors[0];
+            ctx.save();
+            ctx.strokeStyle = 'rgba(138, 216, 255, 0.28)';
+            ctx.setLineDash([10, 8]);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.centerOfMassX, foundation.y + foundation.h - 8);
+            ctx.lineTo(this.centerOfMassX, this.centerOfMassY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(138, 216, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(this.centerOfMassX, foundation.y + foundation.h - 8, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
 
         for (let f of this.floors) f.draw(ctx);
         for (let h of this.hazards) h.draw(ctx);

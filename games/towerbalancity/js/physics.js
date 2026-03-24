@@ -26,9 +26,11 @@ class PhysicsEngine {
         const attemptedVX = entity.vx;
         entity.x += entity.vx;
         let collideX = false;
+        let hitColliderX = null;
         
         for (let s of statics) {
             if (Utils.checkAABB(entity, s)) {
+                hitColliderX = s;
                 if (s.isFloor && (entity.y + entity.h) <= (s.y + 10)) {
                     continue;
                 }
@@ -52,6 +54,7 @@ class PhysicsEngine {
         let collideY = false;
         let groundFriction = this.friction;
         let groundCollider = null;
+        let hitColliderY = null;
 
         const collisionsY = [];
         for (let s of statics) {
@@ -68,6 +71,7 @@ class PhysicsEngine {
                     if (!best || candidate.y < best.y) return candidate;
                     return best;
                 }, null);
+                hitColliderY = landingCollider;
                 entity.y = landingCollider.y - entity.h;
                 if (entity.restitutionY && Math.abs(attemptedVY) > (entity.bounceThreshold || 3) && !entity.isPlayer) {
                     entity.vy = -attemptedVY * entity.restitutionY;
@@ -84,6 +88,7 @@ class PhysicsEngine {
                     if (!best || (candidate.y + candidate.h) > (best.y + best.h)) return candidate;
                     return best;
                 }, null);
+                hitColliderY = headCollider;
                 entity.y = headCollider.y + headCollider.h;
                 if (entity.restitutionY && !entity.isPlayer) {
                     entity.vy = -attemptedVY * entity.restitutionY * 0.4;
@@ -105,7 +110,7 @@ class PhysicsEngine {
             if (Math.abs(entity.vx) < (entity.settleThreshold || 0.1)) entity.vx = 0;
         }
 
-        return { collideX, collideY, impactVx: attemptedVX, impactVy: attemptedVY, groundFriction, groundCollider };
+        return { collideX, collideY, impactVx: attemptedVX, impactVy: attemptedVY, groundFriction, groundCollider, hitColliderX, hitColliderY };
     }
 
     calculateMassState(floors, objects, players, towerCenterX, windForce, exaggeration = 1.12) {
@@ -116,6 +121,7 @@ class PhysicsEngine {
 
         for (let floor of floors) {
             if (!floor.isFoundation) {
+                const floorMass = floor.mass + ((floor.localDebris || 0) * 0.6);
                 let dist = (floor.x + floor.w / 2) - towerCenterX;
                 let centerX = floor.x + floor.w / 2;
                 let centerY = floor.y + floor.h / 2;
@@ -126,10 +132,10 @@ class PhysicsEngine {
                      centerX += floor.intrinsicTorqueOffset;
                 }
                 
-                totalTorque += dist * floor.mass; 
-                totalMass += floor.mass;
-                weightedX += centerX * floor.mass;
-                weightedY += centerY * floor.mass;
+                totalTorque += dist * floorMass; 
+                totalMass += floorMass;
+                weightedX += centerX * floorMass;
+                weightedY += centerY * floorMass;
             }
         }
 

@@ -32,6 +32,7 @@ class InsidePlayer {
         this.throwWindup = 0;
         this.throwQueued = false;
         this.bracing = false;
+        this.wasBracing = false;
         this.stumbleMeter = 0;
         this.stumbleLock = 0;
 
@@ -64,6 +65,9 @@ class InsidePlayer {
         }
 
         this.bracing = !!(state.bumperL || state.bumperR);
+        if (this.bracing && !this.wasBracing && this.onGround) {
+            audio.play('brace');
+        }
         const braceGrip = this.charClass.stats.braceGrip || 1.35;
         if (this.bracing && this.onGround) {
             currentSpeed *= 0.55;
@@ -124,7 +128,7 @@ class InsidePlayer {
                     this.scaleX = 1.18;
                     this.scaleY = 0.82;
                     this.stumbleLock = 18;
-                    audio.play('slide');
+                    audio.play('slip');
                 }
             } else {
                 this.stumbleMeter = Math.max(0, this.stumbleMeter - (this.bracing ? 0.18 : 0.08));
@@ -151,10 +155,9 @@ class InsidePlayer {
             this.onGround = false;
             this.jumpBuffer = 0;
             this.coyoteTimer = 0;
-            // Stretch on jump
             this.scaleX = 0.6;
             this.scaleY = 1.4;
-            audio.play('creak'); // temp jump sound
+            audio.play('jump');
         }
 
         // Grab / Drop
@@ -175,6 +178,7 @@ class InsidePlayer {
                 obj.carryLagX = 0;
                 obj.carryLagY = 0;
                 this.heldObject = null;
+                audio.play('grab');
             } else {
                 let r = this.charClass.stats.grabRange;
                 const grabBox = { x: this.x - r/2, y: this.y - 10, w: this.w + r, h: this.h + 20 };
@@ -183,6 +187,7 @@ class InsidePlayer {
                         obj.helper = this;
                         this.heldObject = obj;
                         if (game) game.ui.showActionCallout('HAND-OFF!', 'heroic');
+                        audio.play('grab');
                         break;
                     }
                     if (!obj.heldBy && Utils.checkAABB(grabBox, obj)) {
@@ -194,6 +199,7 @@ class InsidePlayer {
                         obj.spinVelocity = 0;
                         this.scaleX = 1.2; // feedback
                         this.scaleY = 0.8;
+                        audio.play('grab');
                         break;
                     }
                 }
@@ -261,11 +267,16 @@ class InsidePlayer {
             this.scaleX = 1.2 + (this.landingImpact * 0.25);
             this.scaleY = 0.82 - (this.landingImpact * 0.14);
             particles.emitImpactDust(this.x + this.w/2, this.y + this.h, 2);
+            const landingFloor = game ? game.getSupportingFloor(this) : supportFloor;
+            if (landingFloor && landingFloor.material) {
+                audio.play(`land_${landingFloor.material}`);
+            }
             if (game) {
                 game.addCharacterLandingImpulse(this, Math.abs(preCollisionVy));
             }
         }
         this.wasOnGround = this.onGround;
+        this.wasBracing = this.bracing;
 
         // Smooth scaling back to 1
         this.scaleX = Utils.lerp(this.scaleX, 1, 0.15);
@@ -473,31 +484,66 @@ class DropPlayer {
         if (this.cooldown <= 0) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
             ctx.fillRect(this.x, floorY, this.currentFloorW, 2000); // beam of light/shadow
-            
-            // Ghost outline tutorial for early drops
+
+            const topFloor = this.game.floors[this.game.floors.length - 1];
+            const highestTopY = topFloor.y;
+            const perfectX = this.game.towerCenterX - this.currentFloorW / 2;
+            const nextPiece = this.game.upcomingPieces[0];
+            const pendingInsetL = Math.max(nextPiece.wallLeft || 20, nextPiece.edgeInset || 0);
+            const pendingInsetR = Math.max(nextPiece.wallRight || 20, nextPiece.edgeInset || 0);
+            const pendingSupportX = this.x + pendingInsetL;
+            const pendingSupportW = this.currentFloorW - pendingInsetL - pendingInsetR;
+            const topSupport = topFloor.getSupportBounds();
+            const overlapLeft = Math.max(pendingSupportX, topSupport.supportX);
+            const overlapRight = Math.min(pendingSupportX + pendingSupportW, topSupport.supportX + topSupport.supportW);
+            const overlapW = Math.max(0, overlapRight - overlapLeft);
+            const windForce = this.game.progression ? this.game.progression.windForce : 0;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.currentFloorW / 2, floorY);
+            ctx.lineTo(this.x + this.currentFloorW / 2, highestTopY - this.currentFloorH - 36);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(46, 213, 115, 0.82)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(perfectX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
+
+            const rulerY = highestTopY - 18;
+            ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(this.x, rulerY);
+            ctx.lineTo(this.x + this.currentFloorW, rulerY);
+            ctx.stroke();
+
+            ctx.strokeStyle = overlapW > (pendingSupportW * 0.72) ? '#2ed573' : (overlapW > (pendingSupportW * 0.45) ? '#ffa502' : '#ff4757');
+            ctx.beginPath();
+            ctx.moveTo(overlapLeft, rulerY);
+            ctx.lineTo(overlapRight, rulerY);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = '18px "Fredoka One"';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`SUPPORT ${Math.round((overlapW / Math.max(1, pendingSupportW)) * 100)}%`, this.x + this.currentFloorW / 2, rulerY - 12);
+
+            const windArrow = windForce < -0.08 ? '<<' : (windForce > 0.08 ? '>>' : '||');
+            const windLabel = `WIND ${windArrow}`;
+            ctx.fillStyle = Math.abs(windForce) > 4 ? '#ff9f43' : '#8ad8ff';
+            ctx.fillText(windLabel, this.x + this.currentFloorW / 2, floorY - 18);
+
             if (this.game.floors.length < 5) {
-                let perfectX = this.game.towerCenterX - this.currentFloorW/2;
-                let highestTopY = this.game.floors[this.game.floors.length - 1].y;
-                
-                ctx.save();
-                ctx.strokeStyle = 'rgba(46, 213, 115, 0.8)';
-                ctx.lineWidth = 4;
-                ctx.setLineDash([10, 10]);
-                ctx.strokeRect(perfectX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
-                
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.font = '24px "Fredoka One"';
-                ctx.textAlign = 'center';
-                ctx.shadowColor = 'black';
-                ctx.shadowBlur = 4;
-                if (Math.abs(this.x - perfectX) > 25) {
-                    ctx.fillText("Aim here and Drop!", perfectX + this.currentFloorW/2, highestTopY - this.currentFloorH - 20);
-                } else {
-                    ctx.fillStyle = '#2ecc71';
-                    ctx.fillText("Perfect! DROP!", perfectX + this.currentFloorW/2, highestTopY - this.currentFloorH - 20);
-                }
-                ctx.restore();
+                ctx.fillStyle = Math.abs(this.x - perfectX) > 25 ? 'rgba(255,255,255,0.9)' : '#2ecc71';
+                ctx.fillText(Math.abs(this.x - perfectX) > 25 ? 'Aim here and Drop!' : 'Perfect! DROP!', perfectX + this.currentFloorW / 2, highestTopY - this.currentFloorH - 20);
             }
+            ctx.restore();
         }
         
         // Cab housing
@@ -513,8 +559,12 @@ class DropPlayer {
         ctx.stroke();
 
         if (this.cooldown <= 0) {
+            const nextPiece = this.game.upcomingPieces[0];
+            const previewColor = nextPiece.material === 'metal'
+                ? '#7f8fa6'
+                : (nextPiece.material === 'ice' ? '#74b9ff' : '#a97c50');
             ctx.globalAlpha = 0.9;
-            ctx.fillStyle = '#74b9ff';
+            ctx.fillStyle = previewColor;
             ctx.fillRect(this.x, floorY, this.currentFloorW, this.currentFloorH);
             ctx.globalAlpha = 1.0;
         } else {

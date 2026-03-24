@@ -1,0 +1,109 @@
+Tower Balancity
+
+Type
+- Physics-driven tower building and balance management game.
+- The code logs "Tower Panic" internally, but the folder contains the full tower-balancing city-builder style build.
+- Supports one to four participants through a mix of local inputs and bots.
+
+Core Loop
+- Choose a run type from the menu: standard, daily, or chaos.
+- Join players on the setup screen, assign builder classes, optionally add bots, choose bot difficulty, and select a project theme or use the daily contract.
+- Start the run and stack incoming floors onto the tower using the crane while builders stabilize the structure from inside.
+- Keep balance under control, manage heavy furniture and loose objects, react to hazards, and push the building toward the target height.
+- Finish contracts and reach the district goal for victory, or lose the run when the tower collapses.
+
+Run Modes
+- Standard mode is the normal contract run.
+- Daily mode generates a seeded daily challenge with a fixed project theme, target height, and contract list based on the current date.
+- Chaos mode is a harder modifier run and is locked behind XP progression.
+
+Setup And Multiplayer
+- Up to four player slots are supported.
+- Builders can join through keyboard or gamepad mappings.
+- If only one human joins, the game can fill the rest with bots.
+- Bot difficulty cycles between Rookie, Normal, and Smart.
+- Split responsibility is built into the controls:
+- Crane uses arrow keys or gamepad.
+- Builder 1 uses A and D.
+- Builder 2 uses J and L.
+- Builder 3 uses Numpad 4 and 6.
+- Gamepads and AI can replace or augment the keyboard slots.
+
+Classes
+- Classic Worker is the baseline all-round role.
+- Fast Runner trades lifting power for speed and jump.
+- Strong Lifter carries and throws heavy objects better but moves slowly.
+- Throw Expert specializes in long throws and object clearing.
+- Chaos Goblin has extreme push force and causes more worker disruption.
+- Juggernaut is heavy, stubborn, and difficult to slide.
+- Acrobat is light, quick, and highly stable on footing.
+- Several classes are progression unlocks, so the roster expands as XP rises.
+
+Project Themes
+- Modern Apartment is the balanced default.
+- Luxury High-Rise emphasizes expensive and heavy room contents.
+- Industrial Stack has stronger base stability and machinery-heavy floors.
+- Rushed Build is fragile and unstable.
+- Glass HQ is sleek but highly wind-sensitive.
+- Each theme changes structural traits, visual style, story flavor, and room composition.
+
+What Actually Happens During Play
+- Floors are spawned and dropped into the tower stack.
+- Physics, local slope, torque offsets, and object impacts affect balance instead of using a fake score-only system.
+- Builders move inside the tower, grab or throw loose objects, brace, and react to slipping, danger, and hazards.
+- Heavy landings, poor alignment, and environmental events can tip the structure into danger.
+- The balance meter, minimap, queue panel, action callouts, and weather panel all update live during the run.
+
+Contracts, XP, And Unlocks
+- Each run generates contract objectives such as perfect drops, thrown objects, recoveries, maximum height, heavy landings, and fires extinguished.
+- Completing contracts awards XP.
+- XP unlocks new classes, new story packs, penthouse floors, music content, and Chaos Mode.
+- The game tracks total runs, total XP, best medal, district clears, max height, recent history, and unlocked items in local storage.
+- A medal system evaluates run quality at the end, not just whether you won or lost.
+
+Daily Challenge System
+- Daily mode is deterministic per date.
+- The current date is hashed into a seed.
+- That seed picks a project theme, target height, and three contracts.
+- Daily results therefore stay consistent for that calendar day.
+
+Hazards And Dynamic Events
+- Fires grow over time and are affected by wind and rain.
+- Meteor hazards can punch through floors and add torque damage.
+- Rogue demolition crews can start cutting through a floor.
+- Story events add wind gusts, power outages, heavy deliveries, clear skies, rainstorms, thunderstorms, fire outbreaks, luxury expansions, party events, structural groans, meteor strikes, and demolition crew incidents.
+- Weather and darkness are real runtime systems, not just background decoration.
+
+Boss Floors And Escalation
+- The game can insert special boss floors with unique setup and update behavior.
+- Boss floors alter floor generation, hazards, and run flavor text.
+- Boss banners appear through the UI when these encounters are queued.
+
+Failure And Victory
+- Collapse is not instant from a single mistake. The game tracks danger and can enter a collapse-directed finale sequence.
+- CollapseDirector handles the dramatic fail state, including camera, object release, and structural fall logic.
+- Victory is triggered when the tower reaches the goal height and the run resolves successfully.
+- Both loss and victory screens show score, final height, XP, medal, and contract completion.
+
+UI And Presentation
+- Menu, setup, pause, options, victory, and collapse screens are all implemented.
+- The setup screen previews target height and contract expectations before the run starts.
+- The HUD shows score, queue, balance, weather, goals, and minimap.
+- Weather effects and camera shake can be disabled from options.
+- Music, SFX, and reduced-intensity settings are persisted.
+
+What Works Today
+- Full menu and run setup flow.
+- Standard, daily, and chaos run entry.
+- One-to-four player participation with bots.
+- Class selection and class-based stat differences.
+- Theme-based tower modifiers.
+- Physics-based stacking and balance tracking.
+- Contracts, XP gain, medals, unlock progression, and run history.
+- Dynamic weather and hazard spawning.
+- Boss floor insertion.
+- Minimap, balance readout, queue display, and run summary screens.
+
+Current Scope
+- This folder contains a large, feature-rich prototype with actual systems for progression, classes, hazards, seeded daily runs, and collapse simulation.
+- The game is closer to a full arcade-management builder than a simple stack-and-score toy.

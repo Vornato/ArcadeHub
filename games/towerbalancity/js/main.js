@@ -2,28 +2,29 @@
 // Entry point and state machine
 
 window.onload = () => {
-    console.log("Tower Panic Init");
+    console.log('Tower Panic Init');
 
     const canvas = document.getElementById('game-canvas');
-    
-    // Core systems
+    const projectSelector = document.getElementById('project-selector');
+
     const gamepadManager = new GamepadManager();
     const inputManager = new InputManager(gamepadManager);
     const audioSystem = new AudioSystem();
     const uiManager = new UIManager();
-    const metaManager = new MetaManager(); // Track persistent progression
+    const metaManager = new MetaManager();
     const game = new Game(canvas, inputManager, audioSystem, uiManager, metaManager);
 
     let setupActive = false;
     let assignedPlayers = 0;
     let isChaosMode = false;
-    let playerClasses = [null, 0, 0, 0]; // Index of ClassManager.getAll()
-    let botDifficulty = 1; // 0: Rookie, 1: Normal, 2: Smart
-    let lastJoinTime = 0; // Debounce joining to prevent double-joins
+    let currentMode = 'normal';
+    let activeDailyChallenge = null;
+    let playerClasses = [null, 0, 0, 0];
+    let botDifficulty = 1;
+    let lastJoinTime = 0;
     const botDiffNames = ['Rookie', 'Normal', 'Smart'];
     const allClasses = ClassManager.getAll();
 
-    // Initial config
     audioSystem.setVolumes(
         metaManager.audioConfig.master,
         metaManager.audioConfig.sfx,
@@ -32,26 +33,142 @@ window.onload = () => {
     );
     uiManager.setOptionsUI(metaManager.audioConfig);
 
-    // UI Event Binds
-    uiManager.bindEvents({
-        onPlayClicked: (chaos) => {
-            isChaosMode = chaos;
-            audioSystem.init(); // Init audio context on first user interaction
-            uiManager.showScreen('setup');
-            setupActive = true;
-            assignedPlayers = 0;
+    function getDailyChallenge() {
+        return metaManager.getDailyChallenge(game.progression.projectManager.projects);
+    }
 
-            // Clear prior assignments
-            for (let i = 0; i < 4; i++) {
-                inputManager.playerMappings[i] = null;
-                playerClasses[i] = 0;
-                uiManager.updateSetupSlot(i, false);
-                uiManager.updateClassSelector(i, allClasses[0]);
+    function updateMenuMeta() {
+        uiManager.updateMenuMeta(metaManager.getMenuSummary(), getDailyChallenge());
+        uiManager.setPlayMode('Choose a district contract.', metaManager.isChaosUnlocked());
+    }
+
+    function getPreviewGoal(projectId, isDaily = false) {
+        const project = game.progression.projectManager.projects.find(p => p.id === projectId) || game.progression.projectManager.projects[0];
+        return {
+            projectName: project.name,
+            targetHeight: metaManager.getProjectGoalHeight(project.id),
+            isDaily,
+            dailySeed: activeDailyChallenge ? activeDailyChallenge.seedKey : null,
+            completedContracts: 0,
+            totalContracts: activeDailyChallenge ? activeDailyChallenge.contracts.length : 3
+        };
+    }
+
+    function buildPreviewContracts(projectId) {
+        if (activeDailyChallenge) return activeDailyChallenge.contracts;
+        const previewProject = game.progression.projectManager.projects.find(p => p.id === projectId) || game.progression.projectManager.projects[0];
+        return metaManager.previewContracts(previewProject);
+    }
+
+    function refreshSetupPreview() {
+        const selectedProjectId = activeDailyChallenge
+            ? activeDailyChallenge.themeId
+            : ((projectSelector && projectSelector.value !== 'random') ? projectSelector.value : game.progression.projectManager.projects[0].id);
+        const goalSummary = activeDailyChallenge
+            ? {
+                projectName: activeDailyChallenge.themeName,
+                targetHeight: activeDailyChallenge.targetHeight,
+                isDaily: true,
+                dailySeed: activeDailyChallenge.seedKey,
+                completedContracts: 0,
+                totalContracts: activeDailyChallenge.contracts.length
             }
+            : getPreviewGoal(selectedProjectId, false);
+        const previewContracts = activeDailyChallenge ? activeDailyChallenge.contracts : buildPreviewContracts(selectedProjectId);
+        uiManager.updateSetupBrief(goalSummary, previewContracts);
+    }
 
-            uiManager.btnStartGame.disabled = true;
-            inputManager.onAnyInputCallback = setupInputCallback;
-        },
+    function getProjectSelection() {
+        if (activeDailyChallenge) return activeDailyChallenge.themeId;
+        if (!projectSelector) return 'random';
+        return projectSelector.value;
+    }
+
+    function getChosenClasses() {
+        return playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
+    }
+
+    function stepClassIndex(currentIndex, direction) {
+        let nextIndex = currentIndex;
+        for (let i = 0; i < allClasses.length; i++) {
+            nextIndex += direction;
+            if (nextIndex < 0) nextIndex = allClasses.length - 1;
+            if (nextIndex >= allClasses.length) nextIndex = 0;
+            if (ClassManager.isUnlocked(allClasses[nextIndex], metaManager)) {
+                return nextIndex;
+            }
+        }
+        return 0;
+    }
+
+    function resetSetupState() {
+        assignedPlayers = 0;
+        for (let i = 0; i < 4; i++) {
+            inputManager.playerMappings[i] = null;
+            playerClasses[i] = 0;
+            uiManager.updateSetupSlot(i, false);
+            uiManager.updateClassSelector(i, allClasses[0], !ClassManager.isUnlocked(allClasses[0], metaManager));
+        }
+        uiManager.btnStartGame.disabled = true;
+    }
+
+    function beginMode(mode) {
+        if (mode === 'chaos' && !metaManager.isChaosUnlocked()) {
+            audioSystem.init();
+            audioSystem.play('slide');
+            return;
+        }
+
+        currentMode = mode;
+        isChaosMode = mode === 'chaos';
+        activeDailyChallenge = mode === 'daily' ? getDailyChallenge() : null;
+
+        if (projectSelector) {
+            projectSelector.disabled = !!activeDailyChallenge;
+            if (activeDailyChallenge) {
+                projectSelector.value = activeDailyChallenge.themeId;
+            }
+        }
+
+        audioSystem.init();
+        uiManager.setPlayMode(
+            activeDailyChallenge
+                ? `Daily contract: ${activeDailyChallenge.themeName} / seed ${activeDailyChallenge.seedKey}`
+                : (isChaosMode ? 'Chaos contract: amplified worker collisions.' : 'Standard district contract.'),
+            metaManager.isChaosUnlocked()
+        );
+        uiManager.showScreen('setup');
+        setupActive = true;
+        resetSetupState();
+        refreshSetupPreview();
+        inputManager.onAnyInputCallback = setupInputCallback;
+    }
+
+    function startRun() {
+        if (assignedPlayers < 1) return;
+
+        if (assignedPlayers === 1) {
+            for (let i = 1; i < 4; i++) {
+                inputManager.playerMappings[i] = { type: 'bot' };
+            }
+            assignedPlayers = 4;
+        }
+
+        setupActive = false;
+        inputManager.onAnyInputCallback = null;
+        uiManager.showScreen('none');
+
+        for (let gpState of Object.values(gamepadManager.gamepads)) {
+            if (gpState) gpState.prevButtons = [];
+        }
+
+        const chosenClasses = getChosenClasses();
+        const projectSelection = getProjectSelection();
+        game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection, activeDailyChallenge, currentMode);
+    }
+
+    uiManager.bindEvents({
+        onPlayClicked: (mode) => beginMode(mode),
 
         onAddBotClicked: () => {
             if (assignedPlayers < 4) {
@@ -63,48 +180,22 @@ window.onload = () => {
                     uiManager.enableStartGame();
                 }
 
-                audioSystem.play('creak');
+                audioSystem.play('grab');
             }
         },
-        
+
         onBotDiffClicked: () => {
             botDifficulty = (botDifficulty + 1) % 3;
             uiManager.btnBotDiff.innerText = `Bot Difficulty: ${botDiffNames[botDifficulty]}`;
             audioSystem.play('throw');
         },
-        
-        onStartGameClicked: () => {
-            if (assignedPlayers >= 1) {
-                // If only 1 player joined and no bots were manually added, auto-spawn AI for all 3 worker slots
-                if (assignedPlayers === 1) {
-                    for (let i = 1; i < 4; i++) {
-                        inputManager.playerMappings[i] = { type: 'bot' };
-                    }
-                    assignedPlayers = 4;
-                }
 
-                setupActive = false;
-                inputManager.onAnyInputCallback = null; // Stop listening during game
-                uiManager.showScreen('none');
-                
-                // Reset all gamepad prevButtons so no stale presses survive into the first game frame
-                for (let gpState of Object.values(gamepadManager.gamepads)) {
-                    if (gpState) gpState.prevButtons = [];
-                }
-                
-                // Map class indexes to actual class objects
-                const chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
-                const projectSelection = document.getElementById('project-selector')
-                    ? document.getElementById('project-selector').value
-                    : "random";
-
-                game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection);
-            }
-        },
+        onStartGameClicked: () => startRun(),
 
         onBackClicked: () => {
             setupActive = false;
             inputManager.onAnyInputCallback = null;
+            updateMenuMeta();
             uiManager.showScreen('menu');
         },
 
@@ -112,17 +203,13 @@ window.onload = () => {
             inputManager.onAnyInputCallback = null;
             uiManager.showScreen('none');
 
-            // Reset stale gamepad state
             for (let gpState of Object.values(gamepadManager.gamepads)) {
                 if (gpState) gpState.prevButtons = [];
             }
 
-            const chosenClasses = playerClasses.map(idx => idx !== null ? allClasses[idx] : allClasses[0]);
-            const projectSelection = document.getElementById('project-selector')
-                ? document.getElementById('project-selector').value
-                : "random";
-
-            game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection);
+            const chosenClasses = getChosenClasses();
+            const projectSelection = getProjectSelection();
+            game.start(assignedPlayers, isChaosMode, chosenClasses, botDifficulty, projectSelection, activeDailyChallenge, currentMode);
         },
 
         onQuitClicked: () => {
@@ -132,6 +219,7 @@ window.onload = () => {
             uiManager.hideHUD();
             inputManager.onAnyInputCallback = null;
             setupActive = false;
+            updateMenuMeta();
             uiManager.showScreen('menu');
         },
 
@@ -159,8 +247,7 @@ window.onload = () => {
                 cameraShake: shake
             };
             metaManager.saveData();
-            
-            // Apply weather immediately if game is active
+
             if (game.isRunning) {
                 const showWeather = weather !== false;
                 uiManager.setWeather(
@@ -171,34 +258,33 @@ window.onload = () => {
         }
     });
 
-    // Handle any input during setup for player assignment
+    if (projectSelector) {
+        projectSelector.addEventListener('change', () => {
+            if (!activeDailyChallenge) refreshSetupPreview();
+        });
+    }
+
     function setupInputCallback(source) {
         if (setupActive && (Date.now() - lastJoinTime > 400)) {
             if (assignedPlayers < 4) {
-                // Check if device is already assigned to ANY slot
                 let alreadyAssigned = false;
                 for (let i = 0; i < 4; i++) {
-                    const e = inputManager.playerMappings[i];
-                    if (e && e.type === source.type && e.index === source.index) {
+                    const existing = inputManager.playerMappings[i];
+                    if (existing && existing.type === source.type && existing.index === source.index) {
                         alreadyAssigned = true;
                     }
                 }
-                
-                // If device is already assigned, update debounce shield
+
                 if (alreadyAssigned) {
                     lastJoinTime = Date.now();
                     return;
                 }
 
-                // Try assign
                 if (inputManager.assignPlayer(assignedPlayers, source)) {
                     uiManager.updateSetupSlot(assignedPlayers, true, source.type);
                     assignedPlayers++;
                     lastJoinTime = Date.now();
-                    
-                    if (assignedPlayers >= 1) {
-                        uiManager.enableStartGame();
-                    }
+                    if (assignedPlayers >= 1) uiManager.enableStartGame();
                 }
             }
         }
@@ -206,7 +292,6 @@ window.onload = () => {
 
     inputManager.onAnyInputCallback = setupInputCallback;
 
-    // Global loop for input handling outside of game
     function globalLoop() {
         inputManager.update();
 
@@ -217,23 +302,20 @@ window.onload = () => {
                         const state = inputManager.getPlayerState(i);
 
                         if (state.bumperLJustPressed) {
-                            playerClasses[i]--;
-                            if (playerClasses[i] < 0) playerClasses[i] = allClasses.length - 1;
+                            playerClasses[i] = stepClassIndex(playerClasses[i], -1);
                             uiManager.updateClassSelector(i, allClasses[playerClasses[i]]);
                             audioSystem.play('throw');
                         }
 
                         if (state.bumperRJustPressed) {
-                            playerClasses[i]++;
-                            if (playerClasses[i] >= allClasses.length) playerClasses[i] = 0;
+                            playerClasses[i] = stepClassIndex(playerClasses[i], 1);
                             uiManager.updateClassSelector(i, allClasses[playerClasses[i]]);
                             audioSystem.play('throw');
                         }
                     }
                 }
             }
-            
-            // Check for START / ESC to resume or go back in menus
+
             let anyStart = false;
             for (let i = 0; i < 4; i++) {
                 if (inputManager.isAssigned(i) && inputManager.playerMappings[i].type !== 'bot') {
@@ -241,25 +323,28 @@ window.onload = () => {
                     if (state.startJustPressed) anyStart = true;
                 }
             }
-            
+
             if (anyStart) {
                 if (!uiManager.scrPause.classList.contains('hidden')) {
                     uiManager.btnResume.click();
                 } else if (!uiManager.scrOptions.classList.contains('hidden')) {
                     uiManager.btnOptionsBack.click();
+                } else if (!uiManager.scrVictory.classList.contains('hidden')) {
+                    uiManager.btnVictoryQuit.click();
                 } else if (!uiManager.scrGameover.classList.contains('hidden')) {
                     uiManager.btnQuit.click();
                 } else if (!uiManager.scrSetup.classList.contains('hidden')) {
                     uiManager.btnBackMenu.click();
                 }
             }
-            
+
             inputManager.postUpdate();
         }
 
         requestAnimationFrame(globalLoop);
     }
-    
+
+    updateMenuMeta();
     uiManager.showScreen('menu');
     globalLoop();
 };

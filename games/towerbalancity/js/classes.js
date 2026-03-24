@@ -7,6 +7,7 @@ const CharacterClasses = [
         name: 'Classic Worker',
         icon: '👷',
         color: '#3498db',
+        unlockId: null,
         desc: 'Good all-around builder. No massive weaknesses.',
         stats: {
             speed: 4.5,
@@ -25,6 +26,7 @@ const CharacterClasses = [
         name: 'Fast Runner',
         icon: '🏃',
         color: '#e74c3c',
+        unlockId: 'class_runner',
         desc: 'Exceptional speed, but struggles heavily with lifting.',
         stats: {
             speed: 6.5,
@@ -43,6 +45,7 @@ const CharacterClasses = [
         name: 'Strong Lifter',
         icon: '🏋️',
         color: '#2ecc71',
+        unlockId: 'class_heavy',
         desc: 'Can carry Pianos easily, but moves like a turtle.',
         stats: {
             speed: 3.2,
@@ -61,6 +64,7 @@ const CharacterClasses = [
         name: 'Throw Expert',
         icon: '🎯',
         color: '#9b59b6',
+        unlockId: 'class_thrower',
         desc: 'Can chuck objects ridiculous distances out of windows.',
         stats: {
             speed: 4.0,
@@ -79,6 +83,7 @@ const CharacterClasses = [
         name: 'Chaos Goblin',
         icon: '😈',
         color: '#e67e22',
+        unlockId: 'class_chaos',
         desc: 'Pushes everyone off the edge. Throws are wild.',
         stats: {
             speed: 5.0,
@@ -97,6 +102,7 @@ const CharacterClasses = [
         name: 'Juggernaut',
         icon: 'JUG',
         color: '#f39c12',
+        unlockId: 'class_juggernaut',
         desc: 'Huge mass and push force. Slow, stubborn, hard to slide.',
         stats: {
             speed: 2.8,
@@ -115,6 +121,7 @@ const CharacterClasses = [
         name: 'Acrobat',
         icon: 'ACR',
         color: '#55efc4',
+        unlockId: 'class_acrobat',
         desc: 'Low mass, fast feet, high jump, and surprisingly good footing.',
         stats: {
             speed: 6.2,
@@ -136,5 +143,12 @@ class ClassManager {
     }
     static getAll() {
         return CharacterClasses;
+    }
+    static isUnlocked(classData, metaManager) {
+        if (!classData || !classData.unlockId) return true;
+        return !!(metaManager && metaManager.isUnlocked(classData.unlockId));
+    }
+    static getUnlocked(metaManager) {
+        return CharacterClasses.filter(c => this.isUnlocked(c, metaManager));
     }
 }

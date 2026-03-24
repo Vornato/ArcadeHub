@@ -82,6 +82,14 @@ class Floor {
         this.seesawVelocity = 0;
         this.material = this.resolveMaterial();
         this.demolitionProgress = 0;
+        this.supportRatio = isFoundation ? 1 : 0.94;
+        this.connectionIntegrity = 1;
+        this.crackSeverity = 0;
+        this.shearDrift = 0;
+        this.localDebris = 0;
+        this.windowBrokenLeft = false;
+        this.windowBrokenRight = false;
+        this.failureWarning = 0;
 
         const winTop = 40;
         const winH = 80;
@@ -177,10 +185,50 @@ class Floor {
             this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y + this.winTop + this.winH, w: this.wallR, h: this.h - this.winTop - this.winH - 20 });
             this.colliders.push({ x: this.x + this.w - this.wallR, y: this.y, w: this.wallR, h: this.winTop });
 
+            if (!this.windowBrokenLeft) {
+                this.colliders.push({
+                    x: this.x + 2,
+                    y: this.y + this.winTop + 4,
+                    w: Math.max(10, this.wallL - 4),
+                    h: this.winH - 8,
+                    isWindow: true,
+                    floorRef: this,
+                    windowSide: 'left'
+                });
+            }
+
+            if (!this.windowBrokenRight) {
+                this.colliders.push({
+                    x: this.x + this.w - this.wallR + 2,
+                    y: this.y + this.winTop + 4,
+                    w: Math.max(10, this.wallR - 4),
+                    h: this.winH - 8,
+                    isWindow: true,
+                    floorRef: this,
+                    windowSide: 'right'
+                });
+            }
+
             if (this.archetype.centerPillar) {
                 this.colliders.push({ x: this.x + this.w / 2 - 15, y: this.y, w: 30, h: this.h - 20 });
             }
         }
+    }
+
+    breakWindow(side) {
+        if (side === 'left') this.windowBrokenLeft = true;
+        if (side === 'right') this.windowBrokenRight = true;
+        this.failureWarning = 1;
+        this.rebuildColliders();
+    }
+
+    applyStructureDamage(amount, direction = 0) {
+        const damage = Utils.clamp(amount, 0, 1);
+        this.connectionIntegrity = Utils.clamp(this.connectionIntegrity - damage, 0, 1);
+        this.crackSeverity = Math.max(this.crackSeverity, 1 - this.connectionIntegrity);
+        this.localDebris = Math.min(260, this.localDebris + (damage * 90));
+        this.shearDrift += direction * damage * 16;
+        this.failureWarning = 1;
     }
 
     updateDynamicState(game) {
@@ -382,6 +430,23 @@ class Floor {
             ctx.fillRect(this.x + this.w - this.wallR + 4, this.y + 18, Math.max(8, this.wallR - 8), 56);
         }
 
+        if (!this.isFoundation) {
+            const leftGlassX = this.x + 4;
+            const rightGlassX = this.x + this.w - this.wallR + 4;
+            const glassW = Math.max(8, this.wallL - 8);
+            const glassH = this.winH - 8;
+            const glassY = this.y + this.winTop + 4;
+
+            if (!this.windowBrokenLeft) {
+                ctx.fillStyle = 'rgba(162, 223, 255, 0.18)';
+                ctx.fillRect(leftGlassX, glassY, glassW, glassH);
+            }
+            if (!this.windowBrokenRight) {
+                ctx.fillStyle = 'rgba(162, 223, 255, 0.18)';
+                ctx.fillRect(rightGlassX, glassY, glassW, glassH);
+            }
+        }
+
         if (this.archetype.centerPillar) {
             const pillarGrad = ctx.createLinearGradient(this.x + this.w / 2, this.y, this.x + this.w / 2, this.y + this.h);
             pillarGrad.addColorStop(0, Utils.adjustColor(this.baseColor, 20));
@@ -437,6 +502,45 @@ class Floor {
             for (let i = 0; i < 5; i++) {
                 ctx.fillRect(scarX - 6 + (i * 3), this.y + 18 + (i * 10), 14, 2);
             }
+        }
+
+        if (this.localDebris > 0) {
+            ctx.fillStyle = 'rgba(90, 73, 61, 0.42)';
+            const debrisWidth = Math.min(innerW - 16, 24 + this.localDebris * 0.35);
+            ctx.fillRect(innerX + 8, this.y + this.h - 20, debrisWidth, 10);
+        }
+
+        const damageLevel = Utils.clamp(Math.max(this.crackSeverity, 1 - this.connectionIntegrity, this.demolitionProgress), 0, 1);
+        if (damageLevel > 0.04) {
+            ctx.strokeStyle = `rgba(255, ${Math.round(Utils.lerp(255, 90, damageLevel))}, 90, ${0.18 + (damageLevel * 0.5)})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(innerX + 18, this.y + 18);
+            ctx.lineTo(innerX + (innerW * 0.34), this.y + 32 + (damageLevel * 8));
+            ctx.lineTo(innerX + (innerW * 0.26), this.y + 50 + (damageLevel * 6));
+            ctx.moveTo(innerX + (innerW * 0.64), this.y + 16);
+            ctx.lineTo(innerX + (innerW * 0.52), this.y + 34 + (damageLevel * 8));
+            ctx.lineTo(innerX + (innerW * 0.68), this.y + 58 + (damageLevel * 8));
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(255,255,255,${0.08 + (damageLevel * 0.16)})`;
+            ctx.strokeRect(innerX + 4, this.y + 10, innerW - 8, this.h - 28);
+        }
+
+        if (this.windowBrokenLeft || this.windowBrokenRight) {
+            ctx.strokeStyle = 'rgba(216, 236, 255, 0.5)';
+            ctx.lineWidth = 1.5;
+            const drawShards = (x, y, w, h) => {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + w, y + h * 0.2);
+                ctx.lineTo(x + w * 0.25, y + h);
+                ctx.moveTo(x + w * 0.7, y);
+                ctx.lineTo(x + w * 0.38, y + h);
+                ctx.stroke();
+            };
+            if (this.windowBrokenLeft) drawShards(this.x + 4, this.y + this.winTop + 4, Math.max(8, this.wallL - 8), this.winH - 8);
+            if (this.windowBrokenRight) drawShards(this.x + this.w - this.wallR + 4, this.y + this.winTop + 4, Math.max(8, this.wallR - 8), this.winH - 8);
         }
         ctx.restore();
     }

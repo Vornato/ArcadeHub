@@ -144,6 +144,33 @@ class AudioSystem {
         let intensity = this.reducedIntensity ? 0.5 : 1.0;
         
         switch(soundName) {
+            case 'jump':
+                let j = createSynth('triangle');
+                j.osc.frequency.setValueAtTime(220, now);
+                j.osc.frequency.linearRampToValueAtTime(480, now + 0.12);
+                j.gain.gain.setValueAtTime(0.14 * intensity, now);
+                j.gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                j.osc.start(now); j.osc.stop(now + 0.12);
+                break;
+
+            case 'grab':
+                let g = createSynth('square');
+                g.osc.frequency.setValueAtTime(280, now);
+                g.osc.frequency.linearRampToValueAtTime(180, now + 0.08);
+                g.gain.gain.setValueAtTime(0.12 * intensity, now);
+                g.gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                g.osc.start(now); g.osc.stop(now + 0.08);
+                break;
+
+            case 'brace':
+                let br = createSynth('sawtooth');
+                br.osc.frequency.setValueAtTime(140, now);
+                br.osc.frequency.linearRampToValueAtTime(90, now + 0.12);
+                br.gain.gain.setValueAtTime(0.08 * intensity, now);
+                br.gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                br.osc.start(now); br.osc.stop(now + 0.12);
+                break;
+
             case 'drop': // generic floor or object drop
                 let d = createSynth('sine');
                 let baseFreq = Math.max(30, 200 - mass); 
@@ -195,6 +222,16 @@ class AudioSystem {
                 s.gain.gain.setValueAtTime(0.05 * intensity, now);
                 s.gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
                 s.osc.start(now); s.osc.stop(now + 0.2);
+                break;
+
+            case 'slip':
+                this.playNoise(now, 0.12, 0.06 * intensity);
+                let sl = createSynth('triangle');
+                sl.osc.frequency.setValueAtTime(520, now);
+                sl.osc.frequency.linearRampToValueAtTime(180, now + 0.14);
+                sl.gain.gain.setValueAtTime(0.1 * intensity, now);
+                sl.gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+                sl.osc.start(now); sl.osc.stop(now + 0.14);
                 break;
 
             case 'rope':
@@ -253,6 +290,52 @@ class AudioSystem {
                 pk.gain.gain.setValueAtTime(0.1 * intensity, now);
                 pk.gain.gain.linearRampToValueAtTime(0, now + 0.1);
                 pk.osc.start(now); pk.osc.stop(now + 0.1);
+                break;
+
+            case 'land_wood':
+                let lw = createSynth('triangle');
+                lw.osc.frequency.setValueAtTime(140, now);
+                lw.osc.frequency.exponentialRampToValueAtTime(50, now + 0.16);
+                lw.gain.gain.setValueAtTime(0.12 * intensity, now);
+                lw.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+                lw.osc.start(now); lw.osc.stop(now + 0.16);
+                break;
+
+            case 'land_metal':
+                let lm = createSynth('square');
+                lm.osc.frequency.setValueAtTime(220, now);
+                lm.osc.frequency.exponentialRampToValueAtTime(90, now + 0.18);
+                lm.gain.gain.setValueAtTime(0.11 * intensity, now);
+                lm.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                lm.osc.start(now); lm.osc.stop(now + 0.18);
+                break;
+
+            case 'land_ice':
+                let li = createSynth('sine');
+                li.osc.frequency.setValueAtTime(360, now);
+                li.osc.frequency.linearRampToValueAtTime(140, now + 0.12);
+                li.gain.gain.setValueAtTime(0.08 * intensity, now);
+                li.gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                li.osc.start(now); li.osc.stop(now + 0.12);
+                break;
+
+            case 'contract':
+                let ct = createSynth('triangle');
+                ct.osc.frequency.setValueAtTime(620, now);
+                ct.osc.frequency.setValueAtTime(780, now + 0.08);
+                ct.gain.gain.setValueAtTime(0.18 * intensity, now);
+                ct.gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+                ct.osc.start(now); ct.osc.stop(now + 0.22);
+                break;
+
+            case 'victory':
+                let v = createSynth('triangle');
+                v.osc.frequency.setValueAtTime(392, now);
+                v.osc.frequency.setValueAtTime(523.25, now + 0.12);
+                v.osc.frequency.setValueAtTime(659.25, now + 0.24);
+                v.gain.gain.setValueAtTime(0.22 * intensity, now);
+                v.gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                v.osc.start(now); v.osc.stop(now + 0.5);
                 break;
 
             case 'crash':

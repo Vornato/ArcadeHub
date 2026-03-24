@@ -74,6 +74,20 @@
                 <div id="queue-tooltip" class="queue-tooltip">Stable starter floor.</div>
             </div>
 
+            <div id="run-goal-panel" class="glass-panel">
+                <div class="queue-title">DISTRICT GOAL</div>
+                <div id="goal-project" class="goal-title">Modern Apartment</div>
+                <div id="goal-height" class="goal-height">Clear 48m</div>
+                <div id="goal-seed" class="goal-seed">Standard Contract</div>
+            </div>
+
+            <div id="contract-panel" class="glass-panel">
+                <div class="queue-title">ACTIVE CONTRACTS</div>
+                <div id="contract-0" class="contract-entry">---</div>
+                <div id="contract-1" class="contract-entry">---</div>
+                <div id="contract-2" class="contract-entry">---</div>
+            </div>
+
             <!-- Flavor Text Toast -->
             <div id="flavor-toast" class="glass-panel hidden">
                 <p id="flavor-text">flavor text</p>
@@ -94,8 +108,17 @@
                 <div class="menu-content glass-panel">
                     <h1 class="logo-text">TOWER <br><span class="panic-text">PANIC</span></h1>
                     <p class="subtitle">A Chaotic Co-Op Balancing Act</p>
+                    <div id="menu-meta" class="glass-panel">
+                        <div class="menu-meta-row"><span>XP</span><strong id="menu-xp">0</strong></div>
+                        <div class="menu-meta-row"><span>Best Height</span><strong id="menu-best">0m</strong></div>
+                        <div class="menu-meta-row"><span>District Clears</span><strong id="menu-clears">0</strong></div>
+                        <div class="menu-meta-row"><span>Best Medal</span><strong id="menu-best-medal">NONE</strong></div>
+                        <div class="menu-meta-row"><span>Next Unlock</span><strong id="menu-next-unlock">All systems online</strong></div>
+                        <div class="menu-meta-row"><span>Daily Seed</span><strong id="menu-daily-seed">---</strong></div>
+                    </div>
                     <div class="menu-buttons" style="display: flex; flex-direction: column; gap: 15px; margin-top: 30px;">
                         <button id="btn-play" class="btn-success" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (NORMAL)</button>
+                        <button id="btn-daily" class="btn-primary" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (DAILY)</button>
                         <button id="btn-chaos" class="btn-primary" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (CHAOS)</button>
                         <button id="btn-options" class="btn-secondary" style="font-size: 1.2rem; padding: 10px 30px;">OPTIONS</button>
                     </div>
@@ -106,7 +129,8 @@
             <div id="screen-setup" class="screen hidden">
                 <div class="setup-content glass-panel">
                     <h2>Join the Game</h2>
-                    <p style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Crane: Arrow Keys/Gamepad | Builder: A/D/Gamepad</p>
+                    <p id="setup-mode-label" style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Standard district contract.</p>
+                    <p style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Crane: Arrows/Enter | Builder 1: A/D | Builder 2: J/L | Builder 3: Numpad 4/6 | Gamepads and bots supported</p>
                     <div class="setup-grid">
                         <div class="player-slot p1" id="slot-1">
                             <div class="avatar-preview">🏗️</div>
@@ -121,7 +145,7 @@
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
                             </div>
-                            <p class="status">A/D keys or Gamepad to join...</p>
+                            <p class="status">J/L keys or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
                         <div class="player-slot p3" id="slot-3">
@@ -131,7 +155,7 @@
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
                             </div>
-                            <p class="status">A/D keys or Gamepad to join...</p>
+                            <p class="status">Numpad 4/6 or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
                         <div class="player-slot p4" id="slot-4">
@@ -144,6 +168,11 @@
                             <p class="status">A/D keys or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
+                    </div>
+                    <div id="setup-contract-brief" class="setup-brief glass-panel">
+                        <div class="queue-title">RUN BRIEF</div>
+                        <div id="setup-goal-height">Clear 48m</div>
+                        <div id="setup-contracts">Contracts load on run start.</div>
                     </div>
                     <div class="setup-controls">
                         <button id="btn-add-bot" class="btn-primary">Add AI Bot (+)</button>
@@ -184,10 +213,51 @@
                             <span class="stat-label">Tower XP</span>
                             <span id="final-xp" class="stat-value">0</span>
                         </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Medal</span>
+                            <span id="final-medal" class="stat-value">NONE</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Contracts</span>
+                            <span id="final-contracts" class="stat-value">0/3</span>
+                        </div>
                     </div>
                     <div class="gameover-controls">
                         <button id="btn-restart" class="btn-success">Restart Run</button>
                         <button id="btn-quit" class="btn-secondary">Back to Menu</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="screen-victory" class="screen hidden">
+                <div class="gameover-content glass-panel">
+                    <h2>District Cleared</h2>
+                    <p id="victory-epitaph" class="epitaph">The tower survived long enough to count.</p>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <span class="stat-label">Final Score</span>
+                            <span id="victory-score" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Final Height</span>
+                            <span id="victory-height" class="stat-value">0m</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Tower XP</span>
+                            <span id="victory-xp" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Medal</span>
+                            <span id="victory-medal" class="stat-value">NONE</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Contracts</span>
+                            <span id="victory-contracts" class="stat-value">0/3</span>
+                        </div>
+                    </div>
+                    <div class="gameover-controls">
+                        <button id="btn-victory-restart" class="btn-success">Build Again</button>
+                        <button id="btn-victory-quit" class="btn-secondary">Back to Menu</button>
                     </div>
                 </div>
             </div>

@@ -1,0 +1,114 @@
+TwistedBlur
+
+Type
+- Local multiplayer combat racing game built on an HTML5 canvas.
+- Supports split-screen play, AI drivers, pickups, arcade vehicle physics, destructible props, and multiple match types.
+
+Important Current State
+- The code is ahead of the README.
+- The current implementation defines 10 playable vehicles, 7 levels, and 5 match modes.
+- One of the active modes is Drift Attack, which replaces the older "4 modes only" description in the README.
+
+Core Loop
+- Move from the title screen into the lobby flow.
+- Join human players through keyboard schemes or gamepads.
+- Choose each participant's vehicle.
+- Pick a mode and a compatible level.
+- Start the match and either race, fight, drift for score, or simply survive depending on the mode.
+- Use boost, the basic gun, and pickup-based special weapons while navigating hazards, ramps, and off-road penalties.
+
+Player Counts And Views
+- Supports 1 to 4 local human players.
+- Split-screen layouts adapt to player count:
+- 1 player uses a full-screen camera.
+- 2 players use a side-by-side or stacked split depending on aspect.
+- 3 players use a wide top view plus two lower panes.
+- 4 players use four quadrants.
+- AI fill is supported and bot difficulty can be adjusted.
+
+Current Match Modes
+- Combat Race: three-lap race with combat, checkpoints, respawns, and a finish ranking.
+- Arena Deathmatch: kill-target or timer-based arena combat with respawns.
+- Survival: no-respawn elimination mode where survival time decides the result.
+- Drift Attack: bank drift score and near-miss style momentum before the timer expires.
+- Quick Battle: short, fast party-combat round with kills and time pressure.
+
+Current Vehicle Roster
+- Vector Lynx
+- Iron Jackal
+- Nova Riot
+- Glacier Maw
+- Ion Viper
+- Grim Hauler
+- Solar Fang
+- Riot Jackal
+- Night Marshal
+- Vanta Razor
+- Each vehicle definition carries its own speed, acceleration, handling, armor, traction, mass, radius, and boost capacity values.
+
+Current Level Roster
+- Neon City Circuit
+- Desert Highway Loop
+- Whiteout Run
+- Iron Basin
+- Skyline Shatter
+- Voltage Shipyards
+- Eclipse Vault
+- Levels are tagged as race or arena maps, and the mode picker filters available maps by compatibility.
+
+Driving And Physics
+- Vehicles use an arcade handling model instead of rigid-body simulation.
+- Core systems include throttle, braking, steering, traction, drift state, boost usage, airborne time, ramp jumps, body roll, body pitch, and landing handling.
+- Surface sampling changes traction and speed based on road, off-road, slow zones, and boost pads.
+- Race-like modes use checkpoints and lap counters.
+- Respawn logic places vehicles back near recent checkpoints or proper arena spawn points.
+
+Combat And Pickups
+- Every vehicle has a base firing system plus a pickup-driven special weapon slot.
+- Pickup and weapon definitions currently include Rockets, Homing Missile, Mines, EMP Burst, Shockwave, Shield, Rail Lance, Flak Burst, Arc Net, and Repair.
+- The weapon system handles projectile travel, mines, homing logic, EMP shocks, shield activation, line weapons, splash effects, and prop damage.
+- Pickups are spawned from weighted tables and level-specific pickup points.
+
+Hazards And Track Features
+- Levels can contain boost pads, ramps, shortcut paths, pulse hazards, laser walls, damage zones, sand or slow zones, and static obstacles.
+- Destructible props are placed per level and feed into weapon hit logic and effect systems.
+- Arena levels are more combat-dense, while race levels emphasize checkpoints, routes, and shortcut risk.
+
+Bots
+- Three bot difficulty presets exist: Rookie, Street, and Ace.
+- Bot AI changes throttle quality, aim quality, aggression, recovery, chase logic, and boost behavior.
+- Bots choose between racing lines, pickups, attacks, and survival behavior based on mode.
+
+Scoring And Win Logic
+- Combat Race finishes by lap completion and race placement.
+- Arena Deathmatch and Quick Battle resolve from kill target or timer.
+- Survival resolves by last survivor or best survival time.
+- Drift Attack banks drift score, combo value, and clean-exit bonuses before the timer ends.
+- Match results are rendered through a dedicated results phase, not a one-line alert.
+
+Controls
+- Gamepad driving includes steer, throttle, brake/reverse, fire, special, boost, look-back, and pause.
+- Multiple keyboard schemes are implemented for local testing so several humans can play on one machine.
+- Pause state, results flow, and menu navigation are all handled in the same codebase.
+
+Presentation
+- Each human gets a dedicated camera and HUD.
+- The UI handles title screen, lobby, pause screen, and results.
+- Minimap framing, announcer messaging, speed effects, smoke, sparks, shockwaves, and explosions are implemented.
+- Audio includes placeholder synth music plus engine-state and SFX hooks.
+
+What Works Today
+- Title and lobby flow.
+- Vehicle selection.
+- Gamepad and keyboard join flow.
+- Split-screen camera layouts for 1 through 4 humans.
+- AI racers and fighters.
+- 5 real match modes.
+- 7 real maps.
+- Pickup spawning and special weapon use.
+- Arcade driving with boost, drifts, ramps, airborne behavior, and respawns.
+- Pause and result transitions.
+
+Current Scope
+- This is already a substantial local multiplayer game, not a shell.
+- The strongest implemented systems are the mode-aware race/combat rules, the vehicle physics layer, and the split-screen support.
