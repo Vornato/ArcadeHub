@@ -467,8 +467,16 @@ body[data-scene-state="paused"] .vote-card {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.vote-readout[data-player-count="1"] {
+  grid-template-columns: 1fr;
+}
+
 .input-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.input-grid[data-player-count="1"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .choice-card,
@@ -618,10 +626,20 @@ body[data-scene-state="paused"] .vote-card {
   box-shadow: 0 0 0 1px rgba(224, 189, 115, 0.26);
 }
 
+.choice-vote.is-device-assigned {
+  border-style: dashed;
+  background: rgba(9, 12, 16, 0.92);
+  color: var(--text-soft);
+}
+
 .choice-vote:disabled {
   cursor: default;
   opacity: 0.6;
   transform: none;
+}
+
+.choice-vote.is-device-assigned:disabled {
+  opacity: 0.82;
 }
 
 .vote-panel {
@@ -771,6 +789,17 @@ body[data-scene-state="paused"] .vote-card {
   gap: 6px;
 }
 
+.menu-setup-panel {
+  display: grid;
+  gap: 16px;
+  min-width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    rgba(10, 13, 17, 0.9);
+}
+
 .menu-selected-title {
   margin: 0;
   font-family: Baskerville, "Palatino Linotype", "Book Antiqua", Georgia, serif;
@@ -782,6 +811,79 @@ body[data-scene-state="paused"] .vote-card {
   margin: 0;
   color: var(--text-soft);
   max-width: 58ch;
+}
+
+.setup-group,
+.setup-field {
+  display: grid;
+  gap: 10px;
+}
+
+.setup-label {
+  margin: 0;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+}
+
+.setup-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-chip {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 10, 13, 0.72);
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.setup-chip:hover,
+.setup-chip:focus-visible,
+.setup-select:hover,
+.setup-select:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.setup-chip.is-selected {
+  border-color: rgba(224, 189, 115, 0.76);
+  background:
+    linear-gradient(180deg, rgba(224, 189, 115, 0.22), rgba(74, 52, 23, 0.22)),
+    rgba(14, 15, 12, 0.94);
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.setup-select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 8, 11, 0.82);
+  color: var(--text-main);
+  font: inherit;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.menu-setup-status {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.menu-setup-status.is-error {
+  color: #f0b2b2;
 }
 
 .overlay-actions {
@@ -809,6 +911,12 @@ body[data-scene-state="paused"] .vote-card {
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.primary-button:disabled {
+  opacity: 0.54;
+  cursor: default;
+  transform: none;
 }
 
 .screen-panel > .primary-button:only-of-type {
@@ -899,6 +1007,11 @@ code {
   .menu-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .menu-setup-panel,
+  .setup-grid {
+    grid-template-columns: 1fr;
   }
 
   .screen-choice-overlay {

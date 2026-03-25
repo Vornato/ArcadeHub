@@ -485,6 +485,18 @@ const CLUB_ENDING_WEIGHTS = {
   "scene 14c": { denial: 1 }
 };
 
+const DEVICE_OPTIONS = ["keyboard", "gamepad1", "gamepad2"];
+const DEVICE_LABELS = {
+  keyboard: "Keyboard",
+  gamepad1: "Gamepad 1",
+  gamepad2: "Gamepad 2"
+};
+const GAMEPAD_OPTION_LABELS = { 1: "X", 2: "Y", 3: "B" };
+const PLAYER_KEYBOARD_LABELS = {
+  1: { 1: "1", 2: "2", 3: "3" },
+  2: { 1: "J", 2: "K", 3: "L" }
+};
+
 const video = document.getElementById("scene-video");
 const appSeasonLabel = document.getElementById("app-season-label");
 const sceneIdLabel = document.getElementById("scene-id");
@@ -503,8 +515,21 @@ const loadingText = document.getElementById("loading-text");
 const choiceList = document.getElementById("choice-list");
 const decisionFeed = document.getElementById("decision-feed");
 const focusFeed = document.getElementById("focus-feed");
+const inputGrid = document.querySelector(".input-grid");
+const playerOneInputCard = document.getElementById("player-1-input-card");
+const playerOneInputLabel = document.getElementById("player-1-input-label");
+const playerOneInputCopy = document.getElementById("player-1-input-copy");
+const playerTwoInputCard = document.getElementById("player-2-input-card");
+const playerTwoInputLabel = document.getElementById("player-2-input-label");
+const playerTwoInputCopy = document.getElementById("player-2-input-copy");
+const mouseInputCopy = document.getElementById("mouse-input-copy");
 const votePanel = document.getElementById("vote-panel");
+const voteReadout = document.querySelector(".vote-readout");
+const playerOneVoteCard = document.getElementById("player-1-vote-card");
+const playerOneVoteLabel = document.getElementById("player-1-vote-label");
 const playerOneVote = document.getElementById("player-1-vote");
+const playerTwoVoteCard = document.getElementById("player-2-vote-card");
+const playerTwoVoteLabel = document.getElementById("player-2-vote-label");
 const playerTwoVote = document.getElementById("player-2-vote");
 const decisionStatus = document.getElementById("decision-status");
 const controlHint = document.getElementById("control-hint");
@@ -513,6 +538,12 @@ const menuOverlayLabel = document.getElementById("menu-overlay-label");
 const menuCopy = document.getElementById("menu-copy");
 const menuSelectedTitle = document.getElementById("menu-selected-title");
 const menuSelectedCopy = document.getElementById("menu-selected-copy");
+const playerCountOneButton = document.getElementById("player-count-1");
+const playerCountTwoButton = document.getElementById("player-count-2");
+const playerOneDeviceSelect = document.getElementById("player-1-device");
+const playerTwoDeviceField = document.getElementById("player-2-device-field");
+const playerTwoDeviceSelect = document.getElementById("player-2-device");
+const menuSetupStatus = document.getElementById("menu-setup-status");
 const episodeCards = Array.from(document.querySelectorAll(".episode-card"));
 const pauseScreen = document.getElementById("pause-screen");
 const pauseMessage = document.getElementById("pause-message");
@@ -530,6 +561,10 @@ const retryButton = document.getElementById("retry-button");
 
 const state = {
   selectedEpisodeId: "detective",
+  playerSetup: {
+    count: 1,
+    assignments: { 1: "keyboard", 2: "gamepad1" }
+  },
   currentSceneId: null,
   episodeMindState: {
     surrender: 0,
@@ -552,7 +587,6 @@ const state = {
   isPaused: false,
   pauseWasPlaying: false,
   resumePlaybackOnUnpause: false,
-  gamepadAssignments: { 1: null, 2: null },
   gamepadSnapshot: {},
   gamepadSignature: "",
   lastInputMethod: "mouse"
@@ -634,6 +668,236 @@ function getChoiceText(choice) {
   }
 
   return choice.text || `Option ${choice.key}`;
+}
+
+function getActivePlayers() {
+  return state.playerSetup.count === 2 ? [1, 2] : [1];
+}
+
+function isPlayerActive(player) {
+  return getActivePlayers().includes(player);
+}
+
+function getAssignedDevice(player) {
+  return state.playerSetup.assignments[player] || "keyboard";
+}
+
+function isGamepadDevice(device) {
+  return typeof device === "string" && device.startsWith("gamepad");
+}
+
+function getGamepadSlot(device) {
+  if (!isGamepadDevice(device)) {
+    return null;
+  }
+
+  return Number(device.replace("gamepad", ""));
+}
+
+function getDeviceLabel(device) {
+  return DEVICE_LABELS[device] || "Unknown Device";
+}
+
+function getPlayerDeviceLabel(player) {
+  return `Player ${player} • ${getDeviceLabel(getAssignedDevice(player))}`;
+}
+
+function getGamepadByDevice(device) {
+  const slot = getGamepadSlot(device);
+  if (!slot) {
+    return null;
+  }
+
+  return getConnectedGamepads()[slot - 1] || null;
+}
+
+function isDeviceConnected(device) {
+  if (device === "keyboard") {
+    return true;
+  }
+
+  return Boolean(getGamepadByDevice(device));
+}
+
+function getKeyboardPlayer() {
+  return getActivePlayers().find((player) => getAssignedDevice(player) === "keyboard") || null;
+}
+
+function canMouseVoteForPlayer(player) {
+  return isPlayerActive(player) && getAssignedDevice(player) === "keyboard";
+}
+
+function getChoiceBadgeText(player, choiceKey) {
+  const device = getAssignedDevice(player);
+
+  if (device === "keyboard") {
+    return `P${player} KB ${PLAYER_KEYBOARD_LABELS[player][choiceKey]}`;
+  }
+
+  return `P${player} G${getGamepadSlot(device)} ${GAMEPAD_OPTION_LABELS[choiceKey]}`;
+}
+
+function getKeyboardInstruction(player) {
+  if (player === 1) {
+    return "Keyboard: 1 / 2 / 3 or A / D then W.";
+  }
+
+  return "Keyboard: J / K / L, Numpad 1 / 2 / 3, or arrows then Enter.";
+}
+
+function getGamepadInstruction(device) {
+  return `${getDeviceLabel(device)}: X = 1, Y = 2, B = 3, Left / Right changes focus, A confirms, Start pauses.`;
+}
+
+function getPlayerInputDescription(player) {
+  const device = getAssignedDevice(player);
+  const connectionNote = isDeviceConnected(device) ? "" : ` ${getDeviceLabel(device)} is not connected.`;
+
+  if (device === "keyboard") {
+    return `${getKeyboardInstruction(player)} Mouse clicks also vote for this player.${connectionNote}`;
+  }
+
+  return `${getGamepadInstruction(device)}${connectionNote}`;
+}
+
+function getMouseInstruction() {
+  const keyboardPlayer = getKeyboardPlayer();
+
+  if (!keyboardPlayer) {
+    return "Mouse voting is offline because no active player is assigned Keyboard.";
+  }
+
+  return `Mouse is mapped to Player ${keyboardPlayer}. Click that player's vote button under a choice to lock instantly.`;
+}
+
+function getPlayerSetupValidation() {
+  const activePlayers = getActivePlayers();
+  const devices = activePlayers.map((player) => getAssignedDevice(player));
+  const duplicates = new Set(devices).size !== devices.length;
+
+  if (duplicates) {
+    return {
+      valid: false,
+      message: "Assign different devices to each active player."
+    };
+  }
+
+  const missingPlayer = activePlayers.find((player) => !isDeviceConnected(getAssignedDevice(player)));
+  if (missingPlayer) {
+    return {
+      valid: false,
+      message: `${getDeviceLabel(getAssignedDevice(missingPlayer))} is not connected for Player ${missingPlayer}. Connect it or choose another device.`
+    };
+  }
+
+  const summary = activePlayers
+    .map((player) => `P${player} on ${getDeviceLabel(getAssignedDevice(player))}.`)
+    .join(" ");
+  const mouseNote = getKeyboardPlayer()
+    ? `Mouse follows Player ${getKeyboardPlayer()}.`
+    : "Mouse voting is off.";
+
+  return {
+    valid: true,
+    message: `${state.playerSetup.count === 1 ? "Solo mode ready." : "Two-player mode ready."} ${summary} ${mouseNote}`
+  };
+}
+
+function getWaitingPlayers() {
+  return getActivePlayers().filter((player) => state.votes[player] == null);
+}
+
+function hasAllRequiredVotes() {
+  return getWaitingPlayers().length === 0;
+}
+
+function getChoiceButtonLabel(player) {
+  return getAssignedDevice(player) === "keyboard"
+    ? `P${player} • Keyboard / Mouse`
+    : `P${player} • ${getDeviceLabel(getAssignedDevice(player))}`;
+}
+
+function updateDeviceSelectOptions(select) {
+  Array.from(select.options).forEach((option) => {
+    if (option.value === "keyboard") {
+      option.textContent = "Keyboard / Mouse";
+      return;
+    }
+
+    option.textContent = `${getDeviceLabel(option.value)}${isDeviceConnected(option.value) ? " (connected)" : " (not connected)"}`;
+  });
+}
+
+function syncGameplayPlayerUi() {
+  playerOneInputLabel.textContent = getPlayerDeviceLabel(1);
+  playerOneInputCopy.textContent = getPlayerInputDescription(1);
+  playerOneVoteLabel.textContent = getPlayerDeviceLabel(1);
+  playerTwoInputCard.hidden = !isPlayerActive(2);
+  playerTwoVoteCard.hidden = !isPlayerActive(2);
+
+  if (isPlayerActive(2)) {
+    playerTwoInputLabel.textContent = getPlayerDeviceLabel(2);
+    playerTwoInputCopy.textContent = getPlayerInputDescription(2);
+    playerTwoVoteLabel.textContent = getPlayerDeviceLabel(2);
+  }
+
+  mouseInputCopy.textContent = getMouseInstruction();
+
+  if (inputGrid) {
+    inputGrid.dataset.playerCount = String(state.playerSetup.count);
+  }
+
+  if (voteReadout) {
+    voteReadout.dataset.playerCount = String(state.playerSetup.count);
+  }
+}
+
+function updatePlayerSetupUi() {
+  const validation = getPlayerSetupValidation();
+
+  playerCountOneButton.classList.toggle("is-selected", state.playerSetup.count === 1);
+  playerCountTwoButton.classList.toggle("is-selected", state.playerSetup.count === 2);
+  playerTwoDeviceField.hidden = state.playerSetup.count === 1;
+
+  updateDeviceSelectOptions(playerOneDeviceSelect);
+  updateDeviceSelectOptions(playerTwoDeviceSelect);
+  playerOneDeviceSelect.value = getAssignedDevice(1);
+  playerTwoDeviceSelect.value = getAssignedDevice(2);
+
+  menuSetupStatus.textContent = validation.message;
+  menuSetupStatus.classList.toggle("is-error", !validation.valid);
+  startButton.disabled = !validation.valid;
+
+  syncGameplayPlayerUi();
+}
+
+function setPlayerCount(count) {
+  state.playerSetup.count = count === 2 ? 2 : 1;
+  state.gamepadSnapshot = {};
+  updatePlayerSetupUi();
+}
+
+function setPlayerDevice(player, device) {
+  if (!DEVICE_OPTIONS.includes(device)) {
+    return;
+  }
+
+  state.playerSetup.assignments[player] = device;
+  state.gamepadSnapshot = {};
+  updatePlayerSetupUi();
+}
+
+function handleMissingAssignedDevice() {
+  const validation = getPlayerSetupValidation();
+
+  if (validation.valid || !state.started || state.isPaused || isOverlayVisible(introScreen) || !canTogglePause()) {
+    return;
+  }
+
+  pauseGame();
+  setDecisionMessage(validation.message);
+  updateSceneHud();
+  pauseMessage.textContent = validation.message;
 }
 
 function applyMindDelta(delta) {
@@ -721,10 +985,11 @@ function updateMenuSelection() {
   });
 
   menuOverlayLabel.textContent = episode.seasonLabel;
-  menuCopy.textContent = `Select a series card, then begin ${episode.title}. Poster images are pulled from the real opening clips.`;
+  menuCopy.textContent = `Select a series card, choose 1 or 2 players, assign devices, then begin ${episode.title}. Poster images are pulled from the real opening clips.`;
   menuSelectedTitle.textContent = episode.title;
   menuSelectedCopy.textContent = episode.menuCopy;
   startButton.textContent = `Begin ${episode.title}`;
+  updatePlayerSetupUi();
 }
 
 function selectEpisode(episodeId) {
@@ -746,6 +1011,30 @@ function handleEpisodeCardClick(event) {
   }
 
   selectEpisode(card.dataset.episode);
+}
+
+function handlePlayerCountClick(event) {
+  const button = event.target.closest("[data-player-count]");
+  if (!button) {
+    return;
+  }
+
+  setPlayerCount(Number(button.dataset.playerCount));
+  updateSceneHud();
+  updateFocusFeed();
+}
+
+function handlePlayerDeviceChange(event) {
+  if (event.target === playerOneDeviceSelect) {
+    setPlayerDevice(1, playerOneDeviceSelect.value);
+  } else if (event.target === playerTwoDeviceSelect) {
+    setPlayerDevice(2, playerTwoDeviceSelect.value);
+  } else {
+    return;
+  }
+
+  updateSceneHud();
+  updateFocusFeed();
 }
 
 function getChoiceByKey(scene, choiceKey) {
@@ -790,33 +1079,42 @@ function refreshBodyState() {
 }
 
 function updateInputPrompts() {
-  const gamepads = getConnectedGamepads();
-  const padCount = gamepads.length;
+  const validation = getPlayerSetupValidation();
+  const activePlayers = getActivePlayers();
+  const playerSummaries = activePlayers
+    .map((player) => `P${player}: ${getDeviceLabel(getAssignedDevice(player))}`)
+    .join(" | ");
 
-  if (padCount === 0) {
-    inputStatus.textContent = "Mouse and keyboard ready. Connect 1-2 gamepads for direct X / Y / B voting and Start-to-pause control.";
-  } else if (padCount === 1) {
-    inputStatus.textContent = "1 gamepad connected. It is mapped to Player 1 while Player 2 can use mouse or keyboard.";
-  } else {
-    inputStatus.textContent = `${padCount} gamepads connected. The first two are mapped to Player 1 and Player 2.`;
-  }
+  inputStatus.textContent = validation.valid
+    ? `${state.playerSetup.count === 1 ? "1 player active." : "2 players active."} ${playerSummaries}.`
+    : `Setup issue: ${validation.message}`;
 
-  controlHint.textContent = "P1: 1 / 2 / 3 or A / D then W. P2: J / K / L, numpad, or arrows then Enter. Gamepad: X = 1, Y = 2, B = 3, Start = Pause.";
+  controlHint.textContent = activePlayers.map((player) => {
+    const device = getAssignedDevice(player);
+
+    if (device === "keyboard") {
+      return `P${player} Keyboard: ${player === 1 ? "1 / 2 / 3 or A / D then W" : "J / K / L, numpad 1 / 2 / 3, or arrows then Enter"}`;
+    }
+
+    return `P${player} ${getDeviceLabel(device)}: X = 1, Y = 2, B = 3, A confirms, Start pauses`;
+  }).concat(getKeyboardPlayer() ? [`Mouse votes for P${getKeyboardPlayer()}`] : ["Mouse voting off"]).join(". ");
 }
 
 function buildChoiceHudCopy(scene) {
+  const activePlayers = getActivePlayers();
+
   const describePlayer = (player) => {
     const voteChoice = getChoiceByKey(scene, state.votes[player]);
     const focusChoice = getChoiceByKey(scene, state.focusChoice[player]) || scene.choices[0];
 
     if (voteChoice) {
-      return `P${player} locked "${getChoiceText(voteChoice)}"`;
+      return `P${player} on ${getDeviceLabel(getAssignedDevice(player))} locked "${getChoiceText(voteChoice)}"`;
     }
 
-    return `P${player} aiming "${getChoiceText(focusChoice)}"`;
+    return `P${player} on ${getDeviceLabel(getAssignedDevice(player))} aiming "${getChoiceText(focusChoice)}"`;
   };
 
-  return `${describePlayer(1)}. ${describePlayer(2)}.`;
+  return activePlayers.map(describePlayer).join(". ") + ".";
 }
 
 function getHudDescriptor(scene) {
@@ -826,7 +1124,7 @@ function getHudDescriptor(scene) {
     return {
       kicker: "Casefile online",
       headline: episode.seasonLabel,
-      copy: "Select a series card and begin the chosen episode."
+      copy: "Select a series card, choose one or two players, assign devices, and begin the chosen episode."
     };
   }
 
@@ -845,8 +1143,9 @@ function getHudDescriptor(scene) {
     const chosenChoice = getChoiceByKey(scene, state.selectedChoiceKey);
     const voteOne = getChoiceByKey(scene, state.votes[1]);
     const voteTwo = getChoiceByKey(scene, state.votes[2]);
+    const activePlayers = getActivePlayers();
 
-    if (voteOne && voteTwo && voteOne.key !== voteTwo.key) {
+    if (activePlayers.length === 2 && voteOne && voteTwo && voteOne.key !== voteTwo.key) {
       return {
         ...base,
         headline: "Split Resolution",
@@ -856,8 +1155,10 @@ function getHudDescriptor(scene) {
 
     return {
       ...base,
-      headline: "Consensus Locked",
-      copy: chosenChoice ? `Both players aligned on "${getChoiceText(chosenChoice)}". Loading the next clip.` : "Both players aligned. Loading the next clip."
+      headline: activePlayers.length === 1 ? "Choice Locked" : "Consensus Locked",
+      copy: chosenChoice
+        ? `${activePlayers.length === 1 ? "The active player chose" : "Both active players aligned on"} "${getChoiceText(chosenChoice)}". Loading the next clip.`
+        : `${activePlayers.length === 1 ? "The active player locked a choice." : "Both active players aligned. Loading the next clip."}`
     };
   }
 
@@ -916,7 +1217,7 @@ function updateSceneHud() {
   } else if (state.resolvingChoice) {
     sceneModeLabel.textContent = "Resolving votes";
   } else if (state.waitingForVotes) {
-    sceneModeLabel.textContent = "Awaiting both votes";
+    sceneModeLabel.textContent = state.playerSetup.count === 1 ? "Awaiting solo vote" : "Awaiting active votes";
   } else if (scene && isFinalScene(state.currentSceneId)) {
     sceneModeLabel.textContent = "Final ending";
   } else if (scene && scene.choices) {
@@ -947,6 +1248,7 @@ function updateSceneHud() {
 
 function updateFocusFeed() {
   const scene = getCurrentScene();
+  const activePlayers = getActivePlayers();
 
   if (!scene) {
     focusFeed.textContent = "Player focus indicators will activate during choice scenes.";
@@ -978,12 +1280,15 @@ function updateFocusFeed() {
     return `P${player} focus on Choice ${state.focusChoice[player]}`;
   };
 
-  focusFeed.textContent = `${playerMessage(1)}. ${playerMessage(2)}.`;
+  focusFeed.textContent = activePlayers.map(playerMessage).join(". ") + ".";
 }
 
 function updateVoteReadout() {
   setVoteCopy(playerOneVote, state.votes[1]);
-  setVoteCopy(playerTwoVote, state.votes[2]);
+
+  if (isPlayerActive(2)) {
+    setVoteCopy(playerTwoVote, state.votes[2]);
+  }
 }
 
 function setVoteCopy(element, value) {
@@ -1077,15 +1382,14 @@ function renderScreenChoiceOverlay(scene) {
     return;
   }
 
-  const gamepadLabels = { 1: "X", 2: "Y", 3: "B" };
+  const activePlayers = getActivePlayers();
 
   screenChoiceOverlay.innerHTML = scene.choices.map((choice) => `
     <article class="screen-choice-card" data-choice="${choice.key}">
       <div class="screen-choice-header">
         <span class="screen-choice-label">Option ${choice.key}</span>
-      <div class="screen-choice-keys">
-          <span>${choice.key}</span>
-          <span>${gamepadLabels[choice.key]}</span>
+        <div class="screen-choice-keys">
+          ${activePlayers.map((player) => `<span>${getChoiceBadgeText(player, choice.key)}</span>`).join("")}
         </div>
       </div>
       <p class="screen-choice-text">${getChoiceText(choice)}</p>
@@ -1116,11 +1420,13 @@ function updateChoiceVisualState() {
     const player = Number(button.dataset.player);
     const choiceKey = Number(button.dataset.choice);
     const isLocked = state.votes[player] === choiceKey;
+    const canMouseVote = canMouseVoteForPlayer(player);
 
     button.classList.toggle("is-locked", isLocked);
     button.classList.toggle("is-focused-player-1", player === 1 && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
     button.classList.toggle("is-focused-player-2", player === 2 && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    button.disabled = state.resolvingChoice;
+    button.classList.toggle("is-device-assigned", !canMouseVote);
+    button.disabled = state.resolvingChoice || !canMouseVote;
     button.setAttribute("aria-pressed", isLocked ? "true" : "false");
   });
 
@@ -1150,13 +1456,16 @@ function renderChoices(scene) {
   setDefaultFocus(scene);
   renderScreenChoiceOverlay(scene);
 
+  const activePlayers = getActivePlayers();
+
   choiceList.innerHTML = scene.choices.map((choice, index) => `
     <article class="choice-card" data-choice="${choice.key}" style="--card-index:${index};">
       <span class="choice-number">${choice.key}</span>
       <p class="choice-text">${getChoiceText(choice)}</p>
       <div class="choice-actions">
-        <button class="choice-vote" type="button" data-player="1" data-choice="${choice.key}">P1 Vote</button>
-        <button class="choice-vote" type="button" data-player="2" data-choice="${choice.key}">P2 Vote</button>
+        ${activePlayers.map((player) => `
+          <button class="choice-vote" type="button" data-player="${player}" data-choice="${choice.key}">${getChoiceButtonLabel(player)}</button>
+        `).join("")}
       </div>
     </article>
   `).join("");
@@ -1246,6 +1555,14 @@ function resumeGame() {
     return;
   }
 
+  const validation = getPlayerSetupValidation();
+  if (!validation.valid) {
+    setDecisionMessage(validation.message);
+    updateSceneHud();
+    pauseMessage.textContent = validation.message;
+    return;
+  }
+
   state.isPaused = false;
   setOverlayVisibility(pauseScreen, false);
 
@@ -1256,7 +1573,7 @@ function resumeGame() {
     setDecisionMessage("Resuming playback.");
     resumeCurrentVideoPlayback();
   } else if (state.waitingForVotes) {
-    setDecisionMessage("Decision point resumed. Both players can vote.");
+    setDecisionMessage(state.playerSetup.count === 1 ? "Decision point resumed. Choose one option." : "Decision point resumed. Active players can vote.");
   } else {
     setDecisionMessage("Investigation resumed.");
   }
@@ -1278,7 +1595,7 @@ function togglePause() {
 function focusChoice(player, choiceKey, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || state.resolvingChoice || state.isPaused) {
+  if (!scene || !scene.choices || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
     return;
   }
 
@@ -1291,7 +1608,7 @@ function focusChoice(player, choiceKey, inputMethod) {
 function moveFocus(player, direction, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
     return;
   }
 
@@ -1308,7 +1625,7 @@ function moveFocus(player, direction, inputMethod) {
 function confirmFocusedChoice(player, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
     return;
   }
 
@@ -1318,7 +1635,7 @@ function confirmFocusedChoice(player, inputMethod) {
 function registerVote(player, choiceKey, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
     return;
   }
 
@@ -1331,12 +1648,14 @@ function registerVote(player, choiceKey, inputMethod) {
 
   const choice = getChoiceByKey(scene, choiceKey);
 
-  if (state.votes[1] != null && state.votes[2] != null) {
+  if (hasAllRequiredVotes()) {
     resolveSceneChoice();
   } else if (choice) {
-    setDecisionMessage(`Player ${player} locked "${getChoiceText(choice)}". Waiting for both players to vote.`);
+    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => `Player ${waitingPlayer}`).join(" and ");
+    setDecisionMessage(`Player ${player} locked "${getChoiceText(choice)}". Waiting for ${waitingPlayers}.`);
   } else {
-    setDecisionMessage(`Player ${player} locked a vote. Waiting for both players to vote.`);
+    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => `Player ${waitingPlayer}`).join(" and ");
+    setDecisionMessage(`Player ${player} locked a vote. Waiting for ${waitingPlayers}.`);
   }
 }
 
@@ -1347,15 +1666,20 @@ function resolveSceneChoice() {
     return;
   }
 
-  const choiceOne = state.votes[1];
-  const choiceTwo = state.votes[2];
-  const splitDecision = choiceOne !== choiceTwo;
+  const activePlayers = getActivePlayers();
+  const activeVotes = activePlayers.map((player) => state.votes[player]);
+
+  if (activeVotes.some((choiceKey) => choiceKey == null)) {
+    return;
+  }
+
+  const splitDecision = activePlayers.length === 2 && activeVotes[0] !== activeVotes[1];
 
   state.resolvingChoice = true;
   state.randomResolution = splitDecision;
   state.selectedChoiceKey = splitDecision
-    ? (Math.random() < 0.5 ? choiceOne : choiceTwo)
-    : choiceOne;
+    ? (Math.random() < 0.5 ? activeVotes[0] : activeVotes[1])
+    : activeVotes[0];
   const selectedChoice = getChoiceByKey(scene, state.selectedChoiceKey);
   recordEpisodeChoiceOutcome(state.currentSceneId, state.selectedChoiceKey);
 
@@ -1364,7 +1688,9 @@ function resolveSceneChoice() {
     setDecisionMessage("Split decision detected. Randomly selecting one of the two chosen options.");
   } else {
     setSplitBanner("");
-    setDecisionMessage(selectedChoice ? `Consensus reached. "${getChoiceText(selectedChoice)}" locked.` : `Consensus reached. Choice ${state.selectedChoiceKey} locked.`);
+    setDecisionMessage(selectedChoice
+      ? `${activePlayers.length === 1 ? "Choice locked." : "Consensus reached."} "${getChoiceText(selectedChoice)}" locked.`
+      : `${activePlayers.length === 1 ? "Choice locked." : "Consensus reached."} Choice ${state.selectedChoiceKey} locked.`);
   }
 
   updateChoiceVisualState();
@@ -1377,7 +1703,7 @@ function enterVoteState(scene) {
   state.waitingForVotes = true;
   setDefaultFocus(scene);
   renderChoices(scene);
-  setDecisionMessage("Votes will resolve after both players lock in.");
+  setDecisionMessage(state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in.");
   updateSceneHud();
 }
 
@@ -1479,6 +1805,14 @@ function queueNextScene(nextSceneId) {
 
 function restartGame() {
   const episode = getCurrentEpisode();
+  const validation = getPlayerSetupValidation();
+
+  if (!validation.valid) {
+    setDecisionMessage(validation.message);
+    updateSceneHud();
+    pauseMessage.textContent = validation.message;
+    return;
+  }
 
   clearChoiceTimer();
   resetEpisodeMindState();
@@ -1531,7 +1865,7 @@ function handleChoiceClick(event) {
   }
 
   const button = event.target.closest(".choice-vote");
-  if (!button) {
+  if (!button || button.disabled) {
     return;
   }
 
@@ -1544,7 +1878,7 @@ function handleChoicePointer(event) {
   }
 
   const button = event.target.closest(".choice-vote");
-  if (!button) {
+  if (!button || button.disabled) {
     return;
   }
 
@@ -1558,8 +1892,7 @@ function handleOverlayPrimaryAction() {
   }
 
   if (isOverlayVisible(introScreen)) {
-    beginEpisode();
-    return true;
+    return beginEpisode();
   }
 
   if (isOverlayVisible(endScreen)) {
@@ -1593,34 +1926,34 @@ function handleKeydown(event) {
     return;
   }
 
-  const directKeyMap = {
-    Digit1: [1, 1],
-    Digit2: [1, 2],
-    Digit3: [1, 3],
-    KeyJ: [2, 1],
-    KeyK: [2, 2],
-    KeyL: [2, 3],
-    Numpad1: [2, 1],
-    Numpad2: [2, 2],
-    Numpad3: [2, 3]
-  };
-
-  const directVote = directKeyMap[event.code];
-  if (directVote) {
-    event.preventDefault();
-    registerVote(directVote[0], directVote[1], "keyboard");
+  const keyboardPlayer = getKeyboardPlayer();
+  if (!keyboardPlayer) {
     return;
   }
 
-  const navigationMap = {
-    KeyA: () => moveFocus(1, -1, "keyboard"),
-    KeyD: () => moveFocus(1, 1, "keyboard"),
-    KeyW: () => confirmFocusedChoice(1, "keyboard"),
-    ArrowLeft: () => moveFocus(2, -1, "keyboard"),
-    ArrowRight: () => moveFocus(2, 1, "keyboard"),
-    ArrowUp: () => confirmFocusedChoice(2, "keyboard"),
-    Enter: () => confirmFocusedChoice(2, "keyboard")
-  };
+  const directKeyMap = keyboardPlayer === 1
+    ? { Digit1: 1, Digit2: 2, Digit3: 3 }
+    : { KeyJ: 1, KeyK: 2, KeyL: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 };
+  const directVote = directKeyMap[event.code];
+
+  if (directVote != null) {
+    event.preventDefault();
+    registerVote(keyboardPlayer, directVote, "keyboard");
+    return;
+  }
+
+  const navigationMap = keyboardPlayer === 1
+    ? {
+        KeyA: () => moveFocus(1, -1, "keyboard"),
+        KeyD: () => moveFocus(1, 1, "keyboard"),
+        KeyW: () => confirmFocusedChoice(1, "keyboard")
+      }
+    : {
+        ArrowLeft: () => moveFocus(2, -1, "keyboard"),
+        ArrowRight: () => moveFocus(2, 1, "keyboard"),
+        ArrowUp: () => confirmFocusedChoice(2, "keyboard"),
+        Enter: () => confirmFocusedChoice(2, "keyboard")
+      };
 
   const action = navigationMap[event.code];
   if (!action) {
@@ -1632,14 +1965,22 @@ function handleKeydown(event) {
 }
 
 function beginEpisode() {
-  if (state.started) {
-    return;
+  const validation = getPlayerSetupValidation();
+
+  updatePlayerSetupUi();
+  if (!validation.valid || state.started) {
+    if (!validation.valid) {
+      setDecisionMessage(validation.message);
+    }
+
+    return false;
   }
 
   state.started = true;
   state.isPaused = false;
   setOverlayVisibility(introScreen, false);
   restartGame();
+  return true;
 }
 
 function getConnectedGamepads() {
@@ -1662,17 +2003,15 @@ function updateGamepadAssignments() {
 
   state.gamepadSignature = signature;
 
-  state.gamepadAssignments[1] = connectedPads[0] ? connectedPads[0].index : null;
-  state.gamepadAssignments[2] = connectedPads[1] ? connectedPads[1].index : null;
-
-  const connectedIndices = new Set(connectedPads.map((gamepad) => gamepad.index));
-  Object.keys(state.gamepadSnapshot).forEach((index) => {
-    if (!connectedIndices.has(Number(index))) {
-      delete state.gamepadSnapshot[index];
+  Object.keys(state.gamepadSnapshot).forEach((device) => {
+    if (isGamepadDevice(device) && !isDeviceConnected(device)) {
+      delete state.gamepadSnapshot[device];
     }
   });
 
+  updatePlayerSetupUi();
   updateInputPrompts();
+  handleMissingAssignedDevice();
 }
 
 function getHorizontalIntent(gamepad) {
@@ -1704,20 +2043,23 @@ function pollGamepads() {
   updateGamepadAssignments();
 
   const connectedPads = getConnectedGamepads();
-  const byIndex = new Map(connectedPads.map((gamepad) => [gamepad.index, gamepad]));
+  const connectedByDevice = {
+    gamepad1: connectedPads[0] || null,
+    gamepad2: connectedPads[1] || null
+  };
 
-  [1, 2].forEach((player) => {
-    const assignedIndex = state.gamepadAssignments[player];
-    if (assignedIndex == null) {
+  getActivePlayers().forEach((player) => {
+    const assignedDevice = getAssignedDevice(player);
+    if (!isGamepadDevice(assignedDevice)) {
       return;
     }
 
-    const gamepad = byIndex.get(assignedIndex);
+    const gamepad = connectedByDevice[assignedDevice];
     if (!gamepad) {
       return;
     }
 
-    const snapshot = state.gamepadSnapshot[assignedIndex] || {
+    const snapshot = state.gamepadSnapshot[assignedDevice] || {
       horizontal: 0,
       confirm: false,
       optionOne: false,
@@ -1751,7 +2093,7 @@ function pollGamepads() {
       snapshot.optionTwo = optionTwo;
       snapshot.optionThree = optionThree;
       snapshot.pause = pause;
-      state.gamepadSnapshot[assignedIndex] = snapshot;
+      state.gamepadSnapshot[assignedDevice] = snapshot;
       return;
     }
 
@@ -1781,7 +2123,7 @@ function pollGamepads() {
     snapshot.optionTwo = optionTwo;
     snapshot.optionThree = optionThree;
     snapshot.pause = pause;
-    state.gamepadSnapshot[assignedIndex] = snapshot;
+    state.gamepadSnapshot[assignedDevice] = snapshot;
   });
 
   window.requestAnimationFrame(pollGamepads);
@@ -1792,6 +2134,10 @@ choiceList.addEventListener("click", handleChoiceClick);
 choiceList.addEventListener("mouseover", handleChoicePointer);
 choiceList.addEventListener("focusin", handleChoicePointer);
 episodeCards.forEach((card) => card.addEventListener("click", handleEpisodeCardClick));
+playerCountOneButton.addEventListener("click", handlePlayerCountClick);
+playerCountTwoButton.addEventListener("click", handlePlayerCountClick);
+playerOneDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
+playerTwoDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
 document.addEventListener("keydown", handleKeydown);
 window.addEventListener("gamepadconnected", updateGamepadAssignments);
 window.addEventListener("gamepaddisconnected", updateGamepadAssignments);
@@ -1807,6 +2153,7 @@ retryButton.addEventListener("click", () => {
 });
 
 selectEpisode(state.selectedEpisodeId);
+updatePlayerSetupUi();
 updateInputPrompts();
 updateSceneHud();
 updateFocusFeed();

@@ -172,4 +172,40 @@
           <p id="menu-setup-status" class="menu-setup-status">Solo mode ready. Player 1 uses Keyboard.</p>
         </div>
 
-        <button id="start-button" cla
+        <button id="start-button" class="primary-button" type="button">Begin Selected Episode</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen-overlay" hidden aria-modal="true">
+    <div class="screen-panel">
+      <p class="overlay-label">Paused</p>
+      <h2>Investigation On Hold</h2>
+      <p id="pause-message">Playback, branch resolution, and scene transitions are paused.</p>
+      <div class="overlay-actions">
+        <button id="continue-button" class="primary-button" type="button">Continue</button>
+        <button id="pause-restart-button" class="secondary-button" type="button">Restart Episode</button>
+      </div>
+      <p class="overlay-note">Keyboard: <code>Esc</code> or <code>P</code> to continue. Gamepad: <code>Start</code> or <code>A</code> to continue.</p>
+    </div>
+  </div>
+
+  <div id="end-screen" class="screen-overlay" hidden aria-modal="true">
+    <div class="screen-panel">
+      <p id="end-overlay-label" class="overlay-label">Artificial Skin</p>
+      <h2 id="end-title">Season Complete</h2>
+      <p id="end-copy">The current episode is finished.</p>
+      <button id="restart-button" class="primary-button" type="button">Restart</button>
+    </div>
+  </div>
+
+  <div id="error-screen" class="screen-overlay" hidden aria-modal="true">
+    <div class="screen-panel">
+      <p class="overlay-label">Playback Error</p>
+      <h2>Video clip not found</h2>
+      <p id="error-message">Place the selected episode clips in their matching local folder or a matching <code>video</code> subfolder.</p>
+      <button id="retry-button" class="primary-button" type="button">Retry Scene</button>
+    </div>
+  </div>
+</body>
+</html>
