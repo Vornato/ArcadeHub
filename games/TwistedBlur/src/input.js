@@ -158,11 +158,26 @@ export class InputManager {
       accept: this.anyAcceptPressed(),
       back: this.anyBackPressed(),
       pause: this.anyPausePressed(),
+      quickStart: this.anyMenuHotkeyPressed("quickStart", 2),
+      loadLast: this.anyMenuHotkeyPressed("loadLast", 3),
+      randomize: this.anyMenuHotkeyPressed("randomize", 4),
       addKeyboard2: this.wasKeyPressed("Digit2"),
       addKeyboard3: this.wasKeyPressed("Digit3"),
       addKeyboard4: this.wasKeyPressed("Digit4"),
       removeLast: this.wasKeyPressed("Delete"),
     };
+  }
+
+  anyMenuHotkeyPressed(action, buttonIndex) {
+    if (MENU_KEYS[action]?.some((code) => this.wasKeyPressed(code))) {
+      return true;
+    }
+    for (let index = 0; index < this.gamepads.length; index += 1) {
+      if (this.buttonPressed(index, buttonIndex)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   anyMenuHeld(action) {

@@ -1,9 +1,11 @@
 import {
   ANNOUNCER_STYLES,
+  FEATURED_PRESET,
   GRAPPLE_TUNING,
   MAX_COMPETITORS,
   MODE_DEFS,
   PHYSICS_TUNING,
+  PICKUP_DEFS,
   PLAYER_COLORS,
   PROP_DEFS,
   UI_COLORS,
@@ -24,6 +26,7 @@ import { createMatchProps, getCheckpoint, getLevel, getSpawnPoint, renderLevel, 
 import { BotController } from "./ai.js";
 import { Vehicle } from "./vehicle.js";
 import { angleToVector, clamp, constrainVehicleToLevel, distance, formatTime, dot, resolveVehicleCollision } from "./physics.js";
+import { applyPreset, loadProfile, saveProfile, snapshotMenuState, snapshotPreset } from "./persistence.js";
 
 function findVehicleDef(vehicleId) {
   return VEHICLE_DEFS.find((entry) => entry.id === vehicleId) ?? VEHICLE_DEFS[0];
@@ -50,7 +53,8 @@ export class Game {
     this.weaponSystem = new WeaponSystem();
     this.pickupSystem = new PickupSystem();
     this.grappleSystem = new GrappleSystem();
-    this.menu = new MenuFlow();
+    this.profile = loadProfile();
+    this.menu = new MenuFlow(this.profile.menuState);
     this.ui = new UIRenderer();
 
     this.phase = "title";
@@ -62,6 +66,9 @@ export class Game {
     this.modeId = this.menu.modeId;
     this.level = getLevel(this.menu.selectedLevelId);
     this.pauseCursor = 0;
+    this.resultsCursor = 0;
+    this.titleCursor = 0;
+    this.currentPreset = snapshotPreset(this.menu);
 
     this.resize(this.width, this.height);
   }
@@ -79,6 +86,115 @@ export class Game {
 
   handleUserGesture() {
     this.audio.resume();
+  }
+
+  persistProfile() {
+    saveProfile(this.profile);
+  }
+
+  persistMenuState() {
+    this.profile.menuState = snapshotMenuState(this.menu);
+    this.persistProfile();
+  }
+
+  describePreset(preset) {
+    if (!preset) {
+      return "No saved preset yet";
+    }
+    const modeName = MODE_DEFS[preset.modeId]?.name ?? "Match";
+    const levelName = preset.selectedLevelId ? getLevel(preset.selectedLevelId).name : "Random map";
+    return `${modeName} on ${levelName}`;
+  }
+
+  getFavoriteVehicleName() {
+    const picks = this.profile.stats.vehiclePicks ?? {};
+    const bestEntry = Object.entries(picks)
+      .sort((a, b) => b[1] - a[1])[0];
+    if (!bestEntry) {
+      return "Vector Lynx";
+    }
+    return findVehicleDef(bestEntry[0]).name;
+  }
+
+  buildTitleScreenData() {
+    const stats = this.profile.stats;
+    return {
+      cursor: this.titleCursor,
+      options: [
+        {
+          label: "Party Setup",
+          detail: "Lobby, vehicles, modes, and map choice.",
+          disabled: false,
+        },
+        {
+          label: "Quick Start",
+          detail: this.describePreset(FEATURED_PRESET),
+          disabled: false,
+        },
+        {
+          label: "Last Match",
+          detail: this.profile.lastPreset ? this.describePreset(this.profile.lastPreset) : "No saved preset yet",
+          disabled: !this.profile.lastPreset,
+        },
+      ],
+      stats: {
+        totalMatches: stats.totalMatches ?? 0,
+        totalHookHits: stats.totalHookHits ?? 0,
+        totalPickupSnags: stats.totalPickupSnags ?? 0,
+        bestDriftScore: Math.round(stats.bestDriftScore ?? 0),
+        favoriteVehicle: this.getFavoriteVehicleName(),
+        lastResult: stats.lastResult,
+      },
+    };
+  }
+
+  openLobby() {
+    this.menu.clearReadyStates();
+    this.phase = "lobby";
+    this.audio.playMusic("menu");
+    this.persistMenuState();
+  }
+
+  playMatchMusic() {
+    this.audio.playMusic(this.modeId === "hookClash" ? "hook" : "match");
+  }
+
+  startFeaturedMatch() {
+    applyPreset(this.menu, FEATURED_PRESET);
+    this.persistMenuState();
+    this.startMatch();
+  }
+
+  startLastPreset() {
+    if (!this.profile.lastPreset) {
+      return false;
+    }
+    applyPreset(this.menu, this.profile.lastPreset);
+    this.persistMenuState();
+    this.startMatch();
+    return true;
+  }
+
+  startRandomMatch() {
+    this.menu.randomizeSetup(true);
+    this.persistMenuState();
+    this.startMatch();
+  }
+
+  startRematch() {
+    if (this.currentPreset) {
+      applyPreset(this.menu, this.currentPreset);
+    }
+    this.persistMenuState();
+    this.startMatch();
+  }
+
+  syncResultsMenu() {
+    if (!this.menu.results) {
+      return;
+    }
+    this.menu.results.actions = ["Rematch", "Shuffle Match", "Quit To Lobby"];
+    this.menu.results.selectedAction = this.resultsCursor;
   }
 
   update(dt) {
@@ -114,59 +230,109 @@ export class Game {
     const allowJoin = this.phase === "title" || this.phase === "lobby";
     const joinPads = allowJoin ? this.input.getJoinGamepadIndices(this.menu.getAssignedGamepads()) : [];
     const leavePads = this.phase === "lobby" ? this.input.getLeaveGamepadIndices(this.menu.getAssignedGamepads()) : [];
-    joinPads.forEach((index) => this.menu.joinGamepad(index));
-    leavePads.forEach((index) => this.menu.removeGamepad(index));
+    let menuDirty = false;
+    joinPads.forEach((index) => {
+      menuDirty = this.menu.joinGamepad(index) || menuDirty;
+    });
+    leavePads.forEach((index) => {
+      menuDirty = this.menu.removeGamepad(index) || menuDirty;
+    });
 
     if (this.phase === "lobby") {
       this.menu.getAssignedGamepads()
         .filter((index) => !this.input.isGamepadConnected(index))
-        .forEach((index) => this.menu.removeGamepad(index));
+        .forEach((index) => {
+          menuDirty = this.menu.removeGamepad(index) || menuDirty;
+        });
     }
 
     if (this.phase === "title") {
+      if (actions.up || actions.left) {
+        this.titleCursor = Math.max(0, this.titleCursor - 1);
+      }
+      if (actions.down || actions.right) {
+        this.titleCursor = Math.min(2, this.titleCursor + 1);
+      }
       if (joinPads.length > 0) {
-        this.phase = "lobby";
-        this.audio.playMusic("menu");
+        this.openLobby();
+        return;
+      }
+      if (actions.quickStart) {
+        this.startFeaturedMatch();
+        return;
+      }
+      if (actions.loadLast) {
+        if (!this.startLastPreset()) {
+          this.startFeaturedMatch();
+        }
+        return;
+      }
+      if (actions.randomize) {
+        this.startRandomMatch();
         return;
       }
       if (actions.accept) {
-        this.phase = "lobby";
-        this.audio.playMusic("menu");
+        if (this.titleCursor === 0) {
+          this.openLobby();
+        } else if (this.titleCursor === 1) {
+          this.startFeaturedMatch();
+        } else if (!this.startLastPreset()) {
+          this.startFeaturedMatch();
+        }
       }
       return;
     }
 
     if (this.phase === "lobby") {
       if (actions.addKeyboard2) {
-        this.menu.toggleKeyboardPlayer(1);
+        menuDirty = this.menu.toggleKeyboardPlayer(1) || menuDirty;
       }
       if (actions.addKeyboard3) {
-        this.menu.toggleKeyboardPlayer(2);
+        menuDirty = this.menu.toggleKeyboardPlayer(2) || menuDirty;
       }
       if (actions.addKeyboard4) {
-        this.menu.toggleKeyboardPlayer(3);
+        menuDirty = this.menu.toggleKeyboardPlayer(3) || menuDirty;
       }
       if (actions.removeLast) {
-        this.menu.removeLastPlayer();
+        menuDirty = this.menu.removeLastPlayer() || menuDirty;
       }
       if (actions.left) {
         this.menu.adjustAiFill(-1);
+        menuDirty = true;
       }
       if (actions.right) {
         this.menu.adjustAiFill(1);
+        menuDirty = true;
       }
       if (actions.up) {
         this.menu.adjustBotDifficulty(-1);
+        menuDirty = true;
       }
       if (actions.down) {
         this.menu.adjustBotDifficulty(1);
+        menuDirty = true;
+      }
+      if (actions.quickStart) {
+        this.startFeaturedMatch();
+        return;
+      }
+      if (actions.loadLast && this.startLastPreset()) {
+        return;
+      }
+      if (actions.randomize) {
+        this.startRandomMatch();
+        return;
       }
       if (actions.back) {
         this.phase = "title";
+        this.audio.playMusic("menu");
       }
       if (actions.accept) {
         this.menu.clearReadyStates();
         this.phase = "vehicleSelect";
+      }
+      if (menuDirty) {
+        this.persistMenuState();
       }
       return;
     }
@@ -177,10 +343,12 @@ export class Game {
         if (playerActions.left && !player.ready) {
           this.menu.vehicleCursor = index;
           this.menu.cycleVehicle(index, -1);
+          menuDirty = true;
         }
         if (playerActions.right && !player.ready) {
           this.menu.vehicleCursor = index;
           this.menu.cycleVehicle(index, 1);
+          menuDirty = true;
         }
         if (playerActions.accept) {
           this.menu.vehicleCursor = index;
@@ -197,9 +365,16 @@ export class Game {
           this.phase = "lobby";
         }
       }
+      if (actions.randomize) {
+        this.menu.randomizeVehicles();
+        menuDirty = true;
+      }
       if (this.menu.areAllPlayersReady()) {
         this.menu.clearReadyStates();
         this.phase = "modeSelect";
+      }
+      if (menuDirty) {
+        this.persistMenuState();
       }
       return;
     }
@@ -207,9 +382,15 @@ export class Game {
     if (this.phase === "modeSelect") {
       if (actions.left) {
         this.menu.cycleMode(-1);
+        menuDirty = true;
       }
       if (actions.right) {
         this.menu.cycleMode(1);
+        menuDirty = true;
+      }
+      if (actions.randomize) {
+        this.menu.randomizeMode();
+        menuDirty = true;
       }
       if (actions.back) {
         this.phase = "vehicleSelect";
@@ -217,15 +398,24 @@ export class Game {
       if (actions.accept) {
         this.phase = "mapSelect";
       }
+      if (menuDirty) {
+        this.persistMenuState();
+      }
       return;
     }
 
     if (this.phase === "mapSelect") {
       if (actions.left) {
         this.menu.cycleLevel(-1);
+        menuDirty = true;
       }
       if (actions.right) {
         this.menu.cycleLevel(1);
+        menuDirty = true;
+      }
+      if (actions.randomize) {
+        this.menu.randomizeLevel();
+        menuDirty = true;
       }
       if (actions.back) {
         this.phase = "modeSelect";
@@ -233,6 +423,9 @@ export class Game {
       if (actions.accept) {
         this.menu.clearReadyStates();
         this.phase = "launchConfirm";
+      }
+      if (menuDirty) {
+        this.persistMenuState();
       }
       return;
     }
@@ -257,10 +450,34 @@ export class Game {
     }
 
     if (this.phase === "results") {
-      if (actions.accept || actions.back || actions.pause) {
-        this.menu.clearReadyStates();
-        this.phase = "lobby";
-        this.audio.playMusic("menu");
+      if (actions.up || actions.left) {
+        this.resultsCursor = Math.max(0, this.resultsCursor - 1);
+        this.syncResultsMenu();
+      }
+      if (actions.down || actions.right) {
+        this.resultsCursor = Math.min(2, this.resultsCursor + 1);
+        this.syncResultsMenu();
+      }
+      if (actions.quickStart) {
+        this.startRematch();
+        return;
+      }
+      if (actions.randomize) {
+        this.startRandomMatch();
+        return;
+      }
+      if (actions.accept) {
+        if (this.resultsCursor === 0) {
+          this.startRematch();
+        } else if (this.resultsCursor === 1) {
+          this.startRandomMatch();
+        } else {
+          this.openLobby();
+        }
+        return;
+      }
+      if (actions.back || actions.pause) {
+        this.openLobby();
       }
     }
   }
@@ -275,13 +492,13 @@ export class Game {
     }
     if (actions.back) {
       this.phase = "playing";
-      this.audio.playMusic("match");
+      this.playMatchMusic();
       return;
     }
     if (actions.accept) {
       if (this.pauseCursor === 0) {
         this.phase = "playing";
-        this.audio.playMusic("match");
+        this.playMatchMusic();
       } else if (this.pauseCursor === 1) {
         this.startMatch();
       } else {
@@ -295,6 +512,10 @@ export class Game {
     this.level = getLevel(this.menu.selectedLevelId);
     this.modeId = this.menu.modeId;
     const mode = MODE_DEFS[this.modeId];
+    this.currentPreset = snapshotPreset(this.menu);
+    this.profile.lastPreset = this.currentPreset;
+    this.profile.menuState = snapshotMenuState(this.menu);
+    this.persistProfile();
     this.menu.clearReadyStates();
 
     this.announcer.reset();
@@ -350,8 +571,9 @@ export class Game {
 
     this.phase = "playing";
     this.pauseCursor = 0;
+    this.resultsCursor = 0;
     this.announcer.push(this.level.name, { duration: 1.4, priority: 1, ...ANNOUNCER_STYLES.hype, subtext: mode.name });
-    this.audio.playMusic("match");
+    this.playMatchMusic();
   }
 
   createHumanParticipant(player, index) {
@@ -471,7 +693,7 @@ export class Game {
     this.resolveVehicleImpacts();
     this.resolvePropContacts();
     this.handleCombatEvents(this.weaponSystem.update(dt, this.participants, this.level, this.props, this.effects, this.audio));
-    this.pickupSystem.update(dt, this.participants, this.effects, this.audio, this.modeId);
+    this.handlePickupEvents(this.pickupSystem.update(dt, this.participants, this.effects, this.audio, this.modeId));
     this.handleRespawns();
     this.updatePlacings();
     this.updateCameras(dt);
@@ -612,6 +834,16 @@ export class Game {
 
         const targetVehicle = targetParticipant.vehicle;
         targetVehicle.stunTimer = Math.max(targetVehicle.stunTimer, GRAPPLE_TUNING.lineHitStun);
+        const sourceParticipant = this.participants.find((participant) => participant.id === event.sourceId);
+        if (sourceParticipant) {
+          sourceParticipant.vehicle.hookHits += 1;
+          if (this.modeId === "hookClash") {
+            sourceParticipant.vehicle.score += 1;
+            if (sourceParticipant.human) {
+              sourceParticipant.vehicle.queueHudMessage("CABLE HIT", `+1 on ${targetParticipant.label}`, UI_COLORS.accentCyan, 0.9);
+            }
+          }
+        }
         if (targetVehicle.applyDamage(event.damage, event.sourceId)) {
           this.handleDestroyEvent({
             sourceId: event.sourceId,
@@ -622,6 +854,29 @@ export class Game {
         } else {
           this.shakeCamerasNear(event.x, event.y, 5);
         }
+      }
+    });
+  }
+
+  handlePickupEvents(events) {
+    events.forEach((event) => {
+      if (event.type !== "pickup") {
+        return;
+      }
+      const participant = this.participants.find((entry) => entry.id === event.vehicleId);
+      if (!participant) {
+        return;
+      }
+      if (!event.hookSnag) {
+        return;
+      }
+      participant.vehicle.pickupSnags += 1;
+      if (this.modeId === "hookClash") {
+        participant.vehicle.score += 1;
+      }
+      if (participant.human) {
+        const pickupLabel = PICKUP_DEFS[event.pickupType]?.label ?? "Pickup";
+        participant.vehicle.queueHudMessage("HOOK SNAG", `${pickupLabel}${this.modeId === "hookClash" ? "  +1" : ""}`, UI_COLORS.accentLime, 0.95);
       }
     });
   }
@@ -639,7 +894,7 @@ export class Game {
     const sourceParticipant = event.sourceId ? this.participants.find((participant) => participant.id === event.sourceId) : null;
     if (sourceParticipant && sourceParticipant.id !== targetParticipant.id) {
       sourceParticipant.vehicle.kills += 1;
-      sourceParticipant.vehicle.score += 1;
+      sourceParticipant.vehicle.score += this.modeId === "hookClash" ? 2 : 1;
       sourceParticipant.vehicle.registerKill();
       if (sourceParticipant.human) {
         const chainCount = Math.max(1, sourceParticipant.vehicle.killChainCount);
@@ -960,6 +1215,25 @@ export class Game {
       return;
     }
 
+    if (this.modeId === "hookClash") {
+      const standings = [...this.participants].sort((a, b) => {
+        if (b.vehicle.score !== a.vehicle.score) {
+          return b.vehicle.score - a.vehicle.score;
+        }
+        if (b.vehicle.hookHits !== a.vehicle.hookHits) {
+          return b.vehicle.hookHits - a.vehicle.hookHits;
+        }
+        if (b.vehicle.kills !== a.vehicle.kills) {
+          return b.vehicle.kills - a.vehicle.kills;
+        }
+        return a.vehicle.deaths - b.vehicle.deaths;
+      });
+      standings.forEach((participant, index) => {
+        participant.vehicle.place = index + 1;
+      });
+      return;
+    }
+
     const standings = [...this.participants].sort((a, b) => {
       if (b.vehicle.kills !== a.vehicle.kills) {
         return b.vehicle.kills - a.vehicle.kills;
@@ -1003,6 +1277,13 @@ export class Game {
       return;
     }
 
+    if (this.modeId === "hookClash") {
+      if (this.participants.some((participant) => participant.vehicle.score >= mode.scoreTarget) || this.match.elapsed >= mode.timeLimit) {
+        this.finishMatch();
+      }
+      return;
+    }
+
     if (this.modeId === "quickBattle") {
       if (this.participants.some((participant) => participant.vehicle.kills >= mode.killTarget) || this.match.elapsed >= mode.timeLimit) {
         this.finishMatch();
@@ -1032,7 +1313,7 @@ export class Game {
   }
 
   finishMatch() {
-    const standings = [...this.participants].sort((a, b) => {
+    const orderedParticipants = [...this.participants].sort((a, b) => {
       if (this.modeId === "combatRace") {
         if (a.vehicle.finished && b.vehicle.finished) {
           return a.vehicle.finishTime - b.vehicle.finishTime;
@@ -1048,6 +1329,18 @@ export class Game {
       if (this.modeId === "driftAttack") {
         return b.vehicle.score - a.vehicle.score;
       }
+      if (this.modeId === "hookClash") {
+        if (b.vehicle.score !== a.vehicle.score) {
+          return b.vehicle.score - a.vehicle.score;
+        }
+        if (b.vehicle.hookHits !== a.vehicle.hookHits) {
+          return b.vehicle.hookHits - a.vehicle.hookHits;
+        }
+        if (b.vehicle.kills !== a.vehicle.kills) {
+          return b.vehicle.kills - a.vehicle.kills;
+        }
+        return a.vehicle.deaths - b.vehicle.deaths;
+      }
       if (this.modeId === "survival") {
         return b.vehicle.survivalTime - a.vehicle.survivalTime;
       }
@@ -1055,17 +1348,22 @@ export class Game {
         return b.vehicle.kills - a.vehicle.kills;
       }
       return a.vehicle.deaths - b.vehicle.deaths;
-    }).map((participant) => ({
+    });
+    const note = this.recordMatchStats(orderedParticipants);
+    const standings = orderedParticipants.map((participant) => ({
       label: participant.label,
       summary: this.buildResultSummary(participant.vehicle),
     }));
 
     this.phase = "results";
+    this.resultsCursor = 0;
     this.menu.results = {
       modeName: this.match.mode.name,
       levelName: this.level.name,
       standings,
+      note,
     };
+    this.syncResultsMenu();
     this.audio.playMusic("menu");
   }
 
@@ -1082,7 +1380,60 @@ export class Game {
     if (this.modeId === "driftAttack") {
       return `${Math.round(vehicle.score)} drift pts`;
     }
+    if (this.modeId === "hookClash") {
+      return `${vehicle.score} score | ${vehicle.hookHits} hooks | ${vehicle.kills} KOs`;
+    }
     return `${vehicle.kills} K / ${vehicle.deaths} D`;
+  }
+
+  recordMatchStats(orderedParticipants) {
+    const stats = this.profile.stats;
+    stats.totalMatches += 1;
+    stats.modePlays[this.modeId] = (stats.modePlays[this.modeId] ?? 0) + 1;
+
+    const humans = orderedParticipants.filter((participant) => participant.human);
+    humans.forEach((participant) => {
+      const vehicleId = participant.vehicle.definition.id;
+      stats.totalHookHits += participant.vehicle.hookHits;
+      stats.totalPickupSnags += participant.vehicle.pickupSnags;
+      stats.vehiclePicks[vehicleId] = (stats.vehiclePicks[vehicleId] ?? 0) + 1;
+    });
+
+    const winner = orderedParticipants[0];
+    if (winner?.human) {
+      stats.modeWins[this.modeId] = (stats.modeWins[this.modeId] ?? 0) + 1;
+    }
+
+    let note = "Last match saved for instant rematch.";
+    if (this.modeId === "driftAttack") {
+      const bestHumanDrift = humans.reduce((best, participant) => Math.max(best, participant.vehicle.score), 0);
+      if (bestHumanDrift > (stats.bestDriftScore ?? 0)) {
+        stats.bestDriftScore = bestHumanDrift;
+        note = `New best drift score: ${Math.round(bestHumanDrift)}`;
+      }
+    }
+
+    if (this.modeId === "combatRace") {
+      const bestHumanTime = humans
+        .filter((participant) => participant.vehicle.finished)
+        .reduce((best, participant) => Math.min(best, participant.vehicle.finishTime), Number.POSITIVE_INFINITY);
+      if (Number.isFinite(bestHumanTime)) {
+        const previous = stats.bestRaceTimes[this.level.id] ?? Number.POSITIVE_INFINITY;
+        if (bestHumanTime < previous) {
+          stats.bestRaceTimes[this.level.id] = bestHumanTime;
+          note = `New best on ${this.level.name}: ${bestHumanTime.toFixed(1)}s`;
+        }
+      }
+    }
+
+    stats.lastResult = {
+      modeName: this.match.mode.name,
+      levelName: this.level.name,
+      winner: winner?.label ?? "",
+      summary: winner ? this.buildResultSummary(winner.vehicle) : "",
+    };
+    this.persistProfile();
+    return note;
   }
 
   render() {
@@ -1090,7 +1441,15 @@ export class Game {
     ctx.clearRect(0, 0, this.width, this.height);
 
     if (this.phase === "title") {
-      this.ui.renderTitle(ctx, this.width, this.height, this.time, this.input.getConnectedGamepadIndices(), this.menu.players.length);
+      this.ui.renderTitle(
+        ctx,
+        this.width,
+        this.height,
+        this.time,
+        this.input.getConnectedGamepadIndices(),
+        this.menu.players.length,
+        this.buildTitleScreenData(),
+      );
       return;
     }
     if (this.phase === "lobby") {
@@ -1114,6 +1473,7 @@ export class Game {
       return;
     }
     if (this.phase === "results") {
+      this.syncResultsMenu();
       this.ui.renderResults(ctx, this.width, this.height, this.menu.results);
       return;
     }
@@ -1182,6 +1542,11 @@ export class Game {
       ctx.font = "16px Trebuchet MS";
       ctx.textAlign = "center";
       ctx.fillText(`First to ${this.match.mode.killTarget} kills or timer`, this.width * 0.5, 90);
+    } else if (this.modeId === "hookClash") {
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "16px Trebuchet MS";
+      ctx.textAlign = "center";
+      ctx.fillText(`Hook lines, steal pickups, and reach ${this.match.mode.scoreTarget} score.`, this.width * 0.5, 90);
     } else if (this.modeId === "combatRace") {
       ctx.fillStyle = UI_COLORS.dim;
       ctx.font = "16px Trebuchet MS";

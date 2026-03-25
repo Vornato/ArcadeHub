@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artificial Skin | Episode Select</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead">
+      <p id="app-season-label" class="season-label">Select Episode</p>
+      <h1>Artificial Skin</h1>
+      <p class="tagline">A one or two-player branching cinematic anthology told through pre-rendered video.</p>
+    </header>
+
+    <main class="stage-card">
+      <section class="video-shell">
+        <video id="scene-video" playsinline preload="auto"></video>
+
+        <div class="video-hud">
+          <div class="hud-topline">
+            <span id="scene-id" class="scene-id">scene 1</span>
+            <div class="hud-topline-right">
+              <span id="scene-mode" class="scene-mode">Press Begin Episode</span>
+              <button id="pause-button" class="hud-button" type="button" disabled>Pause</button>
+            </div>
+          </div>
+
+          <div class="text-hud">
+            <p id="hud-kicker" class="hud-kicker">Casefile online</p>
+            <h2 id="hud-headline" class="hud-headline">Season 1 - The Detective</h2>
+            <p id="hud-copy" class="hud-copy">Press Begin Episode to load the first clip.</p>
+
+            <div class="hud-meta">
+              <div class="progress-block">
+                <span id="progress-copy" class="progress-copy">Beat 0 / 22</span>
+                <div class="progress-track" aria-hidden="true">
+                  <div id="progress-fill" class="progress-fill"></div>
+                </div>
+              </div>
+
+              <p id="input-status" class="input-status">Mouse, keyboard, and gamepad support online.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="split-banner" class="split-banner" aria-live="polite"></div>
+        <div id="screen-choice-overlay" class="screen-choice-overlay" hidden></div>
+
+        <div id="loading-overlay" class="loading-overlay is-visible" aria-live="polite">
+          <div class="loading-copy">
+            <p id="loading-text">Episode standing by...</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-deck">
+        <div id="choice-list" class="choice-list" hidden></div>
+
+        <div class="decision-hud">
+          <article class="status-card">
+            <p class="vote-label">Decision Feed</p>
+            <p id="decision-feed" class="status-copy">Episode standing by.</p>
+          </article>
+
+          <article class="status-card">
+            <p class="vote-label">Focus Feed</p>
+            <p id="focus-feed" class="status-copy">Player focus indicators will activate during choice scenes.</p>
+          </article>
+        </div>
+
+        <div class="input-grid">
+          <article id="player-1-input-card" class="input-card player-one-card">
+            <p id="player-1-input-label" class="vote-label">Player 1 Input</p>
+            <p id="player-1-input-copy" class="status-copy">Keyboard: <code>1 / 2 / 3</code> or <code>A / D</code> then <code>W</code>. Mouse also follows the keyboard player.</p>
+          </article>
+
+          <article id="player-2-input-card" class="input-card player-two-card">
+            <p id="player-2-input-label" class="vote-label">Player 2 Input</p>
+            <p id="player-2-input-copy" class="status-copy">Gamepad 1 or Gamepad 2 can be assigned here, or Keyboard can shift to Player 2.</p>
+          </article>
+
+          <article id="mouse-input-card" class="input-card">
+            <p class="vote-label">Mouse</p>
+            <p id="mouse-input-copy" class="status-copy">Mouse follows the active keyboard player and clicks that player's vote button instantly.</p>
+          </article>
+        </div>
+
+        <div id="vote-panel" class="vote-panel" hidden>
+          <div class="vote-readout">
+            <article id="player-1-vote-card" class="vote-card player-one-card">
+              <p id="player-1-vote-label" class="vote-label">Player 1</p>
+              <strong id="player-1-vote" class="vote-value">Pending</strong>
+            </article>
+
+            <article id="player-2-vote-card" class="vote-card player-two-card">
+              <p id="player-2-vote-label" class="vote-label">Player 2</p>
+              <strong id="player-2-vote" class="vote-value">Pending</strong>
+            </article>
+          </div>
+
+          <p id="decision-status" class="decision-status">Votes will resolve after both players lock in.</p>
+          <p id="control-hint" class="keyboard-hint">Keyboard, mouse, and gamepad prompts will update here.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="intro-screen" class="screen-overlay is-visible" aria-modal="true">
+    <div class="screen-panel menu-panel">
+      <p id="menu-overlay-label" class="overlay-label">Select Episode</p>
+      <h2>Artificial Skin</h2>
+      <p id="menu-copy">Pick a series card, then begin the selected episode. Poster images are pulled from the real opening clips.</p>
+
+      <div class="episode-grid">
+        <button class="episode-card is-selected" type="button" data-episode="detective">
+          <img class="episode-poster" src="posters/detective.jpg" alt="The Detective poster">
+          <span class="episode-card-copy">
+            <span class="episode-card-label">Season 1</span>
+            <strong>The Detective</strong>
+            <span>Identity corruption, missing records, and a detective hunting the truth.</span>
+          </span>
+        </button>
+
+        <button class="episode-card" type="button" data-episode="club">
+          <img class="episode-poster" src="posters/club.jpg" alt="The Club poster">
+          <span class="episode-card-copy">
+            <span class="episode-card-label">Season 2</span>
+            <strong>The Club</strong>
+            <span>Overdose memory loops, fractured identity, and a hidden psychological ending system.</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="menu-actions">
+        <div class="menu-meta">
+          <p id="menu-selected-title" class="menu-selected-title">The Detective</p>
+          <p id="menu-selected-copy" class="menu-selected-copy">Launches the fully authored detective episode from its opening clip.</p>
+        </div>
+
+        <div class="menu-setup-panel">
+          <div class="setup-group">
+            <p class="setup-label">Players</p>
+            <div class="setup-toggle" role="group" aria-label="Choose player count">
+              <button id="player-count-1" class="setup-chip is-selected" type="button" data-player-count="1">1 Player</button>
+              <button id="player-count-2" class="setup-chip" type="button" data-player-count="2">2 Players</button>
+            </div>
+          </div>
+
+          <div class="setup-grid">
+            <label class="setup-field" for="player-1-device">
+              <span class="setup-label">Player 1 Device</span>
+              <select id="player-1-device" class="setup-select">
+                <option value="keyboard">Keyboard</option>
+                <option value="gamepad1">Gamepad 1</option>
+                <option value="gamepad2">Gamepad 2</option>
+              </select>
+            </label>
+
+            <label id="player-2-device-field" class="setup-field" for="player-2-device">
+              <span class="setup-label">Player 2 Device</span>
+              <select id="player-2-device" class="setup-select">
+                <option value="keyboard">Keyboard</option>
+                <option value="gamepad1">Gamepad 1</option>
+                <option value="gamepad2">Gamepad 2</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="menu-setup-status" class="menu-setup-status">Solo mode ready. Player 1 uses Keyboard.</p>
+        </div>
+
+        <button id="start-button" cla

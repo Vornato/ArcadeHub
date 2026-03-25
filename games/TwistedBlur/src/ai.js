@@ -1,4 +1,4 @@
-import { BOT_DIFFICULTIES } from "./constants.js";
+import { BOT_DIFFICULTIES, GRAPPLE_STATES } from "./constants.js";
 import { clamp, distance, distanceToPolyline, lerp, signedAngleToTarget } from "./physics.js";
 import { getCheckpoint, sampleSurface } from "./levelManager.js";
 
@@ -236,6 +236,10 @@ export class BotController {
       alt: false,
       altPressed: false,
       boost: false,
+      hook: false,
+      hookPressed: false,
+      hookCancel: false,
+      hookCancelPressed: false,
       lookBack: false,
       pause: false,
     };
@@ -376,6 +380,20 @@ export class BotController {
       && (distanceToGoal > 280 || shouldBoostForChase)
       && (driftWindow ? Math.random() < this.difficulty.boostUse * 0.45 : Math.random() < this.difficulty.boostUse);
 
+    const hook = vehicle.grapple;
+    const hookReady = hook
+      && hook.cooldown <= 0
+      && hook.recovery <= 0
+      && (hook.state === GRAPPLE_STATES.idle || hook.state === GRAPPLE_STATES.aiming || hook.state === GRAPPLE_STATES.cooldown);
+    const hookWindow = !!attackTarget
+      && targetDistance < (modeId === "hookClash" ? 520 : 380)
+      && targetAngle < (modeId === "hookClash" ? 0.24 : 0.14)
+      && vehicle.forwardSpeed > 120;
+    const hookPressed = !!hookReady && hookWindow;
+    const hookCancelPressed = !!hook
+      && (hook.state === GRAPPLE_STATES.attachedVehicle || hook.state === GRAPPLE_STATES.attachedWorld)
+      && (hook.tetherTension > 0.94 || (hook.targetId && targetDistance < 90));
+
     return {
       steer,
       accel,
@@ -385,6 +403,10 @@ export class BotController {
       alt: altPressed,
       altPressed,
       boost,
+      hook: hookPressed,
+      hookPressed,
+      hookCancel: hookCancelPressed,
+      hookCancelPressed,
       lookBack: false,
       pause: false,
     };

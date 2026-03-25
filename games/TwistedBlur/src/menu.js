@@ -2,6 +2,7 @@ import {
   BOT_DIFFICULTIES,
   DEFAULT_MENU_STATE,
   MAX_HUMAN_PLAYERS,
+  MODE_DEFS,
   MODE_ORDER,
   PLAYER_COLORS,
   PLAYER_LABELS,
@@ -18,18 +19,25 @@ function nextId(prefix) {
   return id;
 }
 
+function randomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 export class MenuFlow {
-  constructor() {
-    this.reset();
+  constructor(initialState = {}) {
+    this.reset(initialState);
   }
 
-  reset() {
+  reset(initialState = {}) {
     this.phase = "title";
     this.players = [this.createKeyboardPlayer(0)];
-    this.aiFill = DEFAULT_MENU_STATE.aiFill;
-    this.botDifficulty = DEFAULT_MENU_STATE.botDifficulty;
-    this.modeId = DEFAULT_MENU_STATE.modeId;
+    this.aiFill = clamp(initialState.aiFill ?? DEFAULT_MENU_STATE.aiFill, 0, 4);
+    this.botDifficulty = clamp(initialState.botDifficulty ?? DEFAULT_MENU_STATE.botDifficulty, 0, BOT_DIFFICULTIES.length - 1);
+    this.modeId = MODE_DEFS[initialState.modeId] ? initialState.modeId : DEFAULT_MENU_STATE.modeId;
     this.selectedLevelId = getLevelsForMode(this.modeId)[0].id;
+    if (initialState.selectedLevelId) {
+      this.selectedLevelId = initialState.selectedLevelId;
+    }
     this.vehicleCursor = 0;
     this.pauseCursor = 0;
     this.results = null;
@@ -188,6 +196,65 @@ export class MenuFlow {
 
   getAvailableLevels() {
     return getLevelsForMode(this.modeId);
+  }
+
+  applyVehiclePreset(vehicleIds = []) {
+    if (!vehicleIds.length) {
+      return false;
+    }
+
+    let changed = false;
+    this.players.forEach((player, index) => {
+      const vehicleId = vehicleIds[index % vehicleIds.length];
+      if (!VEHICLE_DEFS.some((vehicle) => vehicle.id === vehicleId)) {
+        return;
+      }
+      if (player.vehicleId !== vehicleId) {
+        player.vehicleId = vehicleId;
+        player.ready = false;
+        changed = true;
+      }
+    });
+    this.syncPlayers();
+    return changed;
+  }
+
+  randomizeVehicles() {
+    const pool = [...VEHICLE_DEFS];
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+    }
+
+    this.players.forEach((player, index) => {
+      player.vehicleId = pool[index % pool.length].id;
+      player.ready = false;
+    });
+    this.syncPlayers();
+  }
+
+  randomizeMode(featuredBias = false) {
+    const featuredModes = MODE_ORDER.filter((modeId) => MODE_DEFS[modeId]?.featured);
+    const pool = featuredBias && featuredModes.length && Math.random() < 0.65 ? featuredModes : MODE_ORDER;
+    this.modeId = randomItem(pool);
+    this.ensureLevelValid();
+  }
+
+  randomizeLevel() {
+    const levels = this.getAvailableLevels();
+    if (!levels.length) {
+      return;
+    }
+    this.selectedLevelId = randomItem(levels).id;
+  }
+
+  randomizeSetup(featuredBias = false) {
+    this.randomizeVehicles();
+    this.randomizeMode(featuredBias);
+    this.randomizeLevel();
+    this.aiFill = Math.floor(Math.random() * 5);
+    this.botDifficulty = Math.floor(Math.random() * BOT_DIFFICULTIES.length);
+    this.clearReadyStates();
   }
 
   getBotDifficulty() {

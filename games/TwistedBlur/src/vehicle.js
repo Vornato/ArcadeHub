@@ -79,6 +79,8 @@ export class Vehicle {
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
     this.finalLapCalled = false;
+    this.hookHits = 0;
+    this.pickupSnags = 0;
     this.driftCombo = 1;
     this.pendingDriftMeta = null;
     this.hudMessage = "";
@@ -182,6 +184,8 @@ export class Vehicle {
     this.killChainTimer = 0;
     this.lowHealthCalled = false;
     this.finalLapCalled = false;
+    this.hookHits = 0;
+    this.pickupSnags = 0;
     this.driftCombo = 1;
     this.pendingDriftMeta = null;
     this.hudMessage = "";

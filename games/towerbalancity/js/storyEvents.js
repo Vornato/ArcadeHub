@@ -153,7 +153,11 @@ class StoryEventManager {
 
     rollEvent(chapterData, progression) {
         if (!chapterData) return null;
-        if (Math.random() > chapterData.disasterChance) return null;
+        if (progression && progression.minEventFloor && progression.floorCount < progression.minEventFloor) return null;
+        const eventChanceMultiplier = progression && progression.eventChanceMultiplier !== undefined
+            ? progression.eventChanceMultiplier
+            : 1;
+        if (Math.random() > (chapterData.disasterChance * eventChanceMultiplier)) return null;
 
         let pool = [];
         for (let ev of this.events) {

@@ -28,6 +28,13 @@ class ProgressionManager {
         this.forecastDark = 0;
         this.isDark = false;
         this.isRaining = false;
+        this.runMode = 'normal';
+        this.quickMode = false;
+        this.onboardingMode = false;
+        this.eventChanceMultiplier = 1;
+        this.weatherStrengthMultiplier = 1;
+        this.minEventFloor = 0;
+        this.maxChapter = 8;
         
         // Callbacks to UI and Game
         this.onChapterChange = null;
@@ -46,7 +53,14 @@ class ProgressionManager {
         ];
     }
 
-    startRun() {
+    startRun(options = {}) {
+        this.runMode = options.runMode || 'normal';
+        this.quickMode = this.runMode === 'quick';
+        this.onboardingMode = !!options.isOnboarding;
+        this.eventChanceMultiplier = this.onboardingMode ? 0.18 : (this.quickMode ? 0.45 : 1);
+        this.weatherStrengthMultiplier = this.onboardingMode ? 0.55 : (this.quickMode ? 0.78 : 1);
+        this.minEventFloor = this.onboardingMode ? 7 : (this.quickMode ? 4 : 0);
+        this.maxChapter = this.onboardingMode ? 2 : (this.quickMode ? 4 : this.chapters.length);
         this.currentChapter = 1;
         this.currentChapterData = this.chapters[0];
         this.floorCount = 0;
@@ -87,7 +101,7 @@ class ProgressionManager {
             this.stormPulse += 0.03 + (this.stormLevel * 0.01);
             const stormWave = (Math.sin(this.stormPulse) * 0.55) + (Math.sin(this.stormPulse * 0.42) * 0.25);
             const gust = (0.7 + (Math.sin(this.stormPulse * 1.7) * 0.3));
-            this.windTarget += ((this.stormDirection * (2 + (this.stormLevel * 2.5)) * stormWave * gust) - this.windTarget) * 0.02;
+            this.windTarget += (((this.stormDirection * (2 + (this.stormLevel * 2.5)) * stormWave * gust * this.weatherStrengthMultiplier)) - this.windTarget) * 0.02;
             if (Math.random() < 0.0025 * this.stormLevel) {
                 this.lightningFlash = 1;
                 this.thunderTimer = Utils.randomInt(18, 58);
@@ -102,8 +116,8 @@ class ProgressionManager {
         this.windTarget *= this.isRaining ? 0.998 : 0.994;
         this.windForce *= 0.999;
         this.lightningFlash *= 0.85;
-        this.rainTarget = this.isRaining ? Utils.clamp(0.35 + (this.stormLevel * 0.4), 0.18, 1) : 0;
-        this.darknessTarget = this.isDark ? Utils.clamp(0.28 + (this.stormLevel * 0.2), 0.18, 0.92) : 0;
+        this.rainTarget = this.isRaining ? Utils.clamp((0.35 + (this.stormLevel * 0.4)) * this.weatherStrengthMultiplier, 0.12, 1) : 0;
+        this.darknessTarget = this.isDark ? Utils.clamp((0.28 + (this.stormLevel * 0.2)) * this.weatherStrengthMultiplier, 0.12, 0.92) : 0;
         this.rainIntensity = Utils.lerp(this.rainIntensity, this.rainTarget, 0.04);
         this.darkness = Utils.lerp(this.darkness, this.darknessTarget, 0.035);
         this.forecastWind = Utils.clamp(Math.abs(this.windTarget) / 8, 0, 1);
@@ -148,7 +162,7 @@ class ProgressionManager {
 
         // Check Phase Escalation
         let nextChapterDef = this.chapters[this.currentChapter];
-        if (nextChapterDef && this.floorCount >= this.currentChapterData.targetFloors) {
+        if (this.currentChapter < this.maxChapter && nextChapterDef && this.floorCount >= this.currentChapterData.targetFloors) {
             this.currentChapter++;
             this.currentChapterData = nextChapterDef;
             this.tenantManager.updateFactionsForChapter(this.currentChapter, this.projectManager.selectedProject);

@@ -43,5 +43,14 @@
         "description": "Local multiplayer vehicle-combat racing with split-screen battles, pickups, boosts, and AI rivals.",
         "tags": ["racing", "combat", "multiplayer"],
         "featured": false
+    },
+    {
+        "id": "artificial-skin",
+        "title": "Artificial Skin",
+        "folder": "Artificial_Skin",
+        "thumbnail": "Covers/artificial_skin.png",
+        "description": "A two-player branching detective episode told through pre-rendered video, with shared choices and split-vote outcomes.",
+        "tags": ["narrative", "fmv", "co-op"],
+        "featured": false
     }
 ]

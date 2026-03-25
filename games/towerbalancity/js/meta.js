@@ -81,7 +81,8 @@ class MetaManager {
             totalRuns: 0,
             maxHeightOverall: 0,
             districtClears: 0,
-            bestMedal: 'NONE'
+            bestMedal: 'NONE',
+            firstRunCompleted: false
         };
     }
 
@@ -164,6 +165,30 @@ class MetaManager {
         return baseGoals[projectId] || 48;
     }
 
+    getQuickGoalHeight(projectId, isOnboarding = false) {
+        const baseline = this.getProjectGoalHeight(projectId);
+        if (isOnboarding) return Math.max(10, Math.round(baseline * 0.24));
+        return Math.max(16, Math.round(baseline * 0.38));
+    }
+
+    needsFirstRunOnboarding() {
+        return this.data.firstRunCompleted !== true;
+    }
+
+    buildContract(template, bonus = 0, overrideTarget = null) {
+        const target = overrideTarget !== null
+            ? overrideTarget
+            : template.baseTarget + (bonus * template.scale);
+        return {
+            type: template.type,
+            target,
+            xp: template.xp + (bonus * 90),
+            desc: template.text(target),
+            progress: 0,
+            done: false
+        };
+    }
+
     pickContracts(randomFn, chapterScale = 0, lockedTypes = []) {
         const available = this.contractTemplates.filter(t => !lockedTypes.includes(t.type));
         const chosen = [];
@@ -171,14 +196,37 @@ class MetaManager {
             const index = Math.floor(randomFn() * available.length);
             const template = available.splice(index, 1)[0];
             const bonus = Math.floor(randomFn() * (chapterScale + 1));
-            chosen.push({
-                type: template.type,
-                target: template.baseTarget + (bonus * template.scale),
-                xp: template.xp + (bonus * 90),
-                desc: template.text(template.baseTarget + (bonus * template.scale)),
-                progress: 0,
-                done: false
-            });
+            chosen.push(this.buildContract(template, bonus));
+        }
+        return chosen;
+    }
+
+    createQuickContracts(targetHeight, randomFn = Math.random, isOnboarding = false) {
+        const templateByType = Object.fromEntries(this.contractTemplates.map(t => [t.type, t]));
+        if (isOnboarding) {
+            return [
+                this.buildContract(templateByType.perfectDrops, 0, 1),
+                this.buildContract(templateByType.maxHeight, 0, Math.max(6, targetHeight))
+            ];
+        }
+
+        const quickTypes = ['perfectDrops', 'objsThrown', 'maxHeight', 'heavyLandings'];
+        const available = this.contractTemplates.filter(t => quickTypes.includes(t.type));
+        const chosen = [];
+        while (available.length > 0 && chosen.length < 2) {
+            const index = Math.floor(randomFn() * available.length);
+            const template = available.splice(index, 1)[0];
+            if (template.type === 'maxHeight') {
+                chosen.push(this.buildContract(template, 0, Math.max(10, targetHeight - 2)));
+            } else if (template.type === 'perfectDrops') {
+                chosen.push(this.buildContract(template, 0, 1 + Math.floor(randomFn() * 2)));
+            } else if (template.type === 'objsThrown') {
+                chosen.push(this.buildContract(template, 0, 3 + Math.floor(randomFn() * 3)));
+            } else if (template.type === 'heavyLandings') {
+                chosen.push(this.buildContract(template, 0, 1 + Math.floor(randomFn() * 2)));
+            } else {
+                chosen.push(this.buildContract(template, 0));
+            }
         }
         return chosen;
     }
@@ -212,29 +260,46 @@ class MetaManager {
         this.currentRunStats = this.createEmptyRunStats();
 
         const dailyChallenge = options.dailyChallenge || null;
+        const runMode = options.runMode || 'normal';
+        const isQuick = runMode === 'quick';
+        const isOnboarding = !!options.isOnboarding;
         const projectId = projectTheme ? projectTheme.id : 'modern';
         const projectName = projectTheme ? projectTheme.name : 'Modern Apartment';
+        const targetHeight = dailyChallenge
+            ? dailyChallenge.targetHeight
+            : (isQuick ? this.getQuickGoalHeight(projectId, isOnboarding) : this.getProjectGoalHeight(projectId));
 
         this.currentRunConfig = {
             projectId,
             projectName,
+            runMode,
             isDaily: !!dailyChallenge,
+            isQuick,
+            isOnboarding,
             dailySeed: dailyChallenge ? dailyChallenge.seedKey : null,
-            targetHeight: dailyChallenge ? dailyChallenge.targetHeight : this.getProjectGoalHeight(projectId)
+            targetHeight
         };
 
         this.activeContracts = dailyChallenge
             ? dailyChallenge.contracts.map(c => ({ ...c, progress: 0, done: false }))
-            : this.pickContracts(Math.random, Math.max(0, Math.floor(this.currentRunConfig.targetHeight / 18) - 1), []);
+            : (isQuick
+                ? this.createQuickContracts(this.currentRunConfig.targetHeight, Math.random, isOnboarding)
+                : this.pickContracts(Math.random, Math.max(0, Math.floor(this.currentRunConfig.targetHeight / 18) - 1), []));
 
         this.saveData();
     }
 
-    previewContracts(projectTheme) {
+    previewContracts(projectTheme, options = {}) {
         const projectId = projectTheme ? projectTheme.id : 'modern';
-        const targetHeight = this.getProjectGoalHeight(projectId);
+        const runMode = options.runMode || 'normal';
+        const isOnboarding = !!options.isOnboarding;
+        const targetHeight = runMode === 'quick'
+            ? this.getQuickGoalHeight(projectId, isOnboarding)
+            : this.getProjectGoalHeight(projectId);
         const randomFn = this.createSeededRandom(this.hashString(`preview-${projectId}`));
-        return this.pickContracts(randomFn, Math.max(0, Math.floor(targetHeight / 18) - 1), []);
+        return runMode === 'quick'
+            ? this.createQuickContracts(targetHeight, randomFn, isOnboarding)
+            : this.pickContracts(randomFn, Math.max(0, Math.floor(targetHeight / 18) - 1), []);
     }
 
     getContractSnapshot() {
@@ -246,6 +311,9 @@ class MetaManager {
             projectName: this.currentRunConfig.projectName,
             targetHeight: this.currentRunConfig.targetHeight,
             isDaily: this.currentRunConfig.isDaily,
+            isQuick: !!this.currentRunConfig.isQuick,
+            isOnboarding: !!this.currentRunConfig.isOnboarding,
+            runMode: this.currentRunConfig.runMode || 'normal',
             dailySeed: this.currentRunConfig.dailySeed,
             completedContracts: this.getCompletedContractsCount(),
             totalContracts: this.activeContracts.length,
@@ -340,6 +408,7 @@ class MetaManager {
         if (wasVictory) {
             this.data.districtClears = (this.data.districtClears || 0) + 1;
         }
+        this.data.firstRunCompleted = true;
 
         const medalOrder = ['NONE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
         const bestMedalIndex = medalOrder.indexOf(this.data.bestMedal || 'NONE');
@@ -358,7 +427,9 @@ class MetaManager {
             victory: wasVictory,
             completedContracts,
             targetHeight: this.currentRunConfig.targetHeight,
-            dailySeed: this.currentRunConfig.dailySeed
+            dailySeed: this.currentRunConfig.dailySeed,
+            runMode: this.currentRunConfig.runMode || 'normal',
+            isQuick: !!this.currentRunConfig.isQuick
         });
         this.runHistory = this.runHistory.slice(0, 20);
         this.saveData();

@@ -64,12 +64,13 @@ export class PickupSystem {
         }
 
         this.applyPickup(vehicle, pickup.type, effects, audio);
+        const hookSnag = (pickup.pullTimer ?? 0) > 0;
         pickup.active = false;
-        pickup.respawn = modeId === "quickBattle" ? 4.2 : 6.2;
+        pickup.respawn = modeId === "quickBattle" || modeId === "hookClash" ? 4.2 : 6.2;
         pickup.vx = 0;
         pickup.vy = 0;
         pickup.pullTimer = 0;
-        events.push({ type: "pickup", vehicleId: vehicle.id, pickupType: pickup.type });
+        events.push({ type: "pickup", vehicleId: vehicle.id, pickupType: pickup.type, hookSnag });
         break;
       }
     }

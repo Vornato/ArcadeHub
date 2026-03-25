@@ -49,6 +49,8 @@ window.onload = () => {
 
         return JSON.stringify({
             mode: game.currentMode,
+            quickMode: game.isQuickMode,
+            onboarding: game.isOnboardingRun,
             running: game.isRunning,
             paused: game.isPaused,
             coordSystem: 'origin top-left, +x right, +y down',
@@ -59,7 +61,14 @@ window.onload = () => {
                 angle: Number(game.towerAngle.toFixed(4)),
                 dangerLevel: game.dangerLevel,
                 dangerTimer: game.dangerTimer,
-                negativeStabilityTimer: game.negativeStabilityTimer
+                negativeStabilityTimer: game.negativeStabilityTimer,
+                vulnerableFloorIndex: game.vulnerableFloorIndex,
+                squadCommand: game.getSquadCommand ? game.getSquadCommand() : null
+            },
+            director: {
+                status: game.directorStatus,
+                detail: game.directorDetail,
+                recoveryDirection: game.recoveryDirection
             },
             topFloor: topFloor ? {
                 index: topFloorIndex,
@@ -129,25 +138,40 @@ window.onload = () => {
 
     function updateMenuMeta() {
         uiManager.updateMenuMeta(metaManager.getMenuSummary(), getDailyChallenge());
-        uiManager.setPlayMode('Choose a district contract.', metaManager.isChaosUnlocked());
+        uiManager.setQuickModeRecommended(metaManager.needsFirstRunOnboarding());
+        uiManager.setPlayMode(
+            metaManager.needsFirstRunOnboarding()
+                ? 'First run recommended: quick contract.'
+                : 'Choose a district contract.',
+            metaManager.isChaosUnlocked()
+        );
     }
 
-    function getPreviewGoal(projectId, isDaily = false) {
+    function getPreviewGoal(projectId, mode = 'normal', isDaily = false) {
         const project = game.progression.projectManager.projects.find(p => p.id === projectId) || game.progression.projectManager.projects[0];
+        const isQuick = mode === 'quick';
+        const isOnboarding = isQuick && metaManager.needsFirstRunOnboarding();
         return {
             projectName: project.name,
-            targetHeight: metaManager.getProjectGoalHeight(project.id),
+            targetHeight: isQuick
+                ? metaManager.getQuickGoalHeight(project.id, isOnboarding)
+                : metaManager.getProjectGoalHeight(project.id),
             isDaily,
+            isQuick,
+            isOnboarding,
             dailySeed: activeDailyChallenge ? activeDailyChallenge.seedKey : null,
             completedContracts: 0,
-            totalContracts: activeDailyChallenge ? activeDailyChallenge.contracts.length : 3
+            totalContracts: activeDailyChallenge ? activeDailyChallenge.contracts.length : (isQuick ? 2 : 3)
         };
     }
 
-    function buildPreviewContracts(projectId) {
+    function buildPreviewContracts(projectId, mode = 'normal') {
         if (activeDailyChallenge) return activeDailyChallenge.contracts;
         const previewProject = game.progression.projectManager.projects.find(p => p.id === projectId) || game.progression.projectManager.projects[0];
-        return metaManager.previewContracts(previewProject);
+        return metaManager.previewContracts(previewProject, {
+            runMode: mode,
+            isOnboarding: mode === 'quick' && metaManager.needsFirstRunOnboarding()
+        });
     }
 
     function refreshSetupPreview() {
@@ -159,12 +183,14 @@ window.onload = () => {
                 projectName: activeDailyChallenge.themeName,
                 targetHeight: activeDailyChallenge.targetHeight,
                 isDaily: true,
+                isQuick: false,
+                isOnboarding: false,
                 dailySeed: activeDailyChallenge.seedKey,
                 completedContracts: 0,
                 totalContracts: activeDailyChallenge.contracts.length
             }
-            : getPreviewGoal(selectedProjectId, false);
-        const previewContracts = activeDailyChallenge ? activeDailyChallenge.contracts : buildPreviewContracts(selectedProjectId);
+            : getPreviewGoal(selectedProjectId, currentMode, false);
+        const previewContracts = activeDailyChallenge ? activeDailyChallenge.contracts : buildPreviewContracts(selectedProjectId, currentMode);
         uiManager.updateSetupBrief(goalSummary, previewContracts);
     }
 
@@ -224,7 +250,11 @@ window.onload = () => {
         uiManager.setPlayMode(
             activeDailyChallenge
                 ? `Daily contract: ${activeDailyChallenge.themeName} / seed ${activeDailyChallenge.seedKey}`
-                : (isChaosMode ? 'Chaos contract: amplified worker collisions.' : 'Standard district contract.'),
+                : (currentMode === 'quick'
+                    ? (metaManager.needsFirstRunOnboarding()
+                        ? 'Quick contract: guided first run with lighter escalation.'
+                        : 'Quick contract: shorter target height and cleaner pacing.')
+                    : (isChaosMode ? 'Chaos contract: amplified worker collisions.' : 'Standard district contract.')),
             metaManager.isChaosUnlocked()
         );
         uiManager.showScreen('setup');
@@ -467,9 +497,20 @@ window.onload = () => {
                     menuVisible: !uiManager.scrMenu.classList.contains('hidden')
                 });
 
-                uiManager.btnPlay.click();
+                const dailyA = getDailyChallenge();
+                const dailyB = getDailyChallenge();
+                if (!expect(JSON.stringify(dailyA) === JSON.stringify(dailyB), 'daily_challenge_deterministic', {
+                    seed: dailyA.seedKey,
+                    theme: dailyA.themeName,
+                    targetHeight: dailyA.targetHeight
+                })) return;
+
+                (uiManager.btnPlayQuick || uiManager.btnPlay).click();
                 await wait(120);
                 if (!expect(!uiManager.scrSetup.classList.contains('hidden'), 'setup_opened')) return;
+                if (!expect((uiManager.setupGoalHeight && uiManager.setupGoalHeight.textContent.includes('Quick')) || currentMode === 'quick', 'quick_preview_loaded', {
+                    setupGoal: uiManager.setupGoalHeight ? uiManager.setupGoalHeight.textContent : null
+                })) return;
 
                 uiManager.btnAddBot.click();
                 await wait(120);
@@ -479,10 +520,42 @@ window.onload = () => {
                 await wait(180);
                 if (!expect(game.isRunning, 'run_started')) return;
                 if (!expect(uiManager.hud && !uiManager.hud.classList.contains('hidden'), 'hud_visible')) return;
+                if (!expect(game.currentMode === 'quick' && game.isQuickMode, 'quick_mode_started', {
+                    mode: game.currentMode,
+                    onboarding: game.isOnboardingRun
+                })) return;
+                if (!expect(uiManager.directorStatus && uiManager.directorStatus.textContent.length > 0, 'director_panel_live', {
+                    status: uiManager.directorStatus ? uiManager.directorStatus.textContent : null
+                })) return;
+                if (!expect(uiManager.soloCommandPanel && !uiManager.soloCommandPanel.classList.contains('hidden'), 'solo_command_visible')) return;
+
+                game.cycleSquadCommand();
+                if (!expect(game.getSquadCommand() === 'clear', 'solo_command_cycle_clear', { squadCommand: game.getSquadCommand() })) return;
+                game.cycleSquadCommand();
+                if (!expect(game.getSquadCommand() === 'fire', 'solo_command_cycle_fire', { squadCommand: game.getSquadCommand() })) return;
+                game.cycleSquadCommand();
+                if (!expect(game.getSquadCommand() === 'balance', 'solo_command_cycle_balance', { squadCommand: game.getSquadCommand() })) return;
 
                 let pieceA = game.upcomingPieces[0];
-                game.dropFloor(game.towerCenterX - (pieceA.w / 2), 120, pieceA, 0);
-                recordStep('first_drop_triggered', { archetype: pieceA.id });
+                game.dropPlayer.x = Utils.clamp(
+                    game.towerCenterX - (pieceA.w / 2),
+                    100,
+                    game.dropPlayer.widthLimit - 100 - pieceA.w
+                );
+                game.dropPlayer.carriageCenterX = game.dropPlayer.x + (pieceA.w / 2);
+                if (!expect(game.dropPlayer.startRelease(pieceA), 'guided_drop_started', {
+                    archetype: pieceA.id,
+                    x: game.dropPlayer.x
+                })) return;
+                recordStep('first_drop_triggered', { archetype: pieceA.id, guided: true });
+                pumpGame(6);
+                if (!expect(game.floors[1] && game.floors[1].guidedDrop === true, 'guided_drop_spawned', {
+                    guided: game.floors[1] ? game.floors[1].guidedDrop : null
+                })) return;
+                if (!expect(game.floors[1] && Math.abs(game.floors[1].y - (game.floors[0].y - game.floors[1].h)) <= 80, 'guided_drop_starts_near_stack', {
+                    y: game.floors[1] ? game.floors[1].y : null,
+                    targetY: game.floors[1] ? (game.floors[0].y - game.floors[1].h) : null
+                })) return;
                 pumpGame(520);
                 if (!expect(game.floors.length >= 2, 'first_floor_spawned', { floors: game.floors.length })) return;
                 if (!expect(game.floors[1] && !game.floors[1].isFalling, 'first_floor_landed', { y: game.floors[1] ? game.floors[1].y : null })) return;
@@ -513,6 +586,63 @@ window.onload = () => {
                 if (!expect(uiManager.comArrowMass && uiManager.comArrowMass.textContent.includes('LOAD'), 'hud_com_updated', {
                     comLabel: uiManager.comArrowMass ? uiManager.comArrowMass.textContent : null
                 })) return;
+                if (!expect(game.vulnerableFloorIndex >= -1, 'director_guidance_tracks_floor', {
+                    vulnerableFloorIndex: game.vulnerableFloorIndex,
+                    directorStatus: game.directorStatus
+                })) return;
+
+                const leadBot = game.players.find(p => p.isBot);
+                const supportFloor = leadBot ? game.getSupportingFloor(leadBot) : null;
+                if (!expect(!!leadBot && !!supportFloor, 'bot_support_floor_found', {
+                    botSlot: leadBot ? leadBot.slot : null,
+                    supportFloor: supportFloor ? game.getFloorIndex(supportFloor) : null
+                })) return;
+                const firePayload = new Interactable(0, 0, 'safe');
+                const payloadX = Utils.clamp(
+                    leadBot.x + 18,
+                    supportFloor.x + supportFloor.wallL + 12,
+                    supportFloor.x + supportFloor.w - supportFloor.wallR - firePayload.w - 12
+                );
+                firePayload.x = payloadX;
+                firePayload.y = supportFloor.getSurfaceYAt(payloadX + firePayload.w / 2) - firePayload.h;
+                game.objects.push(firePayload);
+                const fireHazard = new FireHazard(payloadX + 28, supportFloor.y + supportFloor.h - 54);
+                game.hazards.push(fireHazard);
+                game.squadCommand = 'fire';
+                leadBot.botController.update(leadBot, game.balance, game.towerCenterX, game.objects, game.dangerLevel, game);
+                if (!expect(['FETCH_FIRE_PAYLOAD', 'FIRE_RESPONSE'].includes(leadBot.botController.stateMachine), 'bot_fire_command_targets_fire', {
+                    stateMachine: leadBot.botController.stateMachine,
+                    squadCommand: game.getSquadCommand()
+                })) return;
+                game.squadCommand = 'balance';
+
+                const quickContract = metaManager.activeContracts[0];
+                if (!expect(!!quickContract, 'contract_available_for_progression')) return;
+                if (quickContract.type === 'maxHeight') {
+                    metaManager.recordHeight(quickContract.target);
+                } else {
+                    metaManager.recordStat(quickContract.type, quickContract.target);
+                }
+                if (!expect(quickContract.done === true, 'contract_progress_updates', {
+                    type: quickContract.type,
+                    target: quickContract.target,
+                    progress: quickContract.progress
+                })) return;
+
+                const bossDef = game.bossManager.defs.piano;
+                const bossPiece = Object.assign({}, FloorArchetypes[bossDef.archetype]);
+                bossPiece.isBoss = true;
+                bossPiece.bossDef = bossDef;
+                bossPiece.name = bossDef.name;
+                game.upcomingPieces[0] = bossPiece;
+                game.dropFloor(game.towerCenterX - (bossPiece.w / 2), 120, bossPiece, 0.2);
+                recordStep('boss_drop_triggered', { boss: bossDef.id });
+                pumpGame(620);
+                const newestFloor = game.floors[game.floors.length - 1];
+                if (!expect(newestFloor && newestFloor.bossDef && newestFloor.bossDef.id === bossDef.id, 'boss_floor_attached', {
+                    bossId: newestFloor && newestFloor.bossDef ? newestFloor.bossDef.id : null
+                })) return;
+                if (!expect(game.objects.some(obj => obj.type === 'grand_piano'), 'boss_floor_payload_spawned')) return;
 
                 game.pause();
                 await wait(120);
@@ -558,7 +688,7 @@ window.onload = () => {
         };
 
         (async () => {
-            uiManager.btnPlay.click();
+            (uiManager.btnPlayQuick || uiManager.btnPlay).click();
             await wait(120);
             uiManager.btnAddBot.click();
             await wait(120);

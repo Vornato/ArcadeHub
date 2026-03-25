@@ -67,6 +67,21 @@ export class AudioSystem {
           boosting ? "sawtooth" : "triangle",
           0.0025 + rpm * (boosting ? 0.01 : 0.006),
         );
+        this.beep(
+          36 + rpm * 74,
+          boosting ? 0.09 : 0.07,
+          boosting ? "square" : "sine",
+          0.0012 + rpm * 0.004,
+        );
+        if (boosting || rpm > 0.82) {
+          this.beep(
+            140 + rpm * 220 + (boosting ? 48 : 0),
+            0.04,
+            boosting ? "triangle" : "square",
+            0.0016 + rpm * 0.003,
+            0.008,
+          );
+        }
         this.enginePulse.set(id, Math.max(0.04, 0.18 - rpm * 0.1 - (boosting ? 0.03 : 0)));
       } else {
         this.enginePulse.set(id, nextTimer);
@@ -82,12 +97,24 @@ export class AudioSystem {
       const notes = [220, 247, 262, 247];
       this.beep(notes[this.musicStep % notes.length], 0.18, "triangle", 0.018);
       this.musicTimer = 0.45;
+    } else if (this.musicMode === "hook") {
+      const bass = [82, 82, 98, 110, 82, 92, 110, 123];
+      const grind = [164, 196, 220, 247];
+      this.beep(bass[this.musicStep % bass.length], 0.14, "sawtooth", 0.026);
+      this.beep(grind[this.musicStep % grind.length], 0.08, "square", 0.012, 0.03);
+      if (this.musicStep % 2 === 0) {
+        this.beep(328, 0.045, "triangle", 0.009, 0.06);
+      }
+      this.musicTimer = 0.19;
     } else {
       const bass = [92, 110, 123, 110];
       const accent = [184, 220, 246, 220];
       this.beep(bass[this.musicStep % bass.length], 0.12, "sawtooth", 0.025);
       if (this.musicStep % 2 === 0) {
         this.beep(accent[this.musicStep % accent.length], 0.08, "square", 0.012, 0.04);
+      }
+      if (this.musicStep % 4 === 2) {
+        this.beep(276, 0.05, "triangle", 0.008, 0.07);
       }
       this.musicTimer = 0.22;
     }

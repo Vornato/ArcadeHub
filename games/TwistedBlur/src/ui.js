@@ -397,7 +397,9 @@ function drawLevelPreview(ctx, level, x, y, width, height, accent = UI_COLORS.ac
 }
 
 export class UIRenderer {
-  renderTitle(ctx, width, height, time, connectedGamepads = [], playerCount = 1) {
+  renderTitle(ctx, width, height, time, connectedGamepads = [], playerCount = 1, titleData = null) {
+    const options = titleData?.options ?? [];
+    const titleStats = titleData?.stats ?? {};
     const hasBackdrop = drawMenuBackground(
       ctx,
       width,
@@ -441,22 +443,53 @@ export class UIRenderer {
       ctx.fillStyle = UI_COLORS.text;
       ctx.textAlign = "left";
       ctx.font = "bold 24px Trebuchet MS";
-      ctx.fillText("Modes Online", width - 384, height - 208);
+      ctx.fillText("Featured Build", width - 384, height - 208);
       ctx.font = "18px Trebuchet MS";
-      ctx.fillText("Combat Race  |  Arena Deathmatch", width - 384, height - 164);
-      ctx.fillText("Survival  |  Drift Attack  |  Quick Battle", width - 384, height - 132);
+      ctx.fillText("Combat Race  |  Hook Clash", width - 384, height - 164);
+      ctx.fillText(`Matches ${titleStats.totalMatches ?? 0}  |  Drift ${titleStats.bestDriftScore ?? 0}`, width - 384, height - 132);
       ctx.fillStyle = UI_COLORS.dim;
-      ctx.fillText("Original vehicles, pickups, bots, and maps", width - 384, height - 102);
+      ctx.fillText(`Favorite chassis: ${titleStats.favoriteVehicle ?? "Vector Lynx"}`, width - 384, height - 102);
     } else {
       ctx.fillStyle = "rgba(4,8,14,0.42)";
       ctx.fillRect(width * 0.5 - 330, height - 118, 660, 64);
       ctx.fillStyle = UI_COLORS.dim;
       ctx.font = "18px Trebuchet MS";
       ctx.textAlign = "center";
-      ctx.fillText(`${connectedGamepads.length} pads linked  |  ${playerCount} local drivers`, width * 0.5, height - 84);
+      const lastResult = titleStats.lastResult
+        ? `${titleStats.lastResult.winner} won ${titleStats.lastResult.modeName}`
+        : `${connectedGamepads.length} pads linked  |  ${playerCount} local drivers`;
+      ctx.fillText(lastResult, width * 0.5, height - 84);
     }
 
-    fillTextGlow(ctx, "PRESS ENTER, SPACE, A, OR START", width * 0.5, height - 72, 28, UI_COLORS.accentHot);
+    if (options.length) {
+      const cardWidth = Math.min(230, Math.floor((width - 140) / 3));
+      const cardHeight = 92;
+      const gap = 18;
+      const totalWidth = cardWidth * options.length + gap * Math.max(0, options.length - 1);
+      const originX = Math.round(width * 0.5 - totalWidth * 0.5);
+      const y = hasBackdrop ? height - 248 : 566;
+      options.forEach((option, index) => {
+        const x = originX + index * (cardWidth + gap);
+        const selected = index === (titleData?.cursor ?? 0);
+        const disabled = !!option.disabled;
+        drawCutPanel(
+          ctx,
+          x,
+          y,
+          cardWidth,
+          cardHeight,
+          selected ? UI_COLORS.accentHot : disabled ? "rgba(255,255,255,0.12)" : UI_COLORS.accentCyan,
+          selected ? 0.88 : disabled ? 0.26 : 0.58,
+        );
+        fillTextGlow(ctx, option.label, x + cardWidth * 0.5, y + 30, 20, disabled ? UI_COLORS.dim : UI_COLORS.text);
+        ctx.fillStyle = disabled ? "rgba(147,166,199,0.65)" : UI_COLORS.dim;
+        ctx.font = "15px Trebuchet MS";
+        ctx.textAlign = "center";
+        ctx.fillText(option.detail, x + cardWidth * 0.5, y + 62, cardWidth - 26);
+      });
+    }
+
+    fillTextGlow(ctx, "LEFT / RIGHT selects  |  ENTER confirms  |  Q quick start  |  L last match", width * 0.5, height - 40, 18, UI_COLORS.accentHot);
   }
 
   renderLobby(ctx, width, height, menu, connectedGamepads, time) {
@@ -519,6 +552,10 @@ export class UIRenderer {
       ctx.fillText(`AI Fill: ${menu.aiFill}`, width * 0.5 - 428, height - 148);
       ctx.fillText(`Bot Skill: ${menu.getBotDifficulty().name}`, width * 0.5 - 428, height - 106);
       ctx.fillText(`Connected Pads: ${connectedGamepads.length}`, width * 0.5 - 428, height - 64);
+      ctx.fillStyle = UI_COLORS.dim;
+      ctx.font = "18px Trebuchet MS";
+      ctx.fillText("Q quick start  |  L last match  |  R shuffle straight into a match", width * 0.5 - 40, height - 106);
+      ctx.fillText("Enter opens full setup. Delete removes the last local driver.", width * 0.5 - 40, height - 64);
     } else {
       drawPanel(ctx, width * 0.5 - 430, 500, 860, 170, UI_COLORS.accentHot, 0.82);
       ctx.fillStyle = UI_COLORS.text;
@@ -530,8 +567,8 @@ export class UIRenderer {
       ctx.fillStyle = UI_COLORS.dim;
       ctx.font = "18px Trebuchet MS";
       ctx.fillText("Left/Right changes AI fill. Up/Down changes bot skill.", width * 0.5 - 90, 546);
-      ctx.fillText("Press B on a joined gamepad to leave that slot.", width * 0.5 - 90, 582);
-      ctx.fillText("Delete removes the last human. Enter or Start locks the lobby.", width * 0.5 - 90, 618);
+      ctx.fillText("Q quick starts, L loads the last match, R shuffles the setup.", width * 0.5 - 90, 582);
+      ctx.fillText("Delete removes the last human. Enter or Start opens full setup.", width * 0.5 - 90, 618);
     }
   }
 
@@ -591,7 +628,7 @@ export class UIRenderer {
 
     const prompt = menu.areAllPlayersReady()
       ? "ALL DRIVERS LOCKED. ADVANCING..."
-      : "Each driver uses steer to swap, fire / A to lock, alt / B to unlock.";
+      : "Steer swaps vehicles, fire / A locks in, alt / B unlocks, R shuffles the grid.";
     fillTextGlow(ctx, prompt, width * 0.5, height - 76, 20, menu.areAllPlayersReady() ? UI_COLORS.warning : UI_COLORS.dim);
   }
 
@@ -612,6 +649,10 @@ export class UIRenderer {
     drawCutPanel(ctx, width * 0.5 - 370, 180, 740, 360, UI_COLORS.accentCyan, hasBackdrop ? 0.72 : 0.9);
     fillTextGlow(ctx, mode.name, width * 0.5, 252, 44, "#f4f8ff");
     fillTextGlow(ctx, mode.description, width * 0.5, 308, 20, UI_COLORS.dim);
+    if (mode.featured) {
+      drawPanel(ctx, width * 0.5 - 86, 198, 172, 34, UI_COLORS.warning, 0.78);
+      fillTextGlow(ctx, "FEATURED MODE", width * 0.5, 221, 12, UI_COLORS.warning);
+    }
 
     ctx.textAlign = "center";
     ctx.font = "bold 22px Trebuchet MS";
@@ -622,10 +663,13 @@ export class UIRenderer {
     if (mode.killTarget) {
       ctx.fillText(`Kill Target: ${mode.killTarget}`, width * 0.5, 390);
     }
+    if (mode.scoreTarget) {
+      ctx.fillText(`Score Target: ${mode.scoreTarget}`, width * 0.5, 390);
+    }
     ctx.fillText(`Time Limit: ${mode.timeLimit >= 999 ? "Open End" : formatTime(mode.timeLimit)}`, width * 0.5, 432);
     ctx.fillText(`Respawns: ${mode.respawn ? "Enabled" : "Disabled"}`, width * 0.5, 474);
 
-    fillTextGlow(ctx, "LEFT / RIGHT changes mode. ENTER confirms.", width * 0.5, height - 76, 22, UI_COLORS.dim);
+    fillTextGlow(ctx, "LEFT / RIGHT changes mode. R shuffles. ENTER confirms.", width * 0.5, height - 76, 22, UI_COLORS.dim);
   }
 
   renderMapSelect(ctx, width, height, menu) {
@@ -677,7 +721,7 @@ export class UIRenderer {
       ctx.fillText(entry.category.toUpperCase(), x + cardWidth * 0.5, y + cardHeight + 46);
     });
 
-    fillTextGlow(ctx, "LEFT / RIGHT changes map. ENTER opens the ready check.", width * 0.5, height - 76, 22, UI_COLORS.dim);
+    fillTextGlow(ctx, "LEFT / RIGHT changes map. R shuffles. ENTER opens the ready check.", width * 0.5, height - 76, 22, UI_COLORS.dim);
   }
 
   renderLaunchConfirm(ctx, width, height, menu) {
@@ -760,17 +804,37 @@ export class UIRenderer {
       ctx.fillText(entry.summary, width * 0.5 + 384, y);
     });
 
-    fillTextGlow(ctx, "ENTER OR START RETURNS TO THE LOBBY", width * 0.5, height - 80, 22, UI_COLORS.dim);
+    if (results.note) {
+      fillTextGlow(ctx, results.note, width * 0.5, 636, 16, UI_COLORS.dim);
+    }
+
+    (results.actions ?? []).forEach((option, index) => {
+      const cardWidth = 220;
+      const gap = 18;
+      const totalWidth = (results.actions.length * cardWidth) + (Math.max(0, results.actions.length - 1) * gap);
+      const x = width * 0.5 - totalWidth * 0.5 + index * (cardWidth + gap);
+      const y = height - 120;
+      drawCutPanel(ctx, x, y, cardWidth, 54, index === (results.selectedAction ?? 0) ? UI_COLORS.accentHot : "rgba(255,255,255,0.14)", 0.86);
+      fillTextGlow(ctx, option, x + cardWidth * 0.5, y + 33, 18, UI_COLORS.text);
+    });
+
+    fillTextGlow(ctx, "LEFT / RIGHT selects  |  ENTER confirms  |  R shuffles instantly", width * 0.5, height - 28, 18, UI_COLORS.dim);
   }
 
   renderGlobalMatchBanner(ctx, width, height, match) {
-    const bannerWidth = match.mode.id === "driftAttack" ? 500 : 360;
+    const bannerWidth = match.mode.id === "driftAttack" || match.mode.id === "hookClash" ? 500 : 360;
     drawCutPanel(ctx, width * 0.5 - bannerWidth * 0.5, 12, bannerWidth, 62, UI_COLORS.accentHot, 0.88);
     ctx.fillStyle = UI_COLORS.text;
     ctx.font = "bold 18px Trebuchet MS";
     ctx.textAlign = "center";
     const timer = match.mode.timeLimit >= 999 ? formatTime(match.elapsed) : formatTime(Math.max(0, match.mode.timeLimit - match.elapsed));
-    const suffix = match.mode.id === "driftAttack" ? `  |  Lead ${Math.round(match.driftLeadScore ?? 0)}` : "";
+    let suffix = "";
+    if (match.mode.id === "driftAttack") {
+      suffix = `  |  Lead ${Math.round(match.driftLeadScore ?? 0)}`;
+    } else if (match.mode.id === "hookClash") {
+      const lead = Math.max(0, ...match.participants.map((participant) => participant.vehicle.score));
+      suffix = `  |  Lead ${lead}/${match.mode.scoreTarget}`;
+    }
     ctx.fillText(`${match.mode.name}  |  ${timer}${suffix}`, width * 0.5, 50);
   }
 
@@ -879,6 +943,10 @@ export class UIRenderer {
     if (match.mode.id === "combatRace") {
       ctx.fillText(`Lap ${Math.min(match.mode.laps, vehicle.lap + 1)}/${match.mode.laps}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
       ctx.fillText(vehicle.wrongWay ? "Wrong Way" : "On Line", rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
+      ctx.fillText(`Kills ${vehicle.kills}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
+    } else if (match.mode.id === "hookClash") {
+      ctx.fillText(`Score ${vehicle.score}/${match.mode.scoreTarget}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));
+      ctx.fillText(`Hooks ${vehicle.hookHits}  Snags ${vehicle.pickupSnags}`, rightX + Math.round(14 * hudScale), topY + Math.round(62 * hudScale));
       ctx.fillText(`Kills ${vehicle.kills}`, rightX + Math.round(14 * hudScale), topY + Math.round(82 * hudScale));
     } else if (match.mode.id === "driftAttack") {
       ctx.fillText(`Score ${Math.round(vehicle.score)}`, rightX + Math.round(14 * hudScale), topY + Math.round(42 * hudScale));

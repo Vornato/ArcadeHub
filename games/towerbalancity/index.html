@@ -9,91 +9,117 @@
 </head>
 <body>
     <div id="game-container">
-        <!-- Environmental Overlays (Weather) -->
         <div id="weather-overlay"></div>
         <div id="darkness-overlay"></div>
 
         <canvas id="game-canvas" width="1280" height="720"></canvas>
 
-        <!-- Game HUD -->
         <div id="hud" class="hidden">
-            <div id="score-panel" class="glass-panel">
-                <div class="score-label">Score</div>
-                <div id="score-display">0</div>
-                <div class="height-label">Height</div>
-                <div id="height-display">0m</div>
-            </div>
-            
-            <div id="balance-meter-container">
-                <div class="meter-label">TOWER STABILITY</div>
-                <div id="balance-meter" class="glass-panel">
-                    <div id="balance-bg"></div>
-                    <div id="balance-center"></div>
-                    <div id="balance-indicator">
-                        <div class="indicator-weight"></div>
-                    </div>
+            <div class="hud-rail hud-left">
+                <div id="score-panel" class="glass-panel hud-pane">
+                    <div class="score-label">Score</div>
+                    <div id="score-display">0</div>
+                    <div class="height-label">Height</div>
+                    <div id="height-display">0m</div>
                 </div>
-                <div id="com-arrow">
-                    <span class="com-label">CENTER OF MASS</span>
-                    <div id="com-arrow-widget">
-                        <div id="com-arrow-trail"></div>
-                        <div id="com-arrow-vector">
-                            <span id="com-arrow-icon">▲</span>
+
+                <div id="run-goal-panel" class="glass-panel hud-pane">
+                    <div class="queue-title">District Goal</div>
+                    <div id="goal-project" class="goal-title">Modern Apartment</div>
+                    <div id="goal-height" class="goal-height">Clear 48m</div>
+                    <div id="goal-seed" class="goal-seed">Standard Contract</div>
+                </div>
+
+                <div id="contract-panel" class="glass-panel hud-pane">
+                    <div class="queue-title">Active Contracts</div>
+                    <div id="contract-0" class="contract-entry">---</div>
+                    <div id="contract-1" class="contract-entry">---</div>
+                    <div id="contract-2" class="contract-entry">---</div>
+                </div>
+            </div>
+
+            <div class="hud-center">
+                <div id="balance-meter-container">
+                    <div class="meter-label">Tower Stability</div>
+                    <div id="balance-meter" class="glass-panel">
+                        <div id="balance-bg"></div>
+                        <div id="balance-center"></div>
+                        <div id="balance-indicator">
+                            <div class="indicator-weight"></div>
                         </div>
                     </div>
-                    <span id="com-arrow-mass">LOAD 0T</span>
+                    <div id="com-arrow">
+                        <span class="com-label">Center Of Mass</span>
+                        <div id="com-arrow-widget">
+                            <div id="com-arrow-trail"></div>
+                            <div id="com-arrow-vector">
+                                <span id="com-arrow-icon">&#9650;</span>
+                            </div>
+                        </div>
+                        <span id="com-arrow-mass">LOAD 0T</span>
+                    </div>
+                    <div id="danger-text">STABLE</div>
                 </div>
-                <div id="danger-text">STABLE</div>
-            </div>
 
-            <div id="weather-status" class="glass-panel">
-                <div id="wind-state" class="status-chip">
-                    <span class="chip-name">WIND</span>
-                    <span id="wind-forecast" class="chip-forecast">CALM</span>
+                <div id="weather-status" class="glass-panel hud-pane">
+                    <div id="wind-state" class="status-chip">
+                        <span class="chip-name">WIND</span>
+                        <span id="wind-forecast" class="chip-forecast">CALM</span>
+                    </div>
+                    <div id="rain-state" class="status-chip">
+                        <span class="chip-name">RAIN</span>
+                        <span id="rain-forecast" class="chip-forecast">CLEAR</span>
+                    </div>
+                    <div id="dark-state" class="status-chip">
+                        <span class="chip-name">DARK</span>
+                        <span id="dark-forecast" class="chip-forecast">OPEN</span>
+                    </div>
                 </div>
-                <div id="rain-state" class="status-chip">
-                    <span class="chip-name">RAIN</span>
-                    <span id="rain-forecast" class="chip-forecast">CLEAR</span>
+            </div>
+
+            <div class="hud-rail hud-right">
+                <div id="tower-minimap-panel" class="glass-panel hud-pane">
+                    <div class="queue-title">Load Map</div>
+                    <canvas id="tower-minimap" width="140" height="220"></canvas>
                 </div>
-                <div id="dark-state" class="status-chip">
-                    <span class="chip-name">DARK</span>
-                    <span id="dark-forecast" class="chip-forecast">OPEN</span>
+
+                <div id="piece-queue" class="glass-panel hud-pane">
+                    <div class="queue-title">Upcoming Floors</div>
+                    <div id="queue-0" class="queue-slot">---</div>
+                    <div id="queue-1" class="queue-slot">---</div>
+                    <div id="queue-2" class="queue-slot">---</div>
+                    <div id="queue-tooltip" class="queue-tooltip">Stable starter floor.</div>
                 </div>
             </div>
 
-            <div id="tower-minimap-panel" class="glass-panel">
-                <div class="queue-title">LOAD MAP</div>
-                <canvas id="tower-minimap" width="140" height="220"></canvas>
+            <div class="hud-bottom">
+                <div id="crane-panel" class="glass-panel hud-pane">
+                    <div class="queue-title">Drop Window</div>
+                    <div class="crane-panel-main">
+                        <div class="crane-focus-copy">
+                            <span class="crane-focus-label">Active Floor</span>
+                            <strong id="crane-focus-name">Stable starter floor</strong>
+                            <span id="crane-focus-hint" class="crane-focus-hint">Tap drop when the live ghost goes green.</span>
+                        </div>
+                        <div id="solo-command-panel" class="solo-command-panel hidden">
+                            <span class="solo-command-label">Crew Command</span>
+                            <strong id="solo-command-mode">BALANCE</strong>
+                            <span id="solo-command-hint" class="solo-command-hint">Press C on keyboard or Y on gamepad to cycle.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="director-panel" class="glass-panel hud-pane">
+                    <div class="queue-title">Site Director</div>
+                    <div id="director-status" class="director-status">Tower ready. Keep the stack centered.</div>
+                    <div id="director-detail" class="director-detail">Quick contracts teach the core loop before the full district escalates.</div>
+                </div>
             </div>
 
-            <div id="piece-queue" class="glass-panel">
-                <div class="queue-title">UPCOMING FLOORS</div>
-                <div id="queue-0" class="queue-slot">---</div>
-                <div id="queue-1" class="queue-slot">---</div>
-                <div id="queue-2" class="queue-slot">---</div>
-                <div id="queue-tooltip" class="queue-tooltip">Stable starter floor.</div>
-            </div>
-
-            <div id="run-goal-panel" class="glass-panel">
-                <div class="queue-title">DISTRICT GOAL</div>
-                <div id="goal-project" class="goal-title">Modern Apartment</div>
-                <div id="goal-height" class="goal-height">Clear 48m</div>
-                <div id="goal-seed" class="goal-seed">Standard Contract</div>
-            </div>
-
-            <div id="contract-panel" class="glass-panel">
-                <div class="queue-title">ACTIVE CONTRACTS</div>
-                <div id="contract-0" class="contract-entry">---</div>
-                <div id="contract-1" class="contract-entry">---</div>
-                <div id="contract-2" class="contract-entry">---</div>
-            </div>
-
-            <!-- Flavor Text Toast -->
             <div id="flavor-toast" class="glass-panel hidden">
                 <p id="flavor-text">flavor text</p>
             </div>
 
-            <!-- Phase Banner -->
             <div id="phase-banner" class="hidden">
                 <h1 id="phase-title">PHASE 1</h1>
             </div>
@@ -101,66 +127,69 @@
             <div id="action-callout" class="hidden">PERFECT!</div>
         </div>
 
-        <!-- Screens Overlay -->
         <div id="screens">
-            <!-- Main Menu -->
             <div id="screen-menu" class="screen active">
                 <div class="menu-content glass-panel">
-                    <h1 class="logo-text">TOWER <br><span class="panic-text">PANIC</span></h1>
-                    <p class="subtitle">A Chaotic Co-Op Balancing Act</p>
-                    <div id="menu-meta" class="glass-panel">
-                        <div class="menu-meta-row"><span>XP</span><strong id="menu-xp">0</strong></div>
-                        <div class="menu-meta-row"><span>Best Height</span><strong id="menu-best">0m</strong></div>
-                        <div class="menu-meta-row"><span>District Clears</span><strong id="menu-clears">0</strong></div>
-                        <div class="menu-meta-row"><span>Best Medal</span><strong id="menu-best-medal">NONE</strong></div>
-                        <div class="menu-meta-row"><span>Next Unlock</span><strong id="menu-next-unlock">All systems online</strong></div>
-                        <div class="menu-meta-row"><span>Daily Seed</span><strong id="menu-daily-seed">---</strong></div>
-                    </div>
-                    <div class="menu-buttons" style="display: flex; flex-direction: column; gap: 15px; margin-top: 30px;">
-                        <button id="btn-play" class="btn-success" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (NORMAL)</button>
-                        <button id="btn-daily" class="btn-primary" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (DAILY)</button>
-                        <button id="btn-chaos" class="btn-primary" style="font-size: 1.5rem; padding: 15px 40px;">PLAY (CHAOS)</button>
-                        <button id="btn-options" class="btn-secondary" style="font-size: 1.2rem; padding: 10px 30px;">OPTIONS</button>
+                    <div class="menu-layout">
+                        <div class="menu-hero">
+                            <span class="screen-tag">District Build Ops</span>
+                            <h1 class="logo-text">TOWER <br><span class="panic-text">PANIC</span></h1>
+                            <p class="subtitle">A Chaotic Co-Op Balancing Act</p>
+                            <p class="menu-description">Time crane drops, counterweight the tower, and keep the district upright through short contracts and long-form runs.</p>
+                            <div class="menu-highlight glass-panel">
+                                <span class="menu-highlight-label">Recommended</span>
+                                <strong>Quick Contract</strong>
+                                <span>Sharper onboarding, cleaner escalation, and faster retries.</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-side">
+                            <div id="menu-meta" class="glass-panel">
+                                <div class="menu-meta-row"><span>XP</span><strong id="menu-xp">0</strong></div>
+                                <div class="menu-meta-row"><span>Best Height</span><strong id="menu-best">0m</strong></div>
+                                <div class="menu-meta-row"><span>District Clears</span><strong id="menu-clears">0</strong></div>
+                                <div class="menu-meta-row"><span>Best Medal</span><strong id="menu-best-medal">NONE</strong></div>
+                                <div class="menu-meta-row"><span>Next Unlock</span><strong id="menu-next-unlock">All systems online</strong></div>
+                                <div class="menu-meta-row"><span>Daily Seed</span><strong id="menu-daily-seed">---</strong></div>
+                            </div>
+
+                            <div class="menu-mode-grid">
+                                <button id="btn-quick" class="mode-card btn-success" data-kicker="Recommended" data-desc="Guided first run, shorter target, faster loop.">Quick Contract</button>
+                                <button id="btn-play" class="mode-card btn-primary" data-kicker="Core Run" data-desc="Full district contract with standard escalation.">Standard Run</button>
+                                <button id="btn-daily" class="mode-card btn-primary" data-kicker="Daily Seed" data-desc="Fixed-seed challenge for a consistent daily route.">Daily Contract</button>
+                                <button id="btn-chaos" class="mode-card btn-primary" data-kicker="High Stress" data-desc="Escalated hazards, heavier instability, faster punishment.">Chaos Run</button>
+                            </div>
+
+                            <button id="btn-options" class="btn-secondary menu-utility">Options</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Setup Screen -->
             <div id="screen-setup" class="screen hidden">
                 <div class="setup-content glass-panel">
-                    <h2>Join the Game</h2>
-                    <p id="setup-mode-label" style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Standard district contract.</p>
-                    <p style="color:#a0aec0;font-family:'Nunito',sans-serif;margin-bottom:8px;">Crane: Arrows/Enter | Builders jump up through floors | Hold Down + Jump to drop to the floor below | Keyboard, gamepads, and bots supported</p>
+                    <div class="setup-header">
+                        <div class="setup-header-copy">
+                            <span class="screen-tag">Crew Assembly</span>
+                            <h2>Join The Run</h2>
+                            <p id="setup-mode-label" class="setup-mode-label">Standard district contract.</p>
+                        </div>
+                        <div class="setup-tip-card glass-panel">
+                            <span class="setup-tip-label">Control Notes</span>
+                            <p>Crane auto-sweeps. Builders jump through floors. Hold Down + Jump to drop below. Keyboard, gamepads, and bots are all supported.</p>
+                        </div>
+                    </div>
+
                     <div class="setup-grid">
                         <div class="player-slot p1" id="slot-1">
-                            <div class="avatar-preview">🏗️</div>
+                            <div class="avatar-preview">&#127959;</div>
                             <h3>Crane</h3>
                             <p class="status">Arrow keys or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
                         <div class="player-slot p2" id="slot-2">
-                            <div class="avatar-preview">🏃‍♂️</div>
+                            <div class="avatar-preview">&#128119;</div>
                             <h3>Builder 1</h3>
-                            <div class="class-selector hidden">
-                                <span class="class-name">Worker</span>
-                                <div class="class-desc">All-around</div>
-                            </div>
-                            <p class="status">J/L keys or Gamepad to join...</p>
-                            <p class="mapping hidden"></p>
-                        </div>
-                        <div class="player-slot p3" id="slot-3">
-                            <div class="avatar-preview">🏃‍♀️</div>
-                            <h3>Builder 2</h3>
-                            <div class="class-selector hidden">
-                                <span class="class-name">Worker</span>
-                                <div class="class-desc">All-around</div>
-                            </div>
-                            <p class="status">Numpad 4/6 or Gamepad to join...</p>
-                            <p class="mapping hidden"></p>
-                        </div>
-                        <div class="player-slot p4" id="slot-4">
-                            <div class="avatar-preview">🏃‍♂️</div>
-                            <h3>Builder 3</h3>
                             <div class="class-selector hidden">
                                 <span class="class-name">Worker</span>
                                 <div class="class-desc">All-around</div>
@@ -168,30 +197,55 @@
                             <p class="status">A/D keys or Gamepad to join...</p>
                             <p class="mapping hidden"></p>
                         </div>
+                        <div class="player-slot p3" id="slot-3">
+                            <div class="avatar-preview">&#128119;</div>
+                            <h3>Builder 2</h3>
+                            <div class="class-selector hidden">
+                                <span class="class-name">Worker</span>
+                                <div class="class-desc">All-around</div>
+                            </div>
+                            <p class="status">J/L keys or Gamepad to join...</p>
+                            <p class="mapping hidden"></p>
+                        </div>
+                        <div class="player-slot p4" id="slot-4">
+                            <div class="avatar-preview">&#128119;</div>
+                            <h3>Builder 3</h3>
+                            <div class="class-selector hidden">
+                                <span class="class-name">Worker</span>
+                                <div class="class-desc">All-around</div>
+                            </div>
+                            <p class="status">Numpad 4/6 or Gamepad to join...</p>
+                            <p class="mapping hidden"></p>
+                        </div>
                     </div>
+
                     <div id="setup-contract-brief" class="setup-brief glass-panel">
-                        <div class="queue-title">RUN BRIEF</div>
+                        <div class="queue-title">Run Brief</div>
                         <div id="setup-goal-height">Clear 48m</div>
                         <div id="setup-contracts">Contracts load on run start.</div>
                     </div>
+
                     <div class="setup-controls">
-                        <button id="btn-add-bot" class="btn-primary">Add AI Bot (+)</button>
-                        <button id="btn-bot-diff" class="btn-primary">Bot Difficulty: Normal</button>
-                        <select id="project-selector" class="btn-primary" style="margin: 5px;">
-                            <option value="random">Random District</option>
-                            <option value="modern">Modern Apartment Block</option>
-                            <option value="luxury">Luxury High-Rise</option>
-                            <option value="industrial">Industrial Stack</option>
-                            <option value="cheap">Rushed Construction</option>
-                            <option value="glass">Glass Business HQ</option>
-                        </select>
-                        <button id="btn-start-game" class="btn-success" disabled>BUILD!</button>
-                        <button id="btn-back-menu" class="btn-secondary">Cancel</button>
+                        <div class="setup-controls-row">
+                            <button id="btn-add-bot" class="btn-primary">Add AI Bot (+)</button>
+                            <button id="btn-bot-diff" class="btn-primary">Bot Difficulty: Normal</button>
+                            <select id="project-selector" class="setup-select">
+                                <option value="random">Random District</option>
+                                <option value="modern">Modern Apartment Block</option>
+                                <option value="luxury">Luxury High-Rise</option>
+                                <option value="industrial">Industrial Stack</option>
+                                <option value="cheap">Rushed Construction</option>
+                                <option value="glass">Glass Business HQ</option>
+                            </select>
+                        </div>
+                        <div class="setup-controls-row setup-controls-row-end">
+                            <button id="btn-start-game" class="btn-success" disabled>Build</button>
+                            <button id="btn-back-menu" class="btn-secondary">Cancel</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Game Over Screen -->
             <div id="screen-gameover" class="screen hidden">
                 <div class="gameover-content glass-panel danger-pulse">
                     <h2 class="panic-text">COLLAPSE!</h2>
@@ -261,11 +315,10 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Pause Screen -->
+
             <div id="screen-pause" class="screen hidden">
                 <div class="pause-content glass-panel blur-heavy">
-                    <h2>PAUSED</h2>
+                    <h2>Paused</h2>
                     <div class="pause-controls">
                         <button id="btn-resume" class="btn-primary">Resume</button>
                         <button id="btn-quit-pause" class="btn-danger">Quit to Menu</button>
@@ -273,47 +326,56 @@
                 </div>
             </div>
 
-            <!-- Options Screen -->
-            <div id="screen-options" class="screen flex-col hidden ui-container" style="padding: 30px; border-radius: 12px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); z-index: 50;">
-                <h1 class="logo-text" style="font-size: 3rem;">OPTIONS</h1>
-                <div class="setup-controls" style="width: 300px;">
-                    <label>Master Volume: <span id="lbl-vol-master">100%</span></label>
-                    <input type="range" id="vol-master" min="0" max="1" step="0.1" value="1">
-                    
-                    <label>Music Volume: <span id="lbl-vol-music">100%</span></label>
-                    <input type="range" id="vol-music" min="0" max="1" step="0.1" value="1">
-                    
-                    <label>SFX Volume: <span id="lbl-vol-sfx">100%</span></label>
-                    <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="1">
-                    
-                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
-                        Reduced Intensity Mode
-                        <input type="checkbox" id="chk-reduced-intensity">
-                    </label>
+            <div id="screen-options" class="screen hidden">
+                <div class="options-content glass-panel blur-heavy">
+                    <div class="options-header">
+                        <span class="screen-tag">System</span>
+                        <h1 class="logo-text options-logo">OPTIONS</h1>
+                    </div>
 
-                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
-                        Weather Effects
-                        <input type="checkbox" id="chk-weather-effects" checked>
-                    </label>
+                    <div class="options-grid">
+                        <div class="options-control">
+                            <label for="vol-master">Master Volume <span id="lbl-vol-master">100%</span></label>
+                            <input type="range" id="vol-master" min="0" max="1" step="0.1" value="1">
+                        </div>
 
-                    <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
-                        Camera Shake
-                        <input type="checkbox" id="chk-camera-shake" checked>
-                    </label>
-                    
-                    <button id="btn-options-back" class="btn-secondary" style="margin-top: 20px;">Back</button>
+                        <div class="options-control">
+                            <label for="vol-music">Music Volume <span id="lbl-vol-music">100%</span></label>
+                            <input type="range" id="vol-music" min="0" max="1" step="0.1" value="1">
+                        </div>
+
+                        <div class="options-control">
+                            <label for="vol-sfx">SFX Volume <span id="lbl-vol-sfx">100%</span></label>
+                            <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="1">
+                        </div>
+
+                        <label class="toggle-row" for="chk-reduced-intensity">
+                            <span>Reduced Intensity Mode</span>
+                            <input type="checkbox" id="chk-reduced-intensity">
+                        </label>
+
+                        <label class="toggle-row" for="chk-weather-effects">
+                            <span>Weather Effects</span>
+                            <input type="checkbox" id="chk-weather-effects" checked>
+                        </label>
+
+                        <label class="toggle-row" for="chk-camera-shake">
+                            <span>Camera Shake</span>
+                            <input type="checkbox" id="chk-camera-shake" checked>
+                        </label>
+                    </div>
+
+                    <button id="btn-options-back" class="btn-secondary options-back">Back</button>
                 </div>
             </div>
         </div>
-        
-        <div id="boss-banner" class="hidden" style="position: absolute; top: 30%; left: 0; right: 0; background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; text-align: center; border-top: 4px solid #f1c40f; border-bottom: 4px solid #f1c40f; transform: scaleY(0); transition: transform 0.3s ease-out; z-index: 40;">
-            <h1 id="boss-banner-title" class="logo-text" style="font-size: 3rem; margin: 0; text-shadow: 2px 2px 0px #e74c3c;">WARNING: BOSS FLOOR</h1>
-            <p id="boss-banner-flavor" style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #dfe6e9; margin-top: 5px;">Prepare for the worst.</p>
-        </div>
 
+        <div id="boss-banner" class="hidden">
+            <h1 id="boss-banner-title" class="logo-text">WARNING: BOSS FLOOR</h1>
+            <p id="boss-banner-flavor">Prepare for the worst.</p>
+        </div>
     </div>
 
-    <!-- Scripts Order Matters -->
     <script src="js/utils.js"></script>
     <script src="js/classes.js"></script>
     <script src="js/meta.js"></script>

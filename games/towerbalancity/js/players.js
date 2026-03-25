@@ -468,7 +468,7 @@ class InsidePlayer {
 class DropPlayer {
     constructor(slot, gameWidth, gameRef, botDifficulty = 1) {
         this.slot = slot;
-        this.x = gameWidth / 2;
+        this.x = (gameWidth / 2) - 200;
         this.y = 30;
         this.w = 60;
         this.h = 40;
@@ -477,18 +477,58 @@ class DropPlayer {
         this.widthLimit = gameWidth;
         
         this.currentFloorW = 400;
+        this.currentFloorH = 84;
         this.carriageOffset = 0;
-        this.carriageVelocity = 3.4;
+        this.carriageVelocity = 0;
         this.loadLagOffset = 0;
         this.loadLagVelocity = 0;
-        this.maxSwing = 250;
+        this.maxSwing = 36;
         this.carriageCenterX = gameWidth / 2;
         this.bob = 0;
         this.cooldown = 0;
         this.cableStretch = 0;
         this.cableVelocity = 0;
+        this.sweepDirection = 1;
+        this.sweepSpeed = 4.8;
+        this.releaseState = null;
         this.isBot = !!(this.game.inputManager.playerMappings[this.slot] && this.game.inputManager.playerMappings[this.slot].type === 'bot');
         this.botController = this.isBot ? new CraneBotController(slot, botDifficulty) : null;
+    }
+
+    getSweepBounds(pieceWidth = this.currentFloorW) {
+        return {
+            minX: 100,
+            maxX: Math.max(100, this.widthLimit - 100 - pieceWidth)
+        };
+    }
+
+    getCabY() {
+        return this.y + Math.sin(this.bob) * 5;
+    }
+
+    getPreviewFloorY(cy = this.getCabY()) {
+        return cy + 100 + Math.min(16, Math.abs(this.loadLagOffset) * 0.08) + this.cableStretch;
+    }
+
+    startRelease(piece = this.game.upcomingPieces[0]) {
+        if (!piece || this.cooldown > 0 || this.releaseState) return false;
+        const { minX, maxX } = this.getSweepBounds(piece.w);
+        this.x = Utils.clamp(this.x, minX, maxX);
+        const previewY = this.getPreviewFloorY();
+        this.releaseState = {
+            piece,
+            x: this.x,
+            originY: previewY,
+            visualY: previewY,
+            targetY: previewY + 78,
+            speed: 18,
+            phase: 'charge',
+            chargeFrames: 6,
+            chargeTotal: 6
+        };
+        this.cooldown = 120;
+        this.game.audio.play('drop');
+        return true;
     }
 
     update() {
@@ -497,25 +537,34 @@ class DropPlayer {
             this.botController.update(this, this.game);
             state = this.botController.state;
         }
-        let nextPiece = this.game.upcomingPieces[0];
+        const activeRelease = this.releaseState;
+        let nextPiece = activeRelease ? activeRelease.piece : this.game.upcomingPieces[0];
+        if (!nextPiece) return;
         this.currentFloorW = nextPiece.w;
         this.currentFloorH = nextPiece.h;
 
-        const manualForce = (state.right ? 1 : 0) - (state.left ? 1 : 0);
         const windSway = this.game && this.game.progression ? this.game.progression.windForce * (0.012 + (this.game.progression.stormLevel || 0) * 0.006) : 0;
-        this.carriageVelocity += (-this.carriageOffset * 0.0018) - (this.carriageVelocity * 0.01) + (manualForce * 0.38) + windSway;
-        this.carriageOffset += this.carriageVelocity;
+        const { minX, maxX } = this.getSweepBounds(this.currentFloorW);
 
-        if (Math.abs(this.carriageOffset) > this.maxSwing) {
-            this.carriageOffset = Math.sign(this.carriageOffset) * this.maxSwing;
-            this.carriageVelocity *= -0.92;
+        if (this.releaseState) {
+            this.x = Utils.clamp(this.releaseState.x, minX, maxX);
+            this.carriageVelocity = 0;
+        } else {
+            this.x += this.sweepDirection * this.sweepSpeed;
+            if (this.x <= minX) {
+                this.x = minX;
+                this.sweepDirection = 1;
+            } else if (this.x >= maxX) {
+                this.x = maxX;
+                this.sweepDirection = -1;
+            }
+            this.carriageVelocity = this.sweepDirection * this.sweepSpeed;
         }
 
-        this.carriageCenterX = (this.widthLimit / 2) + this.carriageOffset;
-
-        const targetLag = (this.carriageVelocity * 3.5) + (windSway * 26);
-        this.loadLagVelocity += ((targetLag - this.loadLagOffset) * 0.08) - (this.loadLagVelocity * 0.12);
+        const targetLag = Utils.clamp((this.carriageVelocity * 4.6) + (windSway * 18), -this.maxSwing, this.maxSwing);
+        this.loadLagVelocity += ((targetLag - this.loadLagOffset) * 0.08) - (this.loadLagVelocity * 0.18);
         this.loadLagOffset += this.loadLagVelocity;
+        this.loadLagOffset = Utils.clamp(this.loadLagOffset, -this.maxSwing, this.maxSwing);
         this.cableVelocity += ((Math.abs(this.loadLagOffset) * 0.05) - this.cableStretch) * 0.18;
         this.cableVelocity *= 0.72;
         this.cableStretch += this.cableVelocity;
@@ -524,71 +573,131 @@ class DropPlayer {
             this.game.audio.play('rope');
         }
 
-        const unclampedX = this.carriageCenterX - (this.currentFloorW / 2) + this.loadLagOffset;
-        this.x = Utils.clamp(unclampedX, 100, this.widthLimit - 100 - this.currentFloorW);
-        if (this.x !== unclampedX) {
-            this.loadLagOffset *= 0.7;
-            this.loadLagVelocity *= 0.6;
-            this.carriageVelocity *= 0.85;
+        this.carriageCenterX = this.x + (this.currentFloorW / 2) + this.loadLagOffset;
+        this.carriageOffset = (this.x + (this.currentFloorW / 2)) - (this.widthLimit / 2);
+
+        if (this.releaseState) {
+            if (this.releaseState.phase === 'charge') {
+                this.releaseState.chargeFrames--;
+                const chargeProgress = 1 - (this.releaseState.chargeFrames / Math.max(1, this.releaseState.chargeTotal));
+                this.releaseState.visualY = this.releaseState.originY + (Math.sin(chargeProgress * Math.PI) * 10);
+                if (this.releaseState.chargeFrames <= 0) {
+                    this.releaseState.phase = 'drop';
+                    this.releaseState.visualY = this.releaseState.originY + 8;
+                }
+            } else {
+                this.releaseState.speed = Math.min(this.releaseState.speed + 2.2, 30);
+                this.releaseState.visualY = Math.min(this.releaseState.visualY + this.releaseState.speed, this.releaseState.targetY);
+                if (this.releaseState.visualY >= this.releaseState.targetY) {
+                    const releasePiece = this.releaseState.piece;
+                    const releaseX = this.releaseState.x;
+                    this.releaseState = null;
+                    this.game.dropFloor(releaseX, this.y + 120, releasePiece, 0, {
+                        guided: true,
+                        spawnOffsetY: 68,
+                        initialVy: 4.8,
+                        maxBounces: 0,
+                        impactScale: 0.82
+                    });
+                }
+            }
         }
 
         if (this.cooldown > 0) this.cooldown--;
         this.bob += 0.1;
 
-        if (state.action1JustPressed && this.cooldown <= 0) {
-            const inheritedMomentum = this.carriageVelocity + (this.loadLagVelocity * 0.8) + (this.loadLagOffset * 0.05);
-            this.game.dropFloor(this.x, this.y + 100, nextPiece, inheritedMomentum);
-            this.cooldown = 120;
-            this.game.audio.play('drop');
+        if (state.action1JustPressed && this.cooldown <= 0 && !this.releaseState) {
+            this.startRelease(nextPiece);
         }
     }
 
     draw(ctx) {
-        let cy = this.y + Math.sin(this.bob) * 5;
-        let floorY = cy + 100 + Math.min(16, Math.abs(this.loadLagOffset) * 0.08) + this.cableStretch;
+        const previewPiece = this.releaseState ? this.releaseState.piece : this.game.upcomingPieces[0];
+        if (!previewPiece) return;
+
+        this.currentFloorW = previewPiece.w;
+        this.currentFloorH = previewPiece.h;
+
+        const release = this.releaseState;
+        const previewX = this.releaseState ? this.releaseState.x : this.x;
+        let cy = this.getCabY();
+        let floorY = this.releaseState ? this.releaseState.visualY : this.getPreviewFloorY(cy);
+        const previewActive = this.cooldown <= 0 || !!this.releaseState;
 
         // Draw shadow of pending floor straight down over the building
-        if (this.cooldown <= 0) {
+        if (previewActive) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fillRect(this.x, floorY, this.currentFloorW, 2000); // beam of light/shadow
+            ctx.fillRect(previewX, floorY, this.currentFloorW, 2000); // beam of light/shadow
 
             const topFloor = this.game.floors[this.game.floors.length - 1];
             const highestTopY = topFloor.y;
             const perfectX = this.game.towerCenterX - this.currentFloorW / 2;
-            const nextPiece = this.game.upcomingPieces[0];
+            const nextPiece = previewPiece;
             const pendingInsetL = Math.max(nextPiece.wallLeft || 20, nextPiece.edgeInset || 0);
             const pendingInsetR = Math.max(nextPiece.wallRight || 20, nextPiece.edgeInset || 0);
-            const pendingSupportX = this.x + pendingInsetL;
+            const pendingSupportX = previewX + pendingInsetL;
             const pendingSupportW = this.currentFloorW - pendingInsetL - pendingInsetR;
             const topSupport = topFloor.getSupportBounds();
             const overlapLeft = Math.max(pendingSupportX, topSupport.supportX);
             const overlapRight = Math.min(pendingSupportX + pendingSupportW, topSupport.supportX + topSupport.supportW);
             const overlapW = Math.max(0, overlapRight - overlapLeft);
+            const supportRatio = overlapW / Math.max(1, pendingSupportW);
             const windForce = this.game.progression ? this.game.progression.windForce : 0;
+            const landingColor = supportRatio > 0.8 ? '#2ed573' : (supportRatio > 0.55 ? '#ffa502' : '#ff4757');
+            const landingLabel = supportRatio > 0.9 ? 'LOCKED' : (supportRatio > 0.72 ? 'STABLE' : (supportRatio > 0.52 ? 'RISKY' : 'BAD'));
+            const offsetFromPerfect = previewX - perfectX;
+            const correctionLabel = Math.abs(offsetFromPerfect) < 14
+                ? 'CENTERED'
+                : (offsetFromPerfect < 0 ? 'SHIFT RIGHT' : 'SHIFT LEFT');
+            const landingPulse = 0.38 + (Math.abs(Math.sin(this.bob * 1.7)) * 0.62);
+            const releaseBoost = release ? (release.phase === 'charge' ? 1.25 : 1.5) : 1;
+            const beamTopY = cy + this.h;
+            const beamBottomY = highestTopY - this.currentFloorH + 10;
 
             ctx.save();
+            const beamGradient = ctx.createLinearGradient(previewX + this.currentFloorW / 2, beamTopY, previewX + this.currentFloorW / 2, beamBottomY);
+            beamGradient.addColorStop(0, 'rgba(121,210,255,0)');
+            beamGradient.addColorStop(0.22, `rgba(121,210,255,${0.05 * releaseBoost})`);
+            beamGradient.addColorStop(1, `rgba(255,255,255,${0.12 * landingPulse * releaseBoost})`);
+            ctx.fillStyle = beamGradient;
+            ctx.beginPath();
+            ctx.moveTo(previewX + (this.currentFloorW * 0.18), floorY);
+            ctx.lineTo(previewX + (this.currentFloorW * 0.82), floorY);
+            ctx.lineTo(previewX + (this.currentFloorW * 0.62), beamBottomY);
+            ctx.lineTo(previewX + (this.currentFloorW * 0.38), beamBottomY);
+            ctx.closePath();
+            ctx.fill();
+
             ctx.strokeStyle = 'rgba(255,255,255,0.28)';
             ctx.lineWidth = 2;
             ctx.setLineDash([8, 8]);
             ctx.beginPath();
-            ctx.moveTo(this.x + this.currentFloorW / 2, floorY);
-            ctx.lineTo(this.x + this.currentFloorW / 2, highestTopY - this.currentFloorH - 36);
+            ctx.moveTo(previewX + this.currentFloorW / 2, floorY);
+            ctx.lineTo(previewX + this.currentFloorW / 2, highestTopY - this.currentFloorH - 36);
             ctx.stroke();
 
             ctx.strokeStyle = 'rgba(46, 213, 115, 0.82)';
             ctx.lineWidth = 4;
             ctx.strokeRect(perfectX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
+            ctx.strokeStyle = landingColor;
+            ctx.lineWidth = 4;
+            ctx.shadowColor = landingColor;
+            ctx.shadowBlur = 18 + (landingPulse * 10 * releaseBoost);
+            ctx.strokeRect(previewX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
+            ctx.fillStyle = `${landingColor}22`;
+            ctx.fillRect(previewX, highestTopY - this.currentFloorH, this.currentFloorW, this.currentFloorH);
+            ctx.shadowBlur = 0;
 
             const rulerY = highestTopY - 18;
             ctx.setLineDash([]);
             ctx.strokeStyle = 'rgba(255,255,255,0.24)';
             ctx.lineWidth = 6;
             ctx.beginPath();
-            ctx.moveTo(this.x, rulerY);
-            ctx.lineTo(this.x + this.currentFloorW, rulerY);
+            ctx.moveTo(previewX, rulerY);
+            ctx.lineTo(previewX + this.currentFloorW, rulerY);
             ctx.stroke();
 
-            ctx.strokeStyle = overlapW > (pendingSupportW * 0.72) ? '#2ed573' : (overlapW > (pendingSupportW * 0.45) ? '#ffa502' : '#ff4757');
+            ctx.strokeStyle = landingColor;
             ctx.beginPath();
             ctx.moveTo(overlapLeft, rulerY);
             ctx.lineTo(overlapRight, rulerY);
@@ -599,40 +708,84 @@ class DropPlayer {
             ctx.textAlign = 'center';
             ctx.shadowColor = 'black';
             ctx.shadowBlur = 4;
-            ctx.fillText(`SUPPORT ${Math.round((overlapW / Math.max(1, pendingSupportW)) * 100)}%`, this.x + this.currentFloorW / 2, rulerY - 12);
+            ctx.fillText(`SUPPORT ${Math.round(supportRatio * 100)}%`, previewX + this.currentFloorW / 2, rulerY - 12);
+            ctx.fillStyle = landingColor;
+            ctx.fillText(`${landingLabel} / ${correctionLabel}`, previewX + this.currentFloorW / 2, highestTopY - this.currentFloorH - 20);
 
             const windArrow = windForce < -0.08 ? '<<' : (windForce > 0.08 ? '>>' : '||');
             const windLabel = `WIND ${windArrow}`;
             ctx.fillStyle = Math.abs(windForce) > 4 ? '#ff9f43' : '#8ad8ff';
-            ctx.fillText(windLabel, this.x + this.currentFloorW / 2, floorY - 18);
+            ctx.fillText(windLabel, previewX + this.currentFloorW / 2, floorY - 18);
 
             if (this.game.floors.length < 5) {
-                ctx.fillStyle = Math.abs(this.x - perfectX) > 25 ? 'rgba(255,255,255,0.9)' : '#2ecc71';
-                ctx.fillText(Math.abs(this.x - perfectX) > 25 ? 'Aim here and Drop!' : 'Perfect! DROP!', perfectX + this.currentFloorW / 2, highestTopY - this.currentFloorH - 20);
+                ctx.fillStyle = Math.abs(previewX - perfectX) > 25 ? 'rgba(255,255,255,0.9)' : '#2ecc71';
+                ctx.fillText(Math.abs(previewX - perfectX) > 25 ? 'Time the sweep into the green frame.' : 'Perfect drop window.', perfectX + this.currentFloorW / 2, highestTopY - this.currentFloorH - 42);
             }
             ctx.restore();
         }
         
+        const railY = cy + 8;
+        const railGradient = ctx.createLinearGradient(48, railY, this.widthLimit - 48, railY);
+        railGradient.addColorStop(0, 'rgba(255,255,255,0.04)');
+        railGradient.addColorStop(0.2, 'rgba(255,255,255,0.2)');
+        railGradient.addColorStop(0.8, 'rgba(255,255,255,0.2)');
+        railGradient.addColorStop(1, 'rgba(255,255,255,0.04)');
+        ctx.fillStyle = railGradient;
+        ctx.fillRect(48, railY, this.widthLimit - 96, 6);
+
         // Cab housing
         let cabX = this.carriageCenterX - this.w/2;
-        Utils.drawRoundedRect(ctx, cabX, cy, this.w, this.h, 5, this.color);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 12;
+        Utils.drawRoundedRect(ctx, cabX, cy, this.w, this.h, 8, this.color);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(cabX + 8, cy + 6, this.w - 16, 8);
+        ctx.fillStyle = '#243447';
+        ctx.fillRect(cabX + 10, cy + this.h - 8, this.w - 20, 4);
+        ctx.fillStyle = release ? '#ffe066' : '#8ad8ff';
+        ctx.beginPath();
+        ctx.arc(cabX + this.w - 10, cy + 10, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         
         // Hook/Cable
-        ctx.strokeStyle = '#7f8c8d';
-        ctx.lineWidth = 4;
+        const hookX = previewX + this.currentFloorW / 2;
+        const cableMidX = Utils.lerp(cabX + this.w / 2, hookX, 0.5) + (this.loadLagOffset * 0.32);
+        const cableMidY = Utils.lerp(cy + this.h, floorY, 0.5) - 18 - (Math.abs(this.loadLagOffset) * 0.08);
+        ctx.strokeStyle = 'rgba(121,210,255,0.14)';
+        ctx.lineWidth = 8;
         ctx.beginPath();
         ctx.moveTo(cabX + this.w/2, cy + this.h);
-        ctx.lineTo(this.x + this.currentFloorW/2, floorY);
+        ctx.quadraticCurveTo(cableMidX, cableMidY, hookX, floorY);
         ctx.stroke();
+        ctx.strokeStyle = '#c7d4e2';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cabX + this.w/2, cy + this.h);
+        ctx.quadraticCurveTo(cableMidX, cableMidY, hookX, floorY);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fillRect(hookX - 3, floorY - 10, 6, 10);
 
-        if (this.cooldown <= 0) {
-            const nextPiece = this.game.upcomingPieces[0];
+        if (previewActive) {
+            const nextPiece = previewPiece;
             const previewColor = nextPiece.material === 'metal'
                 ? '#7f8fa6'
                 : (nextPiece.material === 'ice' ? '#74b9ff' : '#a97c50');
+            const previewGradient = ctx.createLinearGradient(previewX, floorY, previewX, floorY + this.currentFloorH);
+            previewGradient.addColorStop(0, Utils.adjustColor(previewColor, 24));
+            previewGradient.addColorStop(0.45, previewColor);
+            previewGradient.addColorStop(1, Utils.adjustColor(previewColor, -18));
             ctx.globalAlpha = 0.9;
-            ctx.fillStyle = previewColor;
-            ctx.fillRect(this.x, floorY, this.currentFloorW, this.currentFloorH);
+            ctx.fillStyle = previewGradient;
+            ctx.fillRect(previewX, floorY, this.currentFloorW, this.currentFloorH);
+            ctx.fillStyle = 'rgba(255,255,255,0.16)';
+            ctx.fillRect(previewX + 6, floorY + 4, Math.max(0, this.currentFloorW - 12), 6);
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(previewX + 1, floorY + 1, this.currentFloorW - 2, this.currentFloorH - 2);
             ctx.globalAlpha = 1.0;
         } else {
             // Load Bar

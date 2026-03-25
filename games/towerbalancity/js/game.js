@@ -89,10 +89,21 @@ class Game {
         this.lastLightningFlash = 0;
         this.currentMode = 'normal';
         this.dailyChallenge = null;
+        this.isQuickMode = false;
+        this.isOnboardingRun = false;
         this.victoryTriggered = false;
         this.lastContractsCompleted = 0;
         this.objectSpawnSerial = 0;
         this.heavyDeliveryCooldown = 0;
+        this.squadCommand = 'balance';
+        this.squadCommandCycle = ['balance', 'clear', 'fire'];
+        this.vulnerableFloor = null;
+        this.vulnerableFloorIndex = -1;
+        this.vulnerableFloorRisk = 0;
+        this.recoveryDirection = 0;
+        this.directorStatus = 'Tower ready. Keep the stack centered.';
+        this.directorDetail = 'Quick contracts teach the core loop before the full district escalates.';
+        this.onboardingHintsSeen = {};
 
         this.clouds = [];
         this.cityBuildings = [];
@@ -189,6 +200,36 @@ class Game {
         }
     }
 
+    getSquadCommand() {
+        return this.squadCommand || 'balance';
+    }
+
+    getSquadCommandLabel(command = this.getSquadCommand()) {
+        const labels = {
+            balance: 'BALANCE',
+            clear: 'CLEAR JUNK',
+            fire: 'FIRE LINE'
+        };
+        return labels[command] || 'BALANCE';
+    }
+
+    getSquadCommandDetail(command = this.getSquadCommand()) {
+        const details = {
+            balance: 'Bots shift weight early and brace sooner. Press C or Y to cycle.',
+            clear: 'Bots prioritize loose cargo and heavy clutter. Press C or Y to cycle.',
+            fire: 'Bots treat fire response as the top priority. Press C or Y to cycle.'
+        };
+        return details[command] || details.balance;
+    }
+
+    cycleSquadCommand() {
+        const currentIndex = this.squadCommandCycle.indexOf(this.getSquadCommand());
+        const nextIndex = (currentIndex + 1) % this.squadCommandCycle.length;
+        this.squadCommand = this.squadCommandCycle[nextIndex];
+        this.ui.updateSoloCommand(this.getSquadCommandLabel(), this.getSquadCommandDetail());
+        this.ui.showActionCallout(`CREW: ${this.getSquadCommandLabel()}`, 'heroic');
+    }
+
     start(playerCount, isChaosMode = false, playerClasses = [], botDifficulty = 1, projectThemeId = "random", dailyChallenge = null, runMode = 'normal') {
         this.isRunning = true;
         this.isPaused = false;
@@ -238,10 +279,20 @@ class Game {
         this.lastLightningFlash = 0;
         this.currentMode = runMode;
         this.dailyChallenge = dailyChallenge;
+        this.isQuickMode = runMode === 'quick';
+        this.isOnboardingRun = this.isQuickMode && this.meta.needsFirstRunOnboarding();
         this.victoryTriggered = false;
         this.lastContractsCompleted = 0;
         this.objectSpawnSerial = 0;
         this.heavyDeliveryCooldown = 0;
+        this.squadCommand = 'balance';
+        this.vulnerableFloor = null;
+        this.vulnerableFloorIndex = -1;
+        this.vulnerableFloorRisk = 0;
+        this.recoveryDirection = 0;
+        this.directorStatus = 'Tower ready. Keep the stack centered.';
+        this.directorDetail = 'Quick contracts teach the core loop before the full district escalates.';
+        this.onboardingHintsSeen = {};
 
         let humanCount = 0;
         for (let i = 0; i < 4; i++) {
@@ -267,12 +318,19 @@ class Game {
 
         this.progression.projectManager.setProject(projectThemeId);
         this.initializeBackdrop();
-        this.meta.startRun(this.progression.projectManager.selectedProject, { dailyChallenge: this.dailyChallenge });
-        this.progression.startRun();
+        this.meta.startRun(this.progression.projectManager.selectedProject, {
+            dailyChallenge: this.dailyChallenge,
+            runMode: this.currentMode,
+            isOnboarding: this.isOnboardingRun
+        });
+        this.progression.startRun({
+            runMode: this.currentMode,
+            isOnboarding: this.isOnboardingRun
+        });
         this.music.start();
 
         this.bossManager.bossesSurvived = [];
-        this.bossManager.spawnCooldown = 5;
+        this.bossManager.spawnCooldown = this.isOnboardingRun ? 99 : (this.isQuickMode ? 7 : 5);
 
         this.upcomingPieces = [
             Utils.choose(Object.values(FloorArchetypes)),
@@ -309,6 +367,14 @@ class Game {
         this.ui.updateGoalPanel(this.meta.getGoalSummary());
         this.ui.updateContracts(this.meta.getContractSnapshot());
         this.ui.updatePieceQueue(this.upcomingPieces);
+        this.ui.updateSoloCommand(this.getSquadCommandLabel(), this.getSquadCommandDetail());
+        this.ui.setSoloCommandVisibility(this.isSinglePlayer);
+        this.ui.updateDirectorPanel(this.directorStatus, this.directorDetail, 'normal');
+        if (this.isOnboardingRun) {
+            this.ui.showFlavorText('Quick contract online. Follow the green landing ghost and keep heavy load near center.', 'relief');
+        } else if (this.isQuickMode) {
+            this.ui.showFlavorText('Quick contract online. Shorter target height, lighter escalation.', 'playful');
+        }
         this.loop();
     }
 
@@ -719,6 +785,106 @@ class Game {
         return { overlap, supportRatio, overhangLeft, overhangRight };
     }
 
+    getFloorRiskScore(floor, floorIndex) {
+        if (!floor || floor.isFoundation) return 0;
+        const looseObjects = this.getFloorLooseObjects(floor);
+        const occupants = this.getFloorOccupants(floor);
+        const heavyMass = looseObjects.reduce((sum, obj) => sum + Math.max(0, obj.mass - 35), 0);
+        const overCenter = Math.abs((floor.x + floor.w / 2) - this.towerCenterX) / Math.max(80, floor.w);
+        return (
+            (1 - (floor.connectionIntegrity || 1)) * 0.78 +
+            (1 - (floor.supportRatio || 1)) * 1.1 +
+            (floor.crackSeverity || 0) * 0.68 +
+            (floor.demolitionProgress || 0) * 1.2 +
+            (floor.failureWarning || 0) * 0.32 +
+            Utils.clamp(heavyMass / 340, 0, 1.2) * 0.42 +
+            Math.min(0.28, occupants.length * 0.06) +
+            overCenter * 0.22 +
+            Math.max(0, floorIndex - Math.max(2, this.height - 4)) * 0.03
+        );
+    }
+
+    evaluateTowerGuidance() {
+        let bestFloor = null;
+        let bestFloorIndex = -1;
+        let bestRisk = 0;
+
+        for (let i = 1; i < this.floors.length; i++) {
+            const floor = this.floors[i];
+            const risk = this.getFloorRiskScore(floor, i);
+            if (risk > bestRisk) {
+                bestRisk = risk;
+                bestFloor = floor;
+                bestFloorIndex = i;
+            }
+        }
+
+        this.vulnerableFloor = bestRisk > 0.18 ? bestFloor : null;
+        this.vulnerableFloorIndex = this.vulnerableFloor ? bestFloorIndex : -1;
+        this.vulnerableFloorRisk = this.vulnerableFloor ? bestRisk : 0;
+
+        const recoveryDirection = this.balance < -4 ? 1 : (this.balance > 4 ? -1 : 0);
+        this.recoveryDirection = recoveryDirection;
+
+        let status = 'Tower ready. Keep the stack centered.';
+        let detail = this.isQuickMode
+            ? 'Quick contracts teach the core loop before the full district escalates.'
+            : 'Watch support quality, loose cargo, and weather spikes.';
+        let severity = 'normal';
+
+        if (this.isOnboardingRun && this.height === 0) {
+            status = 'Drop the first floor into the green ghost.';
+            detail = 'Perfect drops calm the tower and make the next recovery easier.';
+        } else if (this.isOnboardingRun && this.height < 3) {
+            status = 'Keep builders inside the stack and leave a center lane open.';
+            detail = 'Heavy cargo near the center is safer than clutter parked on the edge.';
+        } else if (this.dangerLevel >= 3) {
+            severity = 'critical';
+            status = recoveryDirection > 0
+                ? 'Emergency: shift weight right.'
+                : (recoveryDirection < 0 ? 'Emergency: shift weight left.' : 'Emergency: brace and clear edge load.');
+            detail = this.vulnerableFloor
+                ? `Floor ${this.vulnerableFloorIndex} is close to failure. Clear loose mass and brace on that side now.`
+                : 'Brace immediately and move heavy cargo away from the lean.';
+        } else if (this.dangerLevel >= 2 || Math.abs(this.balance) >= 18) {
+            severity = 'warning';
+            status = recoveryDirection > 0
+                ? 'Recover right.'
+                : (recoveryDirection < 0 ? 'Recover left.' : 'Recover balance.');
+            detail = this.vulnerableFloor
+                ? `Weak support detected around floor ${this.vulnerableFloorIndex}. Counterweight first, then clear clutter.`
+                : 'Move workers and loose weight toward the safe side before the lean compounds.';
+        } else if (this.vulnerableFloor) {
+            severity = 'warning';
+            const weakSide = (this.vulnerableFloor.x + this.vulnerableFloor.w / 2) < this.towerCenterX ? 'left' : 'right';
+            status = `Inspect floor ${this.vulnerableFloorIndex}.`;
+            detail = `That floor is carrying the biggest structural risk. Reinforce the ${weakSide} side and keep heavy items moving.`;
+        } else if (this.isQuickMode) {
+            status = 'Quick contract stable.';
+            detail = 'Use the ghost landing frame, finish the short target, then move into Standard or Daily.';
+        }
+
+        if (this.isSinglePlayer) {
+            detail += ` Crew command: ${this.getSquadCommandLabel().toLowerCase()}.`;
+        }
+
+        this.directorStatus = status;
+        this.directorDetail = detail;
+        this.ui.updateDirectorPanel(status, detail, severity);
+    }
+
+    handleSoloCommandInput() {
+        if (!this.isSinglePlayer) return;
+        let commandPressed = this.inputManager.isKeyJustPressed('KeyC');
+        const leaderMapping = this.inputManager.playerMappings[0];
+        if (leaderMapping && leaderMapping.type === 'gamepad') {
+            commandPressed = commandPressed || this.inputManager.gm.isButtonJustPressed(leaderMapping.index, 'Y');
+        }
+        if (commandPressed) {
+            this.cycleSquadCommand();
+        }
+    }
+
     applyFloorSupportState(floor, supportingFloor) {
         if (!floor || !supportingFloor || floor.isFoundation) return;
         const metrics = this.getSupportMetrics(floor, supportingFloor);
@@ -863,7 +1029,7 @@ class Game {
         }
     }
 
-    dropFloor(x, y, archetype, horizontalMomentum = 0) {
+    dropFloor(x, y, archetype, horizontalMomentum = 0, options = {}) {
         this.upcomingPieces.shift();
 
         // Auto-align first few drops before creating the floor
@@ -886,13 +1052,25 @@ class Game {
             : this.progression.getThemeForFloor();
         const pTheme = this.progression.projectManager.selectedProject;
 
-        let spawnY = this.floors.length > 0 ? this.floors[this.floors.length - 1].y - 800 : y;
+        const guidedDrop = !!options.guided;
+        const targetY = this.floors.length > 0 ? this.floors[this.floors.length - 1].y - h : y;
+        let spawnY = this.floors.length > 0
+            ? (guidedDrop
+                ? targetY - (options.spawnOffsetY != null ? options.spawnOffsetY : 68)
+                : this.floors[this.floors.length - 1].y - 800)
+            : y;
+        if (this.floors.length > 0) {
+            spawnY = Math.min(spawnY, targetY - 8);
+        }
 
         const newFloor = new Floor(x, spawnY, false, theme, archetype, pTheme);
         newFloor.isFalling = true;
-        newFloor.vy = 0;
-        newFloor.vx = horizontalMomentum;
+        newFloor.guidedDrop = guidedDrop;
+        newFloor.vy = options.initialVy != null ? options.initialVy : 0;
+        newFloor.vx = guidedDrop ? 0 : horizontalMomentum;
         newFloor.impactBounces = 0;
+        newFloor.maxImpactBounces = options.maxBounces;
+        newFloor.dropImpactScale = options.impactScale != null ? options.impactScale : 1;
         newFloor.dropOffset = offset;
         newFloor.dropArchetype = archetype;
         newFloor.dropTheme = theme;
@@ -906,7 +1084,7 @@ class Game {
         }
 
         const nextArchetype = Utils.choose(Object.values(FloorArchetypes));
-        const bossDef = this.bossManager.rollForBoss(this.progression, this.height);
+        const bossDef = this.isOnboardingRun ? null : this.bossManager.rollForBoss(this.progression, this.height);
 
         if (bossDef) {
             const bossPiece = Object.assign({}, FloorArchetypes[bossDef.archetype]);
@@ -989,6 +1167,19 @@ class Game {
         this.meta.recordHeight(this.height);
         this.ui.updateGoalPanel(this.meta.getGoalSummary());
         this.ui.updateContracts(this.meta.getContractSnapshot());
+
+        if (this.isOnboardingRun) {
+            if (!this.onboardingHintsSeen.firstDrop && this.height >= 1) {
+                this.onboardingHintsSeen.firstDrop = true;
+                this.ui.showFlavorText('Good. Builders counterweight the lean automatically. Keep the next floor near center.', 'relief');
+            } else if (!this.onboardingHintsSeen.midRun && this.height >= 3) {
+                this.onboardingHintsSeen.midRun = true;
+                this.ui.showFlavorText('Loose cargo on the edge is now your main risk. Clear it or move weight back to center.', 'warning');
+            } else if (!this.onboardingHintsSeen.finishLine && this.height >= Math.max(5, this.meta.getGoalSummary().targetHeight - 2)) {
+                this.onboardingHintsSeen.finishLine = true;
+                this.ui.showFlavorText('Finish the contract cleanly. Short runs are about stability, not volume.', 'playful');
+            }
+        }
 
         const completedContracts = this.meta.getCompletedContractsCount();
         if (completedContracts > this.lastContractsCompleted) {
@@ -1145,14 +1336,22 @@ class Game {
             }
         }
 
+        this.handleSoloCommandInput();
+
         // Update falling floors
         for (let i = 1; i < this.floors.length; i++) {
             let f = this.floors[i];
             if (f.isFalling) {
                 const prevX = f.x;
                 const prevY = f.y;
-                f.vy = ((f.vy || 0) + (this.physics.gravity * 1.05)) * 0.992;
-                f.vx = (f.vx || 0) * 0.996;
+                if (f.guidedDrop) {
+                    f.vy = Math.max((f.vy || 0) + (this.physics.gravity * 0.65), 4.8);
+                    if (f.vy > 8.2) f.vy = 8.2;
+                    f.vx = 0;
+                } else {
+                    f.vy = ((f.vy || 0) + (this.physics.gravity * 1.05)) * 0.992;
+                    f.vx = (f.vx || 0) * 0.996;
+                }
                 if (f.vy > this.physics.maxFallSpeed * 1.1) f.vy = this.physics.maxFallSpeed * 1.1;
                 
                 let nextY = f.y + f.vy;
@@ -1165,12 +1364,14 @@ class Game {
 
                     const impactSpeed = Math.abs(f.vy);
                     const maxBounces = impactSpeed > 12 ? 1 : 0;
+                    const allowedBounces = typeof f.maxImpactBounces === 'number' ? f.maxImpactBounces : maxBounces;
+                    const impactScale = f.dropImpactScale || 1;
                     const bounceRestitution = Utils.clamp(0.12 - ((f.mass / 500) * 0.03), 0.05, 0.1);
-                    const shouldBounce = impactSpeed > 4.2 && f.impactBounces < maxBounces;
+                    const shouldBounce = impactSpeed > 4.2 && f.impactBounces < allowedBounces;
 
-                    this.applyFloorImpact(f, impactSpeed, !shouldBounce);
-                    this.cameraDirector.addImpact(impactSpeed * 0.06);
-                    this.workerCamera.addImpact(impactSpeed * 0.06);
+                    this.applyFloorImpact(f, impactSpeed * impactScale, !shouldBounce);
+                    this.cameraDirector.addImpact(impactSpeed * 0.06 * impactScale);
+                    this.workerCamera.addImpact(impactSpeed * 0.06 * impactScale);
 
                     if (shouldBounce) {
                         f.impactBounces++;
@@ -1189,6 +1390,7 @@ class Game {
                         f.isFalling = false;
                         f.vy = 0;
                         f.vx *= 0.12;
+                        f.guidedDrop = false;
                         this.onFloorLanded(f);
                     }
                 } else {
@@ -1460,6 +1662,8 @@ class Game {
             this.ui.showActionCallout('HEROIC SAVE!', 'heroic');
         }
 
+        this.evaluateTowerGuidance();
+
         const balanceState = {
             horizontalOffset: this.centerOfMassOffset,
             verticalOffset: this.centerOfMassVerticalOffset,
@@ -1488,7 +1692,9 @@ class Game {
             centerY: this.centerOfMassY,
             foundationWidth: massState.foundationWidth,
             activeWidth: massState.activeWidth,
-            towerHeight: massState.towerHeight
+            towerHeight: massState.towerHeight,
+            highlightFloorIndex: this.vulnerableFloorIndex,
+            highlightDirection: this.recoveryDirection
         });
 
         const completedContracts = this.meta.getCompletedContractsCount();
@@ -1621,11 +1827,64 @@ class Game {
         }
 
         for (let f of this.floors) f.draw(ctx);
+        this.drawGuidanceOverlay(ctx);
         for (let h of this.hazards) h.draw(ctx);
         for (let obj of this.objects) obj.draw(ctx);
         for (let p of this.players) p.draw(ctx);
 
         this.particles.draw(ctx);
+    }
+
+    drawGuidanceOverlay(ctx) {
+        if (!this.vulnerableFloor) return;
+
+        const floor = this.vulnerableFloor;
+        const pulse = 0.5 + (Math.sin(this.backdropTime * 4.2) * 0.5);
+        const outlineColor = this.dangerLevel >= 2 ? '#ff4757' : '#ff9f43';
+        const pad = 6 + (pulse * 4);
+        const supportBounds = floor.getSupportBounds();
+        const label = this.recoveryDirection > 0
+            ? 'SHIFT RIGHT'
+            : (this.recoveryDirection < 0 ? 'SHIFT LEFT' : 'WEAK FLOOR');
+
+        ctx.save();
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 3 + (pulse * 1.5);
+        ctx.shadowColor = outlineColor;
+        ctx.shadowBlur = 12 + (pulse * 10);
+        ctx.strokeRect(floor.x - pad, floor.y - pad, floor.w + (pad * 2), floor.h + (pad * 2));
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.58)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(supportBounds.supportX, floor.y + floor.h - 24, supportBounds.supportW, 16);
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(7,18,34,0.86)';
+        ctx.fillRect(floor.x + 12, floor.y - 34, 132, 24);
+        ctx.fillStyle = outlineColor;
+        ctx.font = 'bold 13px "Fredoka One"';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, floor.x + 18, floor.y - 16);
+
+        if (this.recoveryDirection !== 0) {
+            const arrowCenterX = floor.x + floor.w / 2;
+            const arrowY = floor.y - 48;
+            const arrowLength = 54;
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(arrowCenterX, arrowY);
+            ctx.lineTo(arrowCenterX + (this.recoveryDirection * arrowLength), arrowY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(arrowCenterX + (this.recoveryDirection * arrowLength), arrowY);
+            ctx.lineTo(arrowCenterX + (this.recoveryDirection * (arrowLength - 12)), arrowY - 8);
+            ctx.lineTo(arrowCenterX + (this.recoveryDirection * (arrowLength - 12)), arrowY + 8);
+            ctx.closePath();
+            ctx.fillStyle = outlineColor;
+            ctx.fill();
+        }
+        ctx.restore();
     }
 
     drawCloudShape(ctx, x, y, w, h, color, stretch = 1) {

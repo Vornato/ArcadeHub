@@ -8,16 +8,18 @@ TwistedBlur is an original HTML5 canvas local multiplayer vehicle-combat racing 
 - Split-screen layouts for 1, 2, 3, and 4 players
 - Gamepad-first controls through the browser Gamepad API
 - Keyboard fallback with four test layouts
-- 4 playable vehicles with different speed, handling, armor, and boost profiles
+- 10 playable vehicles with different speed, handling, armor, drift, and boost profiles
 - 7 original maps
-- 4 game modes
-- Weapon pickups, support pickups, hazards, boost pads, ramps, announcer messages, destructible props, HUD, minimap, respawns, and AI bots
+- 6 game modes including the grapple-focused `Hook Clash`
+- Quick Start, Last Match, instant rematch, and shuffled match flow from the menu layer
+- Persistent local profile data for menu state, saved presets, best drift score, race records, and hook stats
+- Weapon pickups, support pickups, hazards, boost pads, ramps, announcer messages, destructible props, HUD, minimap, respawns, grapple combat, and AI bots
 
 ## Run It
 
 1. Open [index.html](C:\Users\Vornato\Desktop\ArcadeHub\ArcadeHub\games\TwistedBlur\index.html) in a modern desktop browser.
 2. Click or press any key/button once to unlock audio and gamepad input.
-3. Press `Enter`, `Space`, gamepad `A`, or gamepad `Start` to move past the title screen.
+3. Use `Enter` / `Space` / gamepad `A` to select a title action, or press `Q` for Quick Start, `L` for Last Match, and `R` for a shuffled match.
 
 If your browser blocks gamepad support from `file://`, run a tiny static server in this folder and open the served page instead.
 
@@ -50,9 +52,12 @@ If your browser blocks gamepad support from `file://`, run a tiny static server 
 ### Menu
 
 - Keyboard host: `WASD` or arrow keys to navigate, `Enter` or `Space` to accept, `Backspace` or `Escape` to go back
+- Quick Start: `Q`
+- Load Last Match Preset: `L`
+- Shuffle current setup or start a random featured match: `R`
 - Lobby keyboard joins: `2`, `3`, `4` toggle extra keyboard driver slots
 - Remove most recently joined human slot: `Delete`
-- Gamepad: d-pad or left stick to navigate, `A` or `Start` to join or accept, `B` to go back or leave the lobby slot
+- Gamepad: d-pad or left stick to navigate, `A` or `Start` to join or accept, `B` to go back or leave the lobby slot, `X` for Quick Start, `Y` for Last Match, `LB` to shuffle
 
 ### Gamepad Driving
 
@@ -101,8 +106,10 @@ Each local human gets a dedicated camera, HUD, and minimap.
 ## Modes
 
 - Combat Race: 3 laps with weapons, pickups, and respawns
+- Hook Clash: arena scoring mode built around grapple line hits, pickup snags, and fast wrecks
 - Arena Deathmatch: score target or timer-based free-for-all
 - Survival: no respawns, last machine rolling wins
+- Drift Attack: bank drift score, clean exits, and near misses before the timer expires
 - Quick Battle: short, dense party-friendly combat round
 
 ## Adding New Content
@@ -135,16 +142,16 @@ Each local human gets a dedicated camera, HUD, and minimap.
 ## Known Limitations
 
 - The visuals are still procedural rather than sprite-based, so the upgraded presentation is stylized and abstract instead of asset-heavy.
-- Menus are still host-driven after players join instead of offering simultaneous per-player selection cursors.
-- Audio uses lightweight synthesized placeholder sounds instead of produced music and layered vehicle loops.
+- Menus are faster and more party-friendly now, but selection is still host-driven after players join rather than fully simultaneous per-player cursors.
+- Audio is more reactive than before, but still uses lightweight synthesized placeholder sounds rather than produced music and layered vehicle loops.
 - Collision and track physics are intentionally arcade-focused, not full rigid-body simulation.
 - Respawn logic is built around the top-down camera model, so there is no literal flip recovery system.
 
 ## Future Upgrade Ideas
 
 - Replace procedural visuals with authored vehicle art, UI art, and map previews
-- Add per-player ready states in the vehicle lobby
-- Add drifting score chains, assists, and combo announcers
+- Add deeper grapple-specific maps, shortcuts, and prop interactions for `Hook Clash`
+- Add drifting assists, combo announcers, and more bespoke score events
 - Add more advanced bot personalities and difficulty modifiers per mode
-- Add destructible props, environmental hazards with animation, and richer sound design
+- Add richer sound design and authored music
 - Add online netcode or remote local-streaming support later if desired

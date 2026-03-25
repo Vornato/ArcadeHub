@@ -1,5 +1,5 @@
 export const GAME_TITLE = "TwistedBlur";
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 export const TARGET_WIDTH = 1600;
 export const TARGET_HEIGHT = 900;
@@ -29,8 +29,19 @@ export const MODE_DEFS = {
     laps: 3,
     timeLimit: 360,
     respawn: true,
+    featured: true,
     allowRaceHud: true,
     preferredCategory: "race",
+  },
+  hookClash: {
+    id: "hookClash",
+    name: "Hook Clash",
+    description: "Arena tether combat. Line hits, pickup snags, and fast wrecks race to the score target.",
+    scoreTarget: 12,
+    timeLimit: 150,
+    respawn: true,
+    featured: true,
+    preferredCategory: "arena",
   },
   arenaDeathmatch: {
     id: "arenaDeathmatch",
@@ -69,6 +80,14 @@ export const MODE_DEFS = {
 };
 
 export const MODE_ORDER = Object.keys(MODE_DEFS);
+
+export const FEATURED_PRESET = {
+  modeId: "hookClash",
+  selectedLevelId: "iron-basin",
+  aiFill: 3,
+  botDifficulty: 1,
+  vehicleIds: ["vector-lynx", "riot-jackal", "night-marshal", "iron-jackal"],
+};
 
 export const VEHICLE_DEFS = [
   {
@@ -511,6 +530,9 @@ export const MENU_KEYS = {
   right: ["ArrowRight", "KeyD"],
   accept: ["Enter", "Space"],
   back: ["Backspace", "Escape"],
+  quickStart: ["KeyQ"],
+  loadLast: ["KeyL"],
+  randomize: ["KeyR"],
   addKeyboard2: ["Digit2"],
   addKeyboard3: ["Digit3"],
   addKeyboard4: ["Digit4"],

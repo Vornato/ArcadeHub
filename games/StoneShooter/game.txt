@@ -1,9 +1,9 @@
 StoneShooter
 
 Important Note
-- The shipped playable page in this folder is the large self-contained build inside index.html.
+- The shipped playable page in this folder is index.html plus the external runtime in playable.js.
 - That page is titled "Trio Breaker: Puzzle Versus."
-- The extra modular JavaScript files in the folder look like a partial refactor, but the actual browser game currently runs from the inline script in index.html.
+- The old inline script in index.html is now kept as a disabled legacy snapshot, while playable.js is the active source of truth.
 
 Type
 - Arcade puzzle action game with solo play and local versus play.

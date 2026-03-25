@@ -11,6 +11,7 @@ class UIManager {
         this.scrOptions = document.getElementById('screen-options');
         this.hud = document.getElementById('hud');
 
+        this.btnPlayQuick = document.getElementById('btn-quick');
         this.btnPlay = document.getElementById('btn-play');
         this.btnPlayDaily = document.getElementById('btn-daily');
         this.btnPlayChaos = document.getElementById('btn-chaos');
@@ -66,6 +67,15 @@ class UIManager {
         this.goalHeight = document.getElementById('goal-height');
         this.goalSeed = document.getElementById('goal-seed');
         this.contractEls = [0, 1, 2].map(i => document.getElementById(`contract-${i}`));
+        this.directorPanel = document.getElementById('director-panel');
+        this.directorStatus = document.getElementById('director-status');
+        this.directorDetail = document.getElementById('director-detail');
+        this.cranePanel = document.getElementById('crane-panel');
+        this.craneFocusName = document.getElementById('crane-focus-name');
+        this.craneFocusHint = document.getElementById('crane-focus-hint');
+        this.soloCommandPanel = document.getElementById('solo-command-panel');
+        this.soloCommandMode = document.getElementById('solo-command-mode');
+        this.soloCommandHint = document.getElementById('solo-command-hint');
         
         this.finalScoreItem = document.getElementById('final-score');
         this.finalHeightItem = document.getElementById('final-height');
@@ -108,9 +118,11 @@ class UIManager {
         this.flavorTimeout = null;
         this.phaseTimeout = null;
         this.calloutTimeout = null;
+        this.normalizeDecorativeGlyphs();
     }
 
     bindEvents(callbacks) {
+        if (this.btnPlayQuick) this.btnPlayQuick.addEventListener('click', () => callbacks.onPlayClicked('quick'));
         this.btnPlay.addEventListener('click', () => callbacks.onPlayClicked('normal'));
         if (this.btnPlayDaily) this.btnPlayDaily.addEventListener('click', () => callbacks.onPlayClicked('daily'));
         if (this.btnPlayChaos) this.btnPlayChaos.addEventListener('click', () => callbacks.onPlayClicked('chaos'));
@@ -164,6 +176,28 @@ class UIManager {
         this.lblSfx.innerText = Math.round(config.sfx * 100) + '%';
     }
 
+    normalizeDecorativeGlyphs() {
+        const comIcon = document.getElementById('com-arrow-icon');
+        if (comIcon) comIcon.innerHTML = '&#9650;';
+
+        const avatarValues = ['&#127959;', '&#128119;', '&#128119;', '&#128119;'];
+        avatarValues.forEach((avatar, index) => {
+            const slot = document.getElementById(`slot-${index + 1}`);
+            const preview = slot ? slot.querySelector('.avatar-preview') : null;
+            if (preview) preview.innerHTML = avatar;
+        });
+    }
+
+    setQuickModeRecommended(isRecommended = false) {
+        if (!this.btnPlayQuick) return;
+        this.btnPlayQuick.textContent = isRecommended ? 'Quick Start' : 'Quick Contract';
+        this.btnPlayQuick.dataset.kicker = isRecommended ? 'Recommended' : 'Fast Retry';
+        this.btnPlayQuick.dataset.desc = isRecommended
+            ? 'Guided first run, shorter target, faster loop.'
+            : 'Shorter target and lighter escalation.';
+        this.btnPlayQuick.classList.toggle('recommended', isRecommended);
+    }
+
     updateMenuMeta(summary, dailyChallenge) {
         if (!summary) return;
         if (this.menuXP) this.menuXP.innerText = summary.xp;
@@ -199,7 +233,11 @@ class UIManager {
     setPlayMode(modeLabel, chaosUnlocked = true) {
         if (this.btnPlayChaos) {
             this.btnPlayChaos.disabled = !chaosUnlocked;
-            this.btnPlayChaos.innerText = chaosUnlocked ? 'PLAY (CHAOS)' : 'CHAOS LOCKED';
+            this.btnPlayChaos.textContent = chaosUnlocked ? 'Chaos Run' : 'Chaos Locked';
+            this.btnPlayChaos.dataset.kicker = chaosUnlocked ? 'High Stress' : 'Locked';
+            this.btnPlayChaos.dataset.desc = chaosUnlocked
+                ? 'Escalated hazards, heavier instability, faster punishment.'
+                : 'Earn more XP to unlock the high-stress district mode.';
         }
         if (this.setupModeLabel) this.setupModeLabel.innerText = modeLabel;
     }
@@ -207,7 +245,9 @@ class UIManager {
     updateSetupBrief(goalSummary, contracts = []) {
         if (!goalSummary) return;
         if (this.setupGoalHeight) {
-            const prefix = goalSummary.isDaily ? 'Daily district' : 'District goal';
+            const prefix = goalSummary.isDaily
+                ? 'Daily district'
+                : (goalSummary.isQuick ? 'Quick contract' : 'District goal');
             this.setupGoalHeight.innerText = `${prefix}: clear ${goalSummary.targetHeight}m`;
         }
         if (this.setupContracts) {
@@ -225,6 +265,8 @@ class UIManager {
         this.scrPause.classList.add('hidden');
         this.scrOptions.classList.add('hidden');
 
+        if (this.gameContainer) this.gameContainer.dataset.screen = screenName;
+
         if (screenName === 'menu') this.scrMenu.classList.remove('hidden');
         if (screenName === 'setup') this.scrSetup.classList.remove('hidden');
         if (screenName === 'gameover') this.scrGameover.classList.remove('hidden');
@@ -233,8 +275,14 @@ class UIManager {
         if (screenName === 'options') this.scrOptions.classList.remove('hidden');
     }
 
-    showHUD() { if (this.hud) this.hud.classList.remove('hidden'); }
-    hideHUD() { if (this.hud) this.hud.classList.add('hidden'); }
+    showHUD() {
+        if (this.hud) this.hud.classList.remove('hidden');
+        if (this.gameContainer) this.gameContainer.classList.add('hud-live');
+    }
+    hideHUD() {
+        if (this.hud) this.hud.classList.add('hidden');
+        if (this.gameContainer) this.gameContainer.classList.remove('hud-live');
+    }
     showPause() { if (this.scrPause) this.scrPause.classList.remove('hidden'); }
     hidePause() { if (this.scrPause) this.scrPause.classList.add('hidden'); }
 
@@ -325,7 +373,7 @@ class UIManager {
         const mapping = slot.querySelector('.mapping');
         const classSelector = slot.querySelector('.class-selector');
         const keyboardMappings = [
-            'Move: Left/Right  |  Drop: Enter',
+            'Auto Sweep  |  Drop: Enter  |  Crew: C',
             'Move: A D  |  Jump: Space  |  Drop Down: S+Space<br>Grab: F  |  Throw: G  |  Brace: Q/E',
             'Move: J L  |  Jump: I  |  Drop Down: K+I<br>Grab: O  |  Throw: P  |  Brace: U/Y',
             'Move: Num4 Num6  |  Jump: Num8  |  Drop Down: Num2+Num8<br>Grab: Num7  |  Throw: Num9  |  Brace: Num1/Num3'
@@ -339,12 +387,13 @@ class UIManager {
 
         if (assigned) {
             slot.classList.add('active');
+            slot.classList.toggle('bot-slot', inputType === 'bot');
             status.innerText = `Joined! (${inputType.toUpperCase()})`;
             if (inputType === 'keyboard') {
                 mapping.innerHTML = keyboardMappings[slotId] || keyboardMappings[1];
             } else if (inputType === 'gamepad') {
                 if (slotId === 0) {
-                    mapping.innerHTML = 'Move: D-Pad/Stick  |  Drop: A / Cross';
+                    mapping.innerHTML = 'Auto Sweep  |  Drop: A / Cross  |  Crew: Y / Triangle';
                 } else {
                     mapping.innerHTML = 'Jump: A  |  Drop Down: Down+A<br>Grab: X  |  Throw: B  |  Brace: LB/RB  |  Pause: Start';
                 }
@@ -355,6 +404,7 @@ class UIManager {
             if (classSelector && slotId > 0) classSelector.classList.remove('hidden');
         } else {
             slot.classList.remove('active');
+            slot.classList.remove('bot-slot');
             status.innerText = joinPrompts[slotId] || joinPrompts[1];
             mapping.classList.add('hidden');
             if (classSelector) classSelector.classList.add('hidden');
@@ -406,9 +456,14 @@ class UIManager {
         if (this.goalProject) this.goalProject.innerText = goalSummary.projectName || 'District';
         if (this.goalHeight) this.goalHeight.innerText = `Clear ${goalSummary.targetHeight}m`;
         if (this.goalSeed) {
-            this.goalSeed.innerText = goalSummary.isDaily
-                ? `Daily seed ${goalSummary.dailySeed}`
-                : `${goalSummary.completedContracts}/${goalSummary.totalContracts} contracts complete`;
+            if (goalSummary.isDaily) {
+                this.goalSeed.innerText = `Daily seed ${goalSummary.dailySeed}`;
+            } else if (goalSummary.isQuick) {
+                const runLabel = goalSummary.isOnboarding ? 'Guided quick contract' : 'Quick contract';
+                this.goalSeed.innerText = `${runLabel} / ${goalSummary.completedContracts}/${goalSummary.totalContracts} targets complete`;
+            } else {
+                this.goalSeed.innerText = `${goalSummary.completedContracts}/${goalSummary.totalContracts} contracts complete`;
+            }
         }
     }
 
@@ -606,16 +661,34 @@ class UIManager {
         const mapX = (worldX) => 10 + (((worldX - minWorldX) / rangeX) * (width - 20));
         const mapY = (worldY) => 12 + (((worldY - minY) / rangeY) * (height - 24));
 
-        for (let floor of floors) {
+        for (let i = 0; i < floors.length; i++) {
+            const floor = floors[i];
             const y = mapY(floor.y + floor.h * 0.5);
             const left = mapX(floor.x);
             const right = mapX(floor.x + floor.w);
-            ctx.strokeStyle = floor.archetype && floor.archetype.isSeesaw ? 'rgba(255,208,98,0.9)' : 'rgba(138,216,255,0.72)';
-            ctx.lineWidth = floor.isFoundation ? 5 : 3;
+            const isHighlighted = comState && comState.highlightFloorIndex === i;
+            ctx.strokeStyle = isHighlighted
+                ? 'rgba(255,159,67,0.95)'
+                : (floor.archetype && floor.archetype.isSeesaw ? 'rgba(255,208,98,0.9)' : 'rgba(138,216,255,0.72)');
+            ctx.lineWidth = isHighlighted ? 5 : (floor.isFoundation ? 5 : 3);
             ctx.beginPath();
             ctx.moveTo(left, y);
             ctx.lineTo(right, y);
             ctx.stroke();
+
+            if (isHighlighted) {
+                const dir = comState.highlightDirection || 0;
+                if (dir !== 0) {
+                    const arrowX = mapX(floor.x + floor.w / 2);
+                    ctx.fillStyle = '#ff9f43';
+                    ctx.beginPath();
+                    ctx.moveTo(arrowX + (dir * 10), y - 10);
+                    ctx.lineTo(arrowX + (dir * 20), y);
+                    ctx.lineTo(arrowX + (dir * 10), y + 10);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
         }
 
         for (let obj of objects) {
@@ -661,6 +734,27 @@ class UIManager {
         }, 1200);
     }
 
+    updateDirectorPanel(status, detail, severity = 'normal') {
+        if (this.directorStatus) this.directorStatus.textContent = status;
+        if (this.directorDetail) this.directorDetail.textContent = detail;
+        if (this.directorPanel) {
+            this.directorPanel.classList.remove('warning', 'critical');
+            if (severity === 'warning' || severity === 'critical') {
+                this.directorPanel.classList.add(severity);
+            }
+        }
+    }
+
+    updateSoloCommand(label, hint) {
+        if (this.soloCommandMode) this.soloCommandMode.textContent = label;
+        if (this.soloCommandHint) this.soloCommandHint.textContent = hint;
+    }
+
+    setSoloCommandVisibility(visible) {
+        if (!this.soloCommandPanel) return;
+        this.soloCommandPanel.classList.toggle('hidden', !visible);
+    }
+
     updatePieceQueue(upcomingPieces) {
         for (let i = 0; i < 3; i++) {
             let el = document.getElementById(`queue-${i}`);
@@ -682,6 +776,21 @@ class UIManager {
                 this.queueTooltip.textContent = `${nextPiece.tooltip || 'Balanced floor segment.'}${material}`;
             } else {
                 this.queueTooltip.textContent = 'Stable starter floor.';
+            }
+        }
+
+        if (this.craneFocusName || this.craneFocusHint) {
+            const focusPiece = upcomingPieces && upcomingPieces[0];
+            if (focusPiece) {
+                if (this.craneFocusName) this.craneFocusName.textContent = focusPiece.name || focusPiece.id || 'Next floor';
+                if (this.craneFocusHint) {
+                    const tooltip = focusPiece.tooltip || 'Tap drop when the live ghost goes green.';
+                    const material = focusPiece.material ? ` ${focusPiece.material.toUpperCase()} frame.` : '';
+                    this.craneFocusHint.textContent = `${tooltip}${material}`;
+                }
+            } else {
+                if (this.craneFocusName) this.craneFocusName.textContent = 'Stable starter floor';
+                if (this.craneFocusHint) this.craneFocusHint.textContent = 'Tap drop when the live ghost goes green.';
             }
         }
     }

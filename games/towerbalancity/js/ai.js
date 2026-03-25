@@ -11,6 +11,7 @@ class BotController {
         this.targetObject = null;
         this.targetHazard = null;
         this.stateMachine = 'IDLE';
+        this.lastSquadCommand = 'balance';
     }
 
     getEmptyState() {
@@ -70,13 +71,23 @@ class BotController {
         if (!game || playerRef.y > game.canvas.height + Math.abs(game.cameraDirector.y) + 500) return;
 
         this.thinkTimer--;
+        const squadCommand = game && typeof game.getSquadCommand === 'function'
+            ? game.getSquadCommand()
+            : ((game && game.squadCommand) || 'balance');
+        this.lastSquadCommand = squadCommand;
 
         const pCenterX = playerRef.x + playerRef.w / 2;
         const supportFloor = game.getSupportingFloor(playerRef);
         const floorBounds = supportFloor ? supportFloor.getSupportBounds() : null;
         const localSlope = supportFloor ? Math.abs(supportFloor.getLocalSlopeAt(pCenterX)) : 0;
         const fireTarget = this.getNearestFire(game, supportFloor, playerRef);
-        const panicThreshold = this.difficulty === 0 ? 3 : (this.difficulty === 1 ? 2 : 1);
+        const basePanicThreshold = this.difficulty === 0 ? 3 : (this.difficulty === 1 ? 2 : 1);
+        const prioritizeBalance = squadCommand === 'balance';
+        const prioritizeClear = squadCommand === 'clear';
+        const prioritizeFire = squadCommand === 'fire';
+        const panicThreshold = prioritizeBalance
+            ? Math.max(1, basePanicThreshold - 1)
+            : basePanicThreshold;
         const shouldBrace = playerRef.onGround && (dangerLevel >= panicThreshold || localSlope > 0.1 || Math.abs(game.towerAngularVelocity) > 0.022);
 
         if (shouldBrace) {
@@ -87,7 +98,7 @@ class BotController {
             this.stateMachine = fireTarget ? 'FIRE_RESPONSE' : 'THROW_JUNK';
         }
 
-        if (fireTarget) {
+        if (fireTarget && (prioritizeFire || dangerLevel >= panicThreshold - 1)) {
             this.stateMachine = 'FIRE_RESPONSE';
             this.targetHazard = fireTarget;
             this.targetX = fireTarget.x + fireTarget.w / 2;
@@ -97,25 +108,28 @@ class BotController {
                 this.stateMachine = 'FETCH_FIRE_PAYLOAD';
                 this.targetX = fireObject.x + fireObject.w / 2;
             }
-        } else if (dangerLevel >= panicThreshold) {
+        } else if (dangerLevel >= panicThreshold || (prioritizeBalance && Math.abs(gameBalance) >= 8)) {
             this.stateMachine = 'MOVE_TO_WEIGHT';
             const runDist = this.difficulty === 2 ? 92 : 138;
             const dir = gameBalance < 0 ? 1 : -1;
             this.targetX = towerCenterX + (dir * runDist);
         } else if (this.thinkTimer <= 0) {
             const baseThink = this.difficulty === 0 ? 90 : (this.difficulty === 1 ? 55 : 26);
-            this.thinkTimer = baseThink + Utils.randomInt(0, 18);
+            this.thinkTimer = (prioritizeClear ? Math.max(10, baseThink - 18) : baseThink) + Utils.randomInt(0, 18);
 
-            const heavyTarget = this.getBestLooseObject(game, playerRef, supportFloor, this.difficulty >= 1);
-            if (heavyTarget && (heavyTarget.mass >= 45 || heavyTarget.isBoss)) {
+            const heavyTarget = this.getBestLooseObject(game, playerRef, supportFloor, this.difficulty >= 1 || prioritizeClear);
+            const minimumMass = prioritizeClear ? 20 : 45;
+            if (heavyTarget && (heavyTarget.mass >= minimumMass || heavyTarget.isBoss)) {
                 this.stateMachine = 'GRAB_JUNK';
                 this.targetObject = heavyTarget;
                 this.targetX = heavyTarget.x + heavyTarget.w / 2;
             } else {
                 this.stateMachine = 'MOVE_TO_WEIGHT';
-                const calmBand = this.difficulty === 2 ? 26 : 46;
+                const calmBand = prioritizeBalance ? 18 : (this.difficulty === 2 ? 26 : 46);
                 const dir = gameBalance < 0 ? 1 : -1;
-                const drift = dangerLevel === 0 ? Utils.random(-calmBand, calmBand) : dir * (55 + Utils.random(-18, 18));
+                const drift = prioritizeBalance
+                    ? dir * (48 + Utils.random(-12, 12))
+                    : (dangerLevel === 0 ? Utils.random(-calmBand, calmBand) : dir * (55 + Utils.random(-18, 18)));
                 this.targetX = towerCenterX + drift;
             }
         }
@@ -149,7 +163,7 @@ class BotController {
                 }
             }
         } else if (this.stateMachine === 'THROW_JUNK' || (playerRef.heldObject && this.stateMachine === 'MOVE_TO_WEIGHT')) {
-            const throwDir = gameBalance < 0 ? 1 : -1;
+            const throwDir = prioritizeBalance ? (gameBalance < 0 ? 1 : -1) : (gameBalance <= 0 ? 1 : -1);
             if (playerRef.facing !== throwDir) {
                 if (throwDir === 1) this.state.right = true;
                 else this.state.left = true;
@@ -260,15 +274,8 @@ class CraneBotController {
             baseTargetX = safePerfectSupport >= perfectSupportThreshold ? perfectX : stableX;
         }
 
-        const windForce = game.progression ? game.progression.windForce : 0;
-        const driftLead =
-            (dropPlayerRef.carriageVelocity * (this.difficulty === 2 ? 0.8 : (this.difficulty === 1 ? 0.55 : 0.35))) +
-            (dropPlayerRef.loadLagVelocity * (this.difficulty === 2 ? 2.2 : (this.difficulty === 1 ? 1.5 : 0.9))) +
-            (dropPlayerRef.loadLagOffset * (this.difficulty === 2 ? 0.14 : (this.difficulty === 1 ? 0.08 : 0.04))) +
-            (windForce * (this.difficulty === 2 ? 0.75 : (this.difficulty === 1 ? 0.5 : 0.28)));
-
         return Utils.clamp(
-            baseTargetX + this.targetBias - driftLead,
+            baseTargetX + this.targetBias,
             100,
             dropPlayerRef.widthLimit - 100 - nextPiece.w
         );
@@ -287,32 +294,7 @@ class CraneBotController {
         const windForce = game.progression ? game.progression.windForce : 0;
         const supportFloor = this.getTopStableFloor(game);
         const targetX = this.getPreferredDropX(dropPlayerRef, game, nextPiece, supportFloor);
-        const predictedX =
-            dropPlayerRef.x +
-            (dropPlayerRef.carriageVelocity * 1.1) +
-            (dropPlayerRef.loadLagVelocity * 2.3) +
-            (dropPlayerRef.loadLagOffset * 0.12);
-        const error = targetX - predictedX;
-        const coarseZone = this.difficulty === 2 ? 18 : (this.difficulty === 1 ? 26 : 38);
-        const fineZone = this.difficulty === 2 ? 6 : (this.difficulty === 1 ? 10 : 16);
-        const dampingBias = dropPlayerRef.carriageVelocity + (dropPlayerRef.loadLagVelocity * 1.5);
-
-        if (Math.abs(error) > coarseZone) {
-            if (error < 0) this.state.left = true;
-            if (error > 0) this.state.right = true;
-        } else if (Math.abs(error) > fineZone) {
-            const settleControl = error - (dampingBias * (this.difficulty === 2 ? 5.8 : (this.difficulty === 1 ? 4.6 : 3.6)));
-            if (settleControl < -3) this.state.left = true;
-            if (settleControl > 3) this.state.right = true;
-        } else {
-            const brakeControl =
-                (-dampingBias * (this.difficulty === 2 ? 7.2 : (this.difficulty === 1 ? 5.8 : 4.4))) -
-                (dropPlayerRef.loadLagOffset * (this.difficulty === 2 ? 0.24 : (this.difficulty === 1 ? 0.16 : 0.1)));
-            if (brakeControl < -2.5) this.state.left = true;
-            if (brakeControl > 2.5) this.state.right = true;
-        }
-
-        if (dropPlayerRef.cooldown > 0) {
+        if (dropPlayerRef.cooldown > 0 || dropPlayerRef.releaseState) {
             this.releaseCharge = 0;
             return;
         }
@@ -321,9 +303,6 @@ class CraneBotController {
         const currentSupportRatio = this.getSupportRatioAtX(dropPlayerRef.x, nextPiece, supportFloor);
         const lineTolerance = this.difficulty === 2 ? 8 : (this.difficulty === 1 ? 12 : 18);
         const supportThreshold = this.difficulty === 2 ? 0.94 : (this.difficulty === 1 ? 0.87 : 0.8);
-        const stableSwing = Math.abs(dropPlayerRef.carriageVelocity) <= (this.difficulty === 2 ? 0.45 : (this.difficulty === 1 ? 0.85 : 1.1));
-        const stableLag = Math.abs(dropPlayerRef.loadLagOffset) <= (this.difficulty === 2 ? 7 : (this.difficulty === 1 ? 14 : 18));
-        const stableLagVelocity = Math.abs(dropPlayerRef.loadLagVelocity) <= (this.difficulty === 2 ? 0.38 : (this.difficulty === 1 ? 0.72 : 0.92));
         const stableTower =
             Math.abs(game.towerAngularVelocity) <= (this.difficulty === 2 ? 0.01 : (this.difficulty === 1 ? 0.02 : 0.026)) &&
             game.dangerTimer === 0 &&
@@ -333,13 +312,11 @@ class CraneBotController {
             game.dangerTimer === 0 &&
             game.dangerLevel <= 2 &&
             Math.abs(game.towerAngularVelocity) <= (this.difficulty === 1 ? 0.026 : 0.03) &&
-            currentSupportRatio >= (supportThreshold - (this.difficulty === 1 ? 0.04 : 0.05)) &&
-            Math.abs(dropPlayerRef.carriageVelocity) <= (this.difficulty === 1 ? 1.05 : 1.2) &&
-            Math.abs(dropPlayerRef.loadLagOffset) <= (this.difficulty === 1 ? 18 : 22);
+            currentSupportRatio >= (supportThreshold - (this.difficulty === 1 ? 0.04 : 0.05));
         const linedUp = Math.abs(targetX - dropPlayerRef.x) <= lineTolerance;
 
         if (!pendingDropActive && linedUp && (
-            (currentSupportRatio >= supportThreshold && stableSwing && stableLag && stableLagVelocity && stableTower) ||
+            (currentSupportRatio >= supportThreshold && stableTower) ||
             fallbackReady
         )) {
             this.releaseCharge++;
@@ -348,9 +325,8 @@ class CraneBotController {
         }
 
         const settleFrames =
-            (this.difficulty === 2 ? 28 : (this.difficulty === 1 ? 38 : 52)) +
-            Math.round(Math.abs(windForce) * 0.9) +
-            Math.round(Math.abs(game.towerAngularVelocity) * 420);
+            (this.difficulty === 2 ? 1 : (this.difficulty === 1 ? 2 : 3)) +
+            Math.round(Math.abs(windForce) * 0.08);
         if (this.releaseCharge >= settleFrames) {
             this.state.action1JustPressed = true;
             this.releaseCharge = 0;
