@@ -1,3 +1,22 @@
+function createChoices(entries) {
+  return entries.map(([key, text, next = null, extra = null]) => ({
+    key,
+    text,
+    ...(next ? { next } : {}),
+    ...(extra || {})
+  }));
+}
+
+function createProgressMap(groups) {
+  return groups.reduce((progressMap, [beat, ...sceneIds]) => {
+    sceneIds.forEach((sceneId) => {
+      progressMap[sceneId] = beat;
+    });
+
+    return progressMap;
+  }, {});
+}
+
 const DETECTIVE_SCENES = {
   "scene 1": {
     file: "scene 1.mp4",
@@ -410,6 +429,296 @@ const CLUB_PROGRESS = {
   "scene 15c": 15
 };
 
+const UNKNOWN_CHARACTER_CHOICES = createChoices([
+  [1, "Kael", "left player 2", { fighter: "kael" }],
+  [2, "Zyra", "right player 1", { fighter: "zyra" }]
+]);
+
+const UNKNOWN_ATTACK_CHOICES = createChoices([
+  [1, "Power"],
+  [2, "Speed"],
+  [3, "Guard Break"]
+]);
+
+const UNKNOWN_SCENES = {
+  "left player 1": {
+    file: "left player 1.mp4",
+    choices: UNKNOWN_CHARACTER_CHOICES,
+    choicePlayers: [1],
+    choiceResolver: "unknown-character-select"
+  },
+  "left player 2": {
+    file: "left player 2.mp4",
+    next: "scene 1"
+  },
+  "right player 1": {
+    file: "right player 1.mp4",
+    next: "right player 2"
+  },
+  "right player 2": {
+    file: "right player 2.mp4",
+    next: "scene 1"
+  },
+  "scene 1": {
+    file: "scene 1.mp4",
+    next: "scene 2"
+  },
+  "scene 2": {
+    file: "scene 2.mp4",
+    next: "scene 3"
+  },
+  "scene 3": {
+    file: "scene 3.mp4",
+    next: "scene 4"
+  },
+  "scene 4": {
+    file: "scene 4.mp4",
+    next: "scene 5"
+  },
+  "scene 5": {
+    file: "scene 5.mp4",
+    next: "scene 6"
+  },
+  "scene 6": {
+    file: "scene 6.mp4",
+    next: "scene 7"
+  },
+  "scene 7": {
+    file: "scene 7.mp4",
+    next: "scene 8"
+  },
+  "scene 8": {
+    file: "scene 8.mp4",
+    next: "scene 9"
+  },
+  "scene 9": {
+    file: "scene 9.mp4",
+    next: "scene 10 first choices"
+  },
+  "scene 10 first choices": {
+    file: "scene 10 first choices.mp4",
+    choices: createChoices([
+      [1, "I didn't choose this. Did you?", "scene 11a"],
+      [2, "If you hesitate, they'll bury us both.", "scene 11b"],
+      [3, "Maybe we kill the crowd's show before it starts.", "scene 11c"]
+    ])
+  },
+  "scene 11a": {
+    file: "scene 11a.mp4",
+    next: "scene 12"
+  },
+  "scene 11b": {
+    file: "scene 11b.mp4",
+    next: "scene 12"
+  },
+  "scene 11c": {
+    file: "scene 11c.mp4",
+    next: "scene 12"
+  },
+  "scene 12": {
+    file: "scene 12.mp4",
+    choices: UNKNOWN_ATTACK_CHOICES,
+    choiceResolver: "unknown-combat",
+    combatResultScenes: {
+      draw: "scene 13a draw",
+      kael: "scene 13a kael wins",
+      zyra: "scene 13b zyra wins"
+    }
+  },
+  "scene 13a draw": {
+    file: "scene 13a draw.mp4",
+    next: "scene 14"
+  },
+  "scene 13a kael wins": {
+    file: "scene 13a kael wins.mp4",
+    next: "scene 14"
+  },
+  "scene 13b zyra wins": {
+    file: "scene 13b zyra wins.mp4",
+    next: "scene 14"
+  },
+  "scene 14": {
+    file: "scene 14.mp4",
+    next: "scene 15"
+  },
+  "scene 15": {
+    file: "scene 15.mp4",
+    next: "scene 16"
+  },
+  "scene 16": {
+    file: "scene 16.mp4",
+    next: "scene 17"
+  },
+  "scene 17": {
+    file: "scene 17.mp4",
+    next: "scene 18"
+  },
+  "scene 18": {
+    file: "scene 18.mp4",
+    choices: UNKNOWN_ATTACK_CHOICES,
+    choiceResolver: "unknown-combat",
+    combatResultScenes: {
+      draw: "scene 19a draw",
+      kael: "scene 19b kael wins",
+      zyra: "scene 19c zyra wins"
+    }
+  },
+  "scene 19a draw": {
+    file: "scene 19a draw.mp4",
+    next: "scene 20"
+  },
+  "scene 19b kael wins": {
+    file: "scene 19b kael wins.mp4",
+    next: "scene 20"
+  },
+  "scene 19c zyra wins": {
+    file: "scene 19c zyra wins.mp4",
+    next: "scene 20"
+  },
+  "scene 20": {
+    file: "scene 20.mp4",
+    next: "scene 21"
+  },
+  "scene 21": {
+    file: "scene 21.mp4",
+    choices: createChoices([
+      [1, "This arena isn't built for a fight. It's built to feed something.", "scene 22"],
+      [2, "Then panic is exactly what it wants.", "scene 22"],
+      [3, "If you're alive down there, watch closely.", "scene 23"]
+    ])
+  },
+  "scene 22": {
+    file: "scene 22.mp4",
+    next: "scene 24 draw"
+  },
+  "scene 23": {
+    file: "scene 23.mp4",
+    next: "scene 24 draw"
+  },
+  "scene 24 draw": {
+    file: "scene 24 draw.mp4",
+    choices: UNKNOWN_ATTACK_CHOICES,
+    choiceResolver: "unknown-combat",
+    combatResultScenes: {
+      draw: "scene 26",
+      kael: "scene 25b kael wins",
+      zyra: "scene 25c zyra wins"
+    }
+  },
+  "scene 25b kael wins": {
+    file: "scene 25b kael wins.mp4",
+    next: "scene 26"
+  },
+  "scene 25c zyra wins": {
+    file: "scene 25c zyra wins.mp4",
+    next: "scene 26"
+  },
+  "scene 26": {
+    file: "scene 26.mp4",
+    next: "scene 27"
+  },
+  "scene 27": {
+    file: "scene 27.mp4",
+    next: "scene 28"
+  },
+  "scene 28": {
+    file: "scene 28.mp4",
+    choices: createChoices([
+      [1, "Finish it. One of us leaves.", "scene 29a"],
+      [2, "Push the other into the grate.", "scene 29b"],
+      [3, "Forget the duel. Kill the emperor.", "scene 29c"]
+    ])
+  },
+  "scene 29a": {
+    file: "scene 29a.mp4",
+    next: "scene 30"
+  },
+  "scene 29b": {
+    file: "scene 29b.mp4",
+    next: "scene 30"
+  },
+  "scene 29c": {
+    file: "scene 29c.mp4",
+    next: "scene 30"
+  },
+  "scene 30": {
+    file: "scene 30.mp4",
+    next: "scene 31"
+  },
+  "scene 31": {
+    file: "scene 31.mp4",
+    choices: UNKNOWN_ATTACK_CHOICES,
+    choiceResolver: "unknown-combat",
+    combatResultScenes: {
+      draw: "scene 32a draw",
+      kael: "scene 32b kael wins",
+      zyra: "scene 32c zyra wins"
+    }
+  },
+  "scene 32a draw": {
+    file: "scene 32a draw.mp4",
+    next: "scene 33"
+  },
+  "scene 32b kael wins": {
+    file: "scene 32b kael wins.mp4",
+    next: "scene 33"
+  },
+  "scene 32c zyra wins": {
+    file: "scene 32c zyra wins.mp4",
+    next: "scene 33"
+  },
+  "scene 33": {
+    file: "scene 33.mp4",
+    endingResolver: true
+  },
+  "scene 34a": {
+    file: "scene 34a.mp4"
+  },
+  "scene 34b": {
+    file: "scene 34b.mp4"
+  },
+  "scene 35c": {
+    file: "scene 35c.mp4"
+  }
+};
+
+const UNKNOWN_PROGRESS = createProgressMap([
+  [1, "left player 1", "left player 2", "right player 1", "right player 2"],
+  [2, "scene 1"],
+  [3, "scene 2"],
+  [4, "scene 3"],
+  [5, "scene 4"],
+  [6, "scene 5"],
+  [7, "scene 6"],
+  [8, "scene 7"],
+  [9, "scene 8"],
+  [10, "scene 9"],
+  [11, "scene 10 first choices"],
+  [12, "scene 11a", "scene 11b", "scene 11c"],
+  [13, "scene 12"],
+  [14, "scene 13a draw", "scene 13a kael wins", "scene 13b zyra wins"],
+  [15, "scene 14"],
+  [16, "scene 15"],
+  [17, "scene 16"],
+  [18, "scene 17"],
+  [19, "scene 18"],
+  [20, "scene 19a draw", "scene 19b kael wins", "scene 19c zyra wins"],
+  [21, "scene 20"],
+  [22, "scene 21"],
+  [23, "scene 22", "scene 23"],
+  [24, "scene 24 draw"],
+  [25, "scene 25b kael wins", "scene 25c zyra wins"],
+  [26, "scene 26"],
+  [27, "scene 27"],
+  [28, "scene 28"],
+  [29, "scene 29a", "scene 29b", "scene 29c"],
+  [30, "scene 30"],
+  [31, "scene 31"],
+  [32, "scene 32a draw", "scene 32b kael wins", "scene 32c zyra wins"],
+  [33, "scene 33"],
+  [35, "scene 34a", "scene 34b", "scene 35c"]
+]);
+
 const EPISODES = {
   detective: {
     id: "detective",
@@ -438,6 +747,21 @@ const EPISODES = {
     scenes: CLUB_SCENES,
     progress: CLUB_PROGRESS,
     finalScenes: new Set(["scene 15a", "scene 15b", "scene 15c"])
+  },
+  unknown: {
+    id: "unknown",
+    title: "Unknown is Calling",
+    seasonLabel: "Series 4 - Unknown is Calling",
+    menuLabel: "Series 4",
+    menuCopy: "Two-player alien arena ritual with locked Kael and Zyra assignments, branching dialogue, and combat resolution clips.",
+    startScene: "left player 1",
+    poster: "posters/unknown-is-calling.jpg",
+    totalBeats: 35,
+    videoRoots: ["Unknown_is_calling", "video/Unknown_is_calling", "video", "."],
+    scenes: UNKNOWN_SCENES,
+    progress: UNKNOWN_PROGRESS,
+    finalScenes: new Set(["scene 34a", "scene 34b", "scene 35c"]),
+    allowedPlayerCounts: [2]
   }
 };
 
@@ -559,6 +883,14 @@ const pauseRestartButton = document.getElementById("pause-restart-button");
 const restartButton = document.getElementById("restart-button");
 const retryButton = document.getElementById("retry-button");
 
+function createEpisodeBranchState() {
+  return {
+    finalChoiceKey: null,
+    fighterByPlayer: { 1: null, 2: null },
+    playerByFighter: { kael: null, zyra: null }
+  };
+}
+
 const state = {
   selectedEpisodeId: "detective",
   playerSetup: {
@@ -572,12 +904,15 @@ const state = {
     curiosity: 0,
     finalChoiceKey: null
   },
+  episodeBranchState: createEpisodeBranchState(),
   votes: { 1: null, 2: null },
   focusChoice: { 1: 1, 2: 1 },
   waitingForVotes: false,
   resolvingChoice: false,
   selectedChoiceKey: null,
   randomResolution: false,
+  resolutionMode: null,
+  resolvedCombatOutcome: null,
   loadToken: 0,
   resolveTimer: null,
   pendingNextSceneId: null,
@@ -642,8 +977,16 @@ function resetEpisodeMindState() {
   };
 }
 
+function resetEpisodeBranchState() {
+  state.episodeBranchState = createEpisodeBranchState();
+}
+
 function getCurrentEpisode() {
   return EPISODES[state.selectedEpisodeId];
+}
+
+function getAllowedPlayerCounts(episode = getCurrentEpisode()) {
+  return episode.allowedPlayerCounts || [1, 2];
 }
 
 function getCurrentScenes() {
@@ -670,12 +1013,47 @@ function getChoiceText(choice) {
   return choice.text || `Option ${choice.key}`;
 }
 
+function formatFighterName(fighter) {
+  if (!fighter) {
+    return "";
+  }
+
+  return fighter.charAt(0).toUpperCase() + fighter.slice(1);
+}
+
+function getAssignedFighter(player) {
+  if (state.selectedEpisodeId !== "unknown") {
+    return null;
+  }
+
+  return state.episodeBranchState.fighterByPlayer[player];
+}
+
+function getPlayerLabel(player) {
+  const fighter = getAssignedFighter(player);
+  return fighter ? `Player ${player} - ${formatFighterName(fighter)}` : `Player ${player}`;
+}
+
 function getActivePlayers() {
   return state.playerSetup.count === 2 ? [1, 2] : [1];
 }
 
 function isPlayerActive(player) {
   return getActivePlayers().includes(player);
+}
+
+function getSceneParticipants(scene = getCurrentScene()) {
+  const activePlayers = getActivePlayers();
+
+  if (!scene || !scene.choicePlayers) {
+    return activePlayers;
+  }
+
+  return scene.choicePlayers.filter((player) => activePlayers.includes(player));
+}
+
+function isPlayerRequiredForScene(player, scene = getCurrentScene()) {
+  return getSceneParticipants(scene).includes(player);
 }
 
 function getAssignedDevice(player) {
@@ -699,7 +1077,7 @@ function getDeviceLabel(device) {
 }
 
 function getPlayerDeviceLabel(player) {
-  return `Player ${player} • ${getDeviceLabel(getAssignedDevice(player))}`;
+  return `${getPlayerLabel(player)} • ${getDeviceLabel(getAssignedDevice(player))}`;
 }
 
 function getGamepadByDevice(device) {
@@ -771,6 +1149,17 @@ function getMouseInstruction() {
 }
 
 function getPlayerSetupValidation() {
+  const allowedPlayerCounts = getAllowedPlayerCounts();
+
+  if (!allowedPlayerCounts.includes(state.playerSetup.count)) {
+    return {
+      valid: false,
+      message: allowedPlayerCounts.length === 1 && allowedPlayerCounts[0] === 2
+        ? `${getCurrentEpisode().title} requires two players.`
+        : "The selected series does not support that player count."
+    };
+  }
+
   const activePlayers = getActivePlayers();
   const devices = activePlayers.map((player) => getAssignedDevice(player));
   const duplicates = new Set(devices).size !== devices.length;
@@ -804,7 +1193,7 @@ function getPlayerSetupValidation() {
 }
 
 function getWaitingPlayers() {
-  return getActivePlayers().filter((player) => state.votes[player] == null);
+  return getSceneParticipants().filter((player) => state.votes[player] == null);
 }
 
 function hasAllRequiredVotes() {
@@ -812,9 +1201,12 @@ function hasAllRequiredVotes() {
 }
 
 function getChoiceButtonLabel(player) {
+  const fighter = getAssignedFighter(player);
+  const label = fighter ? formatFighterName(fighter) : `P${player}`;
+
   return getAssignedDevice(player) === "keyboard"
-    ? `P${player} • Keyboard / Mouse`
-    : `P${player} • ${getDeviceLabel(getAssignedDevice(player))}`;
+    ? `${label} • Keyboard / Mouse`
+    : `${label} • ${getDeviceLabel(getAssignedDevice(player))}`;
 }
 
 function updateDeviceSelectOptions(select) {
@@ -854,9 +1246,12 @@ function syncGameplayPlayerUi() {
 
 function updatePlayerSetupUi() {
   const validation = getPlayerSetupValidation();
+  const allowedPlayerCounts = getAllowedPlayerCounts();
 
   playerCountOneButton.classList.toggle("is-selected", state.playerSetup.count === 1);
   playerCountTwoButton.classList.toggle("is-selected", state.playerSetup.count === 2);
+  playerCountOneButton.disabled = !allowedPlayerCounts.includes(1);
+  playerCountTwoButton.disabled = !allowedPlayerCounts.includes(2);
   playerTwoDeviceField.hidden = state.playerSetup.count === 1;
 
   updateDeviceSelectOptions(playerOneDeviceSelect);
@@ -872,7 +1267,9 @@ function updatePlayerSetupUi() {
 }
 
 function setPlayerCount(count) {
-  state.playerSetup.count = count === 2 ? 2 : 1;
+  const allowedPlayerCounts = getAllowedPlayerCounts();
+  const normalizedCount = count === 2 ? 2 : 1;
+  state.playerSetup.count = allowedPlayerCounts.includes(normalizedCount) ? normalizedCount : allowedPlayerCounts[0];
   state.gamepadSnapshot = {};
   updatePlayerSetupUi();
 }
@@ -907,6 +1304,11 @@ function applyMindDelta(delta) {
 }
 
 function recordEpisodeChoiceOutcome(sceneId, choiceKey) {
+  if (state.selectedEpisodeId === "unknown" && sceneId === "scene 28") {
+    state.episodeBranchState.finalChoiceKey = choiceKey;
+    return;
+  }
+
   if (state.selectedEpisodeId !== "club") {
     return;
   }
@@ -932,7 +1334,48 @@ function recordEpisodeSceneCompletion(sceneId) {
   }
 }
 
+function applyUnknownCharacterAssignment(fighter) {
+  const opposingFighter = fighter === "kael" ? "zyra" : "kael";
+
+  state.episodeBranchState.fighterByPlayer = {
+    1: fighter,
+    2: opposingFighter
+  };
+  state.episodeBranchState.playerByFighter = {
+    kael: fighter === "kael" ? 1 : 2,
+    zyra: fighter === "zyra" ? 1 : 2
+  };
+}
+
+function resolveUnknownCombatOutcome(kaelChoiceKey, zyraChoiceKey) {
+  if (kaelChoiceKey == null || zyraChoiceKey == null || kaelChoiceKey === zyraChoiceKey) {
+    return "draw";
+  }
+
+  const kaelWins = (kaelChoiceKey === 1 && zyraChoiceKey === 3)
+    || (kaelChoiceKey === 3 && zyraChoiceKey === 2)
+    || (kaelChoiceKey === 2 && zyraChoiceKey === 1);
+
+  return kaelWins ? "kael" : "zyra";
+}
+
 function resolveEpisodeEndingScene(sceneId) {
+  if (state.selectedEpisodeId === "unknown") {
+    if (sceneId !== "scene 33") {
+      return null;
+    }
+
+    if (state.episodeBranchState.finalChoiceKey === 1) {
+      return "scene 34a";
+    }
+
+    if (state.episodeBranchState.finalChoiceKey === 2) {
+      return "scene 34b";
+    }
+
+    return "scene 35c";
+  }
+
   if (state.selectedEpisodeId !== "club") {
     return null;
   }
@@ -979,13 +1422,16 @@ function updateEpisodeChrome() {
 
 function updateMenuSelection() {
   const episode = getCurrentEpisode();
+  const playerCountCopy = getAllowedPlayerCounts().length === 1 && getAllowedPlayerCounts()[0] === 2
+    ? "This series requires 2 players. Assign both devices, then begin"
+    : "Select a series card, choose 1 or 2 players, assign devices, then begin";
 
   episodeCards.forEach((card) => {
     card.classList.toggle("is-selected", card.dataset.episode === state.selectedEpisodeId);
   });
 
   menuOverlayLabel.textContent = episode.seasonLabel;
-  menuCopy.textContent = `Select a series card, choose 1 or 2 players, assign devices, then begin ${episode.title}. Poster images are pulled from the real opening clips.`;
+  menuCopy.textContent = `${playerCountCopy} ${episode.title}. Poster images are pulled from the real opening clips.`;
   menuSelectedTitle.textContent = episode.title;
   menuSelectedCopy.textContent = episode.menuCopy;
   startButton.textContent = `Begin ${episode.title}`;
@@ -998,6 +1444,9 @@ function selectEpisode(episodeId) {
   }
 
   state.selectedEpisodeId = episodeId;
+  if (!getAllowedPlayerCounts().includes(state.playerSetup.count)) {
+    state.playerSetup.count = getAllowedPlayerCounts()[0];
+  }
   updateMenuSelection();
   updateEpisodeChrome();
   updateSceneHud();
@@ -1100,21 +1549,55 @@ function updateInputPrompts() {
   }).concat(getKeyboardPlayer() ? [`Mouse votes for P${getKeyboardPlayer()}`] : ["Mouse voting off"]).join(". ");
 }
 
+function getChoiceParticipantLabel(player) {
+  const fighter = getAssignedFighter(player);
+  return fighter ? `${formatFighterName(fighter)} / P${player}` : `P${player}`;
+}
+
 function buildChoiceHudCopy(scene) {
-  const activePlayers = getActivePlayers();
+  const activePlayers = getSceneParticipants(scene);
 
   const describePlayer = (player) => {
     const voteChoice = getChoiceByKey(scene, state.votes[player]);
     const focusChoice = getChoiceByKey(scene, state.focusChoice[player]) || scene.choices[0];
 
     if (voteChoice) {
-      return `P${player} on ${getDeviceLabel(getAssignedDevice(player))} locked "${getChoiceText(voteChoice)}"`;
+      return `${getChoiceParticipantLabel(player)} on ${getDeviceLabel(getAssignedDevice(player))} locked "${getChoiceText(voteChoice)}"`;
     }
 
-    return `P${player} on ${getDeviceLabel(getAssignedDevice(player))} aiming "${getChoiceText(focusChoice)}"`;
+    return `${getChoiceParticipantLabel(player)} on ${getDeviceLabel(getAssignedDevice(player))} aiming "${getChoiceText(focusChoice)}"`;
   };
 
   return activePlayers.map(describePlayer).join(". ") + ".";
+}
+
+function getAssignmentResolutionDescriptor(base) {
+  const playerOneFighter = formatFighterName(state.episodeBranchState.fighterByPlayer[1]);
+  const playerTwoFighter = formatFighterName(state.episodeBranchState.fighterByPlayer[2]);
+
+  return {
+    ...base,
+    headline: "Fighters Assigned",
+    copy: `Player 1 locked ${playerOneFighter}. Player 2 is assigned ${playerTwoFighter}.`
+  };
+}
+
+function getCombatResolutionDescriptor(scene, base) {
+  const kaelPlayer = state.episodeBranchState.playerByFighter.kael || 1;
+  const zyraPlayer = state.episodeBranchState.playerByFighter.zyra || 2;
+  const kaelChoice = getChoiceByKey(scene, state.votes[kaelPlayer]);
+  const zyraChoice = getChoiceByKey(scene, state.votes[zyraPlayer]);
+  const outcomeHeadlines = {
+    draw: "Combat Draw",
+    kael: "Kael Wins The Exchange",
+    zyra: "Zyra Wins The Exchange"
+  };
+
+  return {
+    ...base,
+    headline: outcomeHeadlines[state.resolvedCombatOutcome] || "Combat Locked",
+    copy: `Kael locked "${getChoiceText(kaelChoice)}". Zyra locked "${getChoiceText(zyraChoice)}". Loading the ${state.resolvedCombatOutcome || "combat"} branch.`
+  };
 }
 
 function getHudDescriptor(scene) {
@@ -1143,7 +1626,15 @@ function getHudDescriptor(scene) {
     const chosenChoice = getChoiceByKey(scene, state.selectedChoiceKey);
     const voteOne = getChoiceByKey(scene, state.votes[1]);
     const voteTwo = getChoiceByKey(scene, state.votes[2]);
-    const activePlayers = getActivePlayers();
+    const activePlayers = getSceneParticipants(scene);
+
+    if (state.resolutionMode === "assignment") {
+      return getAssignmentResolutionDescriptor(base);
+    }
+
+    if (state.resolutionMode === "combat") {
+      return getCombatResolutionDescriptor(scene, base);
+    }
 
     if (activePlayers.length === 2 && voteOne && voteTwo && voteOne.key !== voteTwo.key) {
       return {
@@ -1215,9 +1706,18 @@ function updateSceneHud() {
   } else if (state.isPaused) {
     sceneModeLabel.textContent = "Paused";
   } else if (state.resolvingChoice) {
-    sceneModeLabel.textContent = "Resolving votes";
+    sceneModeLabel.textContent = state.resolutionMode === "combat"
+      ? "Resolving combat"
+      : state.resolutionMode === "assignment"
+        ? "Assigning fighters"
+        : "Resolving votes";
   } else if (state.waitingForVotes) {
-    sceneModeLabel.textContent = state.playerSetup.count === 1 ? "Awaiting solo vote" : "Awaiting active votes";
+    const participants = getSceneParticipants(scene);
+    sceneModeLabel.textContent = participants.length === 1
+      ? `Awaiting ${getPlayerLabel(participants[0])}`
+      : state.playerSetup.count === 1
+        ? "Awaiting solo vote"
+        : "Awaiting active votes";
   } else if (scene && isFinalScene(state.currentSceneId)) {
     sceneModeLabel.textContent = "Final ending";
   } else if (scene && scene.choices) {
@@ -1244,11 +1744,12 @@ function updateSceneHud() {
   updateEpisodeChrome();
   updateInputPrompts();
   refreshBodyState();
+  updateTextDump();
 }
 
 function updateFocusFeed() {
   const scene = getCurrentScene();
-  const activePlayers = getActivePlayers();
+  const activePlayers = getSceneParticipants(scene);
 
   if (!scene) {
     focusFeed.textContent = "Player focus indicators will activate during choice scenes.";
@@ -1274,19 +1775,22 @@ function updateFocusFeed() {
     const voteChoice = getChoiceByKey(scene, state.votes[player]);
 
     if (voteChoice) {
-      return `P${player} locked Choice ${voteChoice.key}`;
+      return `${getChoiceParticipantLabel(player)} locked "${getChoiceText(voteChoice)}"`;
     }
 
-    return `P${player} focus on Choice ${state.focusChoice[player]}`;
+    return `${getChoiceParticipantLabel(player)} focus on Choice ${state.focusChoice[player]}`;
   };
 
   focusFeed.textContent = activePlayers.map(playerMessage).join(". ") + ".";
 }
 
 function updateVoteReadout() {
+  const participants = getSceneParticipants();
+  playerOneVoteCard.hidden = !participants.includes(1);
+  playerTwoVoteCard.hidden = !participants.includes(2);
   setVoteCopy(playerOneVote, state.votes[1]);
 
-  if (isPlayerActive(2)) {
+  if (participants.includes(2)) {
     setVoteCopy(playerTwoVote, state.votes[2]);
   }
 }
@@ -1298,7 +1802,8 @@ function setVoteCopy(element, value) {
     return;
   }
 
-  element.textContent = `Choice ${value}`;
+  const choice = getChoiceByKey(getCurrentScene(), value);
+  element.textContent = choice ? getChoiceText(choice) : `Choice ${value}`;
   element.classList.remove("is-pending");
 }
 
@@ -1308,6 +1813,8 @@ function resetVotes() {
   state.resolvingChoice = false;
   state.selectedChoiceKey = null;
   state.randomResolution = false;
+  state.resolutionMode = null;
+  state.resolvedCombatOutcome = null;
   updateVoteReadout();
 }
 
@@ -1382,7 +1889,7 @@ function renderScreenChoiceOverlay(scene) {
     return;
   }
 
-  const activePlayers = getActivePlayers();
+  const activePlayers = getSceneParticipants(scene);
 
   screenChoiceOverlay.innerHTML = scene.choices.map((choice) => `
     <article class="screen-choice-card" data-choice="${choice.key}">
@@ -1401,6 +1908,9 @@ function renderScreenChoiceOverlay(scene) {
 
 function updateChoiceVisualState() {
   const scene = getCurrentScene();
+  const participants = getSceneParticipants(scene);
+  const playerOneParticipating = participants.includes(1);
+  const playerTwoParticipating = participants.includes(2);
   const cards = choiceList.querySelectorAll(".choice-card");
   const buttons = choiceList.querySelectorAll(".choice-vote");
   const screenCards = screenChoiceOverlay.querySelectorAll(".screen-choice-card");
@@ -1412,8 +1922,8 @@ function updateChoiceVisualState() {
     card.classList.toggle("is-voted", wasVoted);
     card.classList.toggle("is-selected", state.selectedChoiceKey === choiceKey);
     card.classList.toggle("is-random", state.randomResolution && state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-focused-p1", scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    card.classList.toggle("is-focused-p2", scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p1", playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p2", playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
   });
 
   buttons.forEach((button) => {
@@ -1437,8 +1947,8 @@ function updateChoiceVisualState() {
     card.classList.toggle("is-voted", wasVoted);
     card.classList.toggle("is-selected", state.selectedChoiceKey === choiceKey);
     card.classList.toggle("is-random", state.randomResolution && state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-focused-p1", scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    card.classList.toggle("is-focused-p2", scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p1", playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p2", playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
   });
 
   updateFocusFeed();
@@ -1456,7 +1966,7 @@ function renderChoices(scene) {
   setDefaultFocus(scene);
   renderScreenChoiceOverlay(scene);
 
-  const activePlayers = getActivePlayers();
+  const activePlayers = getSceneParticipants(scene);
 
   choiceList.innerHTML = scene.choices.map((choice, index) => `
     <article class="choice-card" data-choice="${choice.key}" style="--card-index:${index};">
@@ -1573,7 +2083,14 @@ function resumeGame() {
     setDecisionMessage("Resuming playback.");
     resumeCurrentVideoPlayback();
   } else if (state.waitingForVotes) {
-    setDecisionMessage(state.playerSetup.count === 1 ? "Decision point resumed. Choose one option." : "Decision point resumed. Active players can vote.");
+    const scene = getCurrentScene();
+    if (scene && scene.choiceResolver === "unknown-character-select") {
+      setDecisionMessage("Decision point resumed. Player 1 chooses the opening fighter.");
+    } else if (scene && scene.choiceResolver === "unknown-combat") {
+      setDecisionMessage("Decision point resumed. Kael and Zyra can lock their attacks.");
+    } else {
+      setDecisionMessage(state.playerSetup.count === 1 ? "Decision point resumed. Choose one option." : "Decision point resumed. Active players can vote.");
+    }
   } else {
     setDecisionMessage("Investigation resumed.");
   }
@@ -1595,7 +2112,7 @@ function togglePause() {
 function focusChoice(player, choiceKey, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
+  if (!scene || !scene.choices || state.resolvingChoice || state.isPaused || !isPlayerRequiredForScene(player, scene)) {
     return;
   }
 
@@ -1608,7 +2125,7 @@ function focusChoice(player, choiceKey, inputMethod) {
 function moveFocus(player, direction, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerRequiredForScene(player, scene)) {
     return;
   }
 
@@ -1625,7 +2142,7 @@ function moveFocus(player, direction, inputMethod) {
 function confirmFocusedChoice(player, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerRequiredForScene(player, scene)) {
     return;
   }
 
@@ -1635,7 +2152,7 @@ function confirmFocusedChoice(player, inputMethod) {
 function registerVote(player, choiceKey, inputMethod) {
   const scene = getCurrentScene();
 
-  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerActive(player)) {
+  if (!scene || !scene.choices || !state.waitingForVotes || state.resolvingChoice || state.isPaused || !isPlayerRequiredForScene(player, scene)) {
     return;
   }
 
@@ -1651,11 +2168,11 @@ function registerVote(player, choiceKey, inputMethod) {
   if (hasAllRequiredVotes()) {
     resolveSceneChoice();
   } else if (choice) {
-    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => `Player ${waitingPlayer}`).join(" and ");
-    setDecisionMessage(`Player ${player} locked "${getChoiceText(choice)}". Waiting for ${waitingPlayers}.`);
+    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => getPlayerLabel(waitingPlayer)).join(" and ");
+    setDecisionMessage(`${getPlayerLabel(player)} locked "${getChoiceText(choice)}". Waiting for ${waitingPlayers}.`);
   } else {
-    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => `Player ${waitingPlayer}`).join(" and ");
-    setDecisionMessage(`Player ${player} locked a vote. Waiting for ${waitingPlayers}.`);
+    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => getPlayerLabel(waitingPlayer)).join(" and ");
+    setDecisionMessage(`${getPlayerLabel(player)} locked a vote. Waiting for ${waitingPlayers}.`);
   }
 }
 
@@ -1666,16 +2183,61 @@ function resolveSceneChoice() {
     return;
   }
 
-  const activePlayers = getActivePlayers();
+  const activePlayers = getSceneParticipants(scene);
   const activeVotes = activePlayers.map((player) => state.votes[player]);
 
   if (activeVotes.some((choiceKey) => choiceKey == null)) {
     return;
   }
 
+  state.resolvingChoice = true;
+  state.randomResolution = false;
+
+  if (scene.choiceResolver === "unknown-character-select") {
+    state.resolutionMode = "assignment";
+    state.selectedChoiceKey = activeVotes[0];
+    const selectedChoice = getChoiceByKey(scene, state.selectedChoiceKey);
+    const selectedFighter = selectedChoice && selectedChoice.fighter ? selectedChoice.fighter : "kael";
+
+    applyUnknownCharacterAssignment(selectedFighter);
+    syncGameplayPlayerUi();
+    setSplitBanner("");
+    setDecisionMessage(`Player 1 locked ${formatFighterName(selectedFighter)}. Player 2 is assigned ${formatFighterName(state.episodeBranchState.fighterByPlayer[2])}.`);
+    updateChoiceVisualState();
+    updateSceneHud();
+    scheduleSceneTransition(selectedChoice ? selectedChoice.next : null, 950);
+    return;
+  }
+
+  if (scene.choiceResolver === "unknown-combat") {
+    const kaelPlayer = state.episodeBranchState.playerByFighter.kael || 1;
+    const zyraPlayer = state.episodeBranchState.playerByFighter.zyra || 2;
+    const kaelChoiceKey = state.votes[kaelPlayer];
+    const zyraChoiceKey = state.votes[zyraPlayer];
+    const outcome = resolveUnknownCombatOutcome(kaelChoiceKey, zyraChoiceKey);
+
+    state.resolutionMode = "combat";
+    state.resolvedCombatOutcome = outcome;
+    state.selectedChoiceKey = outcome === "kael"
+      ? kaelChoiceKey
+      : outcome === "zyra"
+        ? zyraChoiceKey
+        : kaelChoiceKey;
+    setSplitBanner("");
+    setDecisionMessage(
+      outcome === "draw"
+        ? `Kael and Zyra matched with "${getChoiceText(getChoiceByKey(scene, kaelChoiceKey))}". Loading the draw branch.`
+        : `${outcome === "kael" ? "Kael" : "Zyra"} wins the exchange. Loading the result clip.`
+    );
+    updateChoiceVisualState();
+    updateSceneHud();
+    scheduleSceneTransition(scene.combatResultScenes ? scene.combatResultScenes[outcome] : null, 1050);
+    return;
+  }
+
   const splitDecision = activePlayers.length === 2 && activeVotes[0] !== activeVotes[1];
 
-  state.resolvingChoice = true;
+  state.resolutionMode = "standard";
   state.randomResolution = splitDecision;
   state.selectedChoiceKey = splitDecision
     ? (Math.random() < 0.5 ? activeVotes[0] : activeVotes[1])
@@ -1703,7 +2265,13 @@ function enterVoteState(scene) {
   state.waitingForVotes = true;
   setDefaultFocus(scene);
   renderChoices(scene);
-  setDecisionMessage(state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in.");
+  if (scene.choiceResolver === "unknown-character-select") {
+    setDecisionMessage("Player 1 chooses Kael or Zyra first. Player 2 receives the remaining fighter automatically.");
+  } else if (scene.choiceResolver === "unknown-combat") {
+    setDecisionMessage("Kael and Zyra lock attacks. Combat resolves after both fighters commit.");
+  } else {
+    setDecisionMessage(state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in.");
+  }
   updateSceneHud();
 }
 
@@ -1816,12 +2384,14 @@ function restartGame() {
 
   clearChoiceTimer();
   resetEpisodeMindState();
+  resetEpisodeBranchState();
   state.isPaused = false;
   state.pauseWasPlaying = false;
   state.resumePlaybackOnUnpause = false;
   setOverlayVisibility(endScreen, false);
   setOverlayVisibility(pauseScreen, false);
   setOverlayVisibility(errorScreen, false);
+  syncGameplayPlayerUi();
   state.currentSceneId = episode.startScene;
   setDecisionMessage(`Opening ${episode.title}.`);
   updateSceneHud();
@@ -2152,10 +2722,310 @@ retryButton.addEventListener("click", () => {
   playCurrentScene();
 });
 
+function renderGameToText() {
+  const scene = getCurrentScene();
+  const episode = getCurrentEpisode();
+  const choiceParticipants = getSceneParticipants(scene);
+
+  return JSON.stringify({
+    episode: episode.id,
+    title: episode.title,
+    sceneId: state.currentSceneId,
+    mode: document.body.dataset.sceneState || "idle",
+    started: state.started,
+    paused: state.isPaused,
+    waitingForVotes: state.waitingForVotes,
+    resolvingChoice: state.resolvingChoice,
+    pendingNextSceneId: state.pendingNextSceneId,
+    playerCount: state.playerSetup.count,
+    players: getActivePlayers().map((player) => ({
+      player,
+      fighter: getAssignedFighter(player),
+      device: getAssignedDevice(player),
+      vote: state.votes[player],
+      focus: state.focusChoice[player]
+    })),
+    choiceParticipants,
+    choices: scene && scene.choices
+      ? scene.choices.map((choice) => ({ key: choice.key, text: getChoiceText(choice) }))
+      : [],
+    finalChoiceKey: state.episodeBranchState.finalChoiceKey,
+    resolutionMode: state.resolutionMode,
+    resolvedCombatOutcome: state.resolvedCombatOutcome,
+    videoTime: Number.isFinite(video.currentTime) ? Number(video.currentTime.toFixed(3)) : 0
+  });
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const autotestScenarioId = urlParams.get("autotest");
+const textDumpEnabled = urlParams.has("textdump") || Boolean(autotestScenarioId);
+let textDumpNode = null;
+let autotestSummary = null;
+
+function ensureTextDumpNode() {
+  if (!textDumpEnabled) {
+    return null;
+  }
+
+  if (!textDumpNode) {
+    textDumpNode = document.createElement("pre");
+    textDumpNode.id = "text-dump";
+    textDumpNode.hidden = true;
+    document.body.appendChild(textDumpNode);
+  }
+
+  return textDumpNode;
+}
+
+function updateTextDump() {
+  const node = ensureTextDumpNode();
+
+  if (!node) {
+    return;
+  }
+
+  node.textContent = JSON.stringify({
+    state: JSON.parse(renderGameToText()),
+    autotest: autotestSummary
+  }, null, 2);
+}
+
+function clearAutotestPlaybackState() {
+  clearChoiceTimer();
+  resetVotes();
+  state.waitingForVotes = false;
+  state.resolvingChoice = false;
+  state.selectedChoiceKey = null;
+  state.randomResolution = false;
+  state.resolutionMode = null;
+  state.resolvedCombatOutcome = null;
+}
+
+function resolveAutotestChoice(sceneId, votesByPlayer) {
+  state.currentSceneId = sceneId;
+  clearAutotestPlaybackState();
+  state.waitingForVotes = true;
+
+  Object.entries(votesByPlayer).forEach(([player, choiceKey]) => {
+    state.focusChoice[player] = choiceKey;
+    state.votes[player] = choiceKey;
+  });
+
+  resolveSceneChoice();
+
+  const result = {
+    sceneId,
+    votes: { ...state.votes },
+    selectedChoiceKey: state.selectedChoiceKey,
+    resolutionMode: state.resolutionMode,
+    resolvedCombatOutcome: state.resolvedCombatOutcome,
+    nextSceneId: state.pendingNextSceneId
+  };
+
+  clearChoiceTimer();
+  state.waitingForVotes = false;
+  state.resolvingChoice = false;
+  return result;
+}
+
+function followAutotestScenePath(startSceneId, trace) {
+  let sceneId = startSceneId;
+
+  while (sceneId) {
+    state.currentSceneId = sceneId;
+    trace.push(sceneId);
+
+    if (isFinalScene(sceneId)) {
+      return sceneId;
+    }
+
+    const scene = getCurrentScene();
+
+    if (!scene) {
+      return null;
+    }
+
+    if (scene.endingResolver) {
+      sceneId = resolveEpisodeEndingScene(sceneId);
+      continue;
+    }
+
+    if (scene.choices) {
+      return sceneId;
+    }
+
+    sceneId = scene.next || null;
+  }
+
+  return sceneId;
+}
+
+const UNKNOWN_AUTOTEST_SCENARIOS = {
+  "unknown-kael-rebellion": {
+    openingChoice: 1,
+    choices: {
+      "scene 10 first choices": { 1: 3, 2: 3 },
+      "scene 12": { kael: 1, zyra: 1 },
+      "scene 18": { kael: 1, zyra: 3 },
+      "scene 21": { 1: 3, 2: 3 },
+      "scene 24 draw": { kael: 2, zyra: 2 },
+      "scene 28": { 1: 3, 2: 3 },
+      "scene 31": { kael: 3, zyra: 2 }
+    },
+    expectedFinalScene: "scene 35c",
+    expectedAssignments: { 1: "kael", 2: "zyra" }
+  },
+  "unknown-zyra-sacrifice": {
+    openingChoice: 2,
+    choices: {
+      "scene 10 first choices": { 1: 2, 2: 2 },
+      "scene 12": { kael: 2, zyra: 3 },
+      "scene 18": { kael: 3, zyra: 3 },
+      "scene 21": { 1: 1, 2: 1 },
+      "scene 24 draw": { kael: 1, zyra: 2 },
+      "scene 28": { 1: 2, 2: 2 },
+      "scene 31": { kael: 1, zyra: 3 }
+    },
+    expectedFinalScene: "scene 34b",
+    expectedAssignments: { 1: "zyra", 2: "kael" }
+  },
+  "unknown-kael-duel": {
+    openingChoice: 1,
+    choices: {
+      "scene 10 first choices": { 1: 1, 2: 1 },
+      "scene 12": { kael: 2, zyra: 1 },
+      "scene 18": { kael: 3, zyra: 2 },
+      "scene 21": { 1: 2, 2: 2 },
+      "scene 24 draw": { kael: 1, zyra: 1 },
+      "scene 28": { 1: 1, 2: 1 },
+      "scene 31": { kael: 2, zyra: 2 }
+    },
+    expectedFinalScene: "scene 34a",
+    expectedAssignments: { 1: "kael", 2: "zyra" }
+  }
+};
+
+function runUnknownAutotestScenario(scenarioId, definition) {
+  const trace = [];
+
+  selectEpisode("unknown");
+  state.playerSetup.count = 2;
+  updatePlayerSetupUi();
+  state.started = true;
+  resetEpisodeMindState();
+  resetEpisodeBranchState();
+  clearAutotestPlaybackState();
+  syncGameplayPlayerUi();
+  setOverlayVisibility(introScreen, false);
+  setOverlayVisibility(endScreen, false);
+  setOverlayVisibility(pauseScreen, false);
+  setOverlayVisibility(errorScreen, false);
+  hideLoading();
+
+  const openingResolution = resolveAutotestChoice("left player 1", { 1: definition.openingChoice });
+  const openingAssignments = { ...state.episodeBranchState.fighterByPlayer };
+  let nextSceneId = openingResolution.nextSceneId;
+  let currentSceneId = followAutotestScenePath(nextSceneId, trace);
+
+  while (currentSceneId && !isFinalScene(currentSceneId)) {
+    const scene = getCurrentScene();
+
+    if (!scene || !scene.choices) {
+      break;
+    }
+
+    const scriptedChoice = definition.choices[currentSceneId];
+    if (!scriptedChoice) {
+      throw new Error(`Missing autotest choice for ${currentSceneId}`);
+    }
+
+    let votesByPlayer = scriptedChoice;
+
+    if (scene.choiceResolver === "unknown-combat") {
+      votesByPlayer = {
+        [state.episodeBranchState.playerByFighter.kael]: scriptedChoice.kael,
+        [state.episodeBranchState.playerByFighter.zyra]: scriptedChoice.zyra
+      };
+    }
+
+    const resolution = resolveAutotestChoice(currentSceneId, votesByPlayer);
+    trace.push({
+      sceneId: currentSceneId,
+      selectedChoiceKey: resolution.selectedChoiceKey,
+      resolutionMode: resolution.resolutionMode,
+      resolvedCombatOutcome: resolution.resolvedCombatOutcome,
+      nextSceneId: resolution.nextSceneId
+    });
+    nextSceneId = resolution.nextSceneId;
+    currentSceneId = followAutotestScenePath(nextSceneId, trace);
+  }
+
+  state.currentSceneId = currentSceneId;
+  updateSceneHud();
+  updateFocusFeed();
+
+  return {
+    scenario: scenarioId,
+    trace,
+    finalSceneId: currentSceneId,
+    finalChoiceKey: state.episodeBranchState.finalChoiceKey,
+    assignments: { ...state.episodeBranchState.fighterByPlayer },
+    expectedFinalScene: definition.expectedFinalScene,
+    expectedAssignments: definition.expectedAssignments,
+    passed: currentSceneId === definition.expectedFinalScene
+      && state.episodeBranchState.fighterByPlayer[1] === definition.expectedAssignments[1]
+      && state.episodeBranchState.fighterByPlayer[2] === definition.expectedAssignments[2]
+  };
+}
+
+function runAutotestFromQuery() {
+  if (!autotestScenarioId) {
+    updateTextDump();
+    return;
+  }
+
+  try {
+    if (!UNKNOWN_AUTOTEST_SCENARIOS[autotestScenarioId]) {
+      throw new Error(`Unknown autotest scenario: ${autotestScenarioId}`);
+    }
+
+    const scenarioResults = Object.entries(UNKNOWN_AUTOTEST_SCENARIOS).map(([scenarioId, definition]) =>
+      runUnknownAutotestScenario(scenarioId, definition)
+    );
+
+    autotestSummary = {
+      requestedScenario: autotestScenarioId,
+      passed: scenarioResults.every((result) => result.passed),
+      scenarios: scenarioResults
+    };
+  } catch (error) {
+    autotestSummary = {
+      scenario: autotestScenarioId,
+      passed: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+
+  updateTextDump();
+}
+
+window.render_game_to_text = renderGameToText;
+window.advanceTime = (ms = 0) => {
+  const seconds = Math.max(0, Number(ms) || 0) / 1000;
+
+  if (seconds > 0 && !video.paused && Number.isFinite(video.duration)) {
+    video.currentTime = Math.min(video.duration, video.currentTime + seconds);
+  }
+
+  return renderGameToText();
+};
+
 selectEpisode(state.selectedEpisodeId);
 updatePlayerSetupUi();
 updateInputPrompts();
 updateSceneHud();
 updateFocusFeed();
 setDecisionMessage("Episode standing by.");
+updateTextDump();
+window.setTimeout(runAutotestFromQuery, 0);
 window.requestAnimationFrame(pollGamepads);
