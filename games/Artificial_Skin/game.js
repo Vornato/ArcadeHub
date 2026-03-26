@@ -430,7 +430,7 @@ const CLUB_PROGRESS = {
 };
 
 const UNKNOWN_CHARACTER_CHOICES = createChoices([
-  [1, "Kael", "left player 2", { fighter: "kael" }],
+  [1, "Kael", "right player 2", { fighter: "kael" }],
   [2, "Zyra", "right player 1", { fighter: "zyra" }]
 ]);
 
@@ -445,58 +445,23 @@ const UNKNOWN_SCENES = {
     file: "left player 1.mp4",
     choices: UNKNOWN_CHARACTER_CHOICES,
     choicePlayers: [1],
-    choiceResolver: "unknown-character-select"
+    choiceResolver: "unknown-character-select",
+    openChoicesOnLoad: true
   },
   "left player 2": {
     file: "left player 2.mp4",
-    next: "scene 1"
+    next: "scene 1-10"
   },
   "right player 1": {
     file: "right player 1.mp4",
-    next: "right player 2"
+    next: "left player 2"
   },
   "right player 2": {
     file: "right player 2.mp4",
-    next: "scene 1"
+    next: "scene 1-10"
   },
-  "scene 1": {
-    file: "scene 1.mp4",
-    next: "scene 2"
-  },
-  "scene 2": {
-    file: "scene 2.mp4",
-    next: "scene 3"
-  },
-  "scene 3": {
-    file: "scene 3.mp4",
-    next: "scene 4"
-  },
-  "scene 4": {
-    file: "scene 4.mp4",
-    next: "scene 5"
-  },
-  "scene 5": {
-    file: "scene 5.mp4",
-    next: "scene 6"
-  },
-  "scene 6": {
-    file: "scene 6.mp4",
-    next: "scene 7"
-  },
-  "scene 7": {
-    file: "scene 7.mp4",
-    next: "scene 8"
-  },
-  "scene 8": {
-    file: "scene 8.mp4",
-    next: "scene 9"
-  },
-  "scene 9": {
-    file: "scene 9.mp4",
-    next: "scene 10 first choices"
-  },
-  "scene 10 first choices": {
-    file: "scene 10 first choices.mp4",
+  "scene 1-10": {
+    file: "Scene 1-10.mp4",
     choices: createChoices([
       [1, "I didn't choose this. Did you?", "scene 11a"],
       [2, "If you hesitate, they'll bury us both.", "scene 11b"],
@@ -521,40 +486,24 @@ const UNKNOWN_SCENES = {
     choiceResolver: "unknown-combat",
     combatResultScenes: {
       draw: "scene 13a draw",
-      kael: "scene 13a kael wins",
-      zyra: "scene 13b zyra wins"
+      kael: "scene 13b kael wins",
+      zyra: "scene 13c zyra wins"
     }
   },
   "scene 13a draw": {
     file: "scene 13a draw.mp4",
-    next: "scene 14"
+    next: "scene 14-18"
   },
-  "scene 13a kael wins": {
-    file: "scene 13a kael wins.mp4",
-    next: "scene 14"
+  "scene 13b kael wins": {
+    file: "scene 13b kael wins.mp4",
+    next: "scene 14-18"
   },
-  "scene 13b zyra wins": {
-    file: "scene 13b zyra wins.mp4",
-    next: "scene 14"
+  "scene 13c zyra wins": {
+    file: "scene 13c zyra wins.mp4",
+    next: "scene 14-18"
   },
-  "scene 14": {
-    file: "scene 14.mp4",
-    next: "scene 15"
-  },
-  "scene 15": {
-    file: "scene 15.mp4",
-    next: "scene 16"
-  },
-  "scene 16": {
-    file: "scene 16.mp4",
-    next: "scene 17"
-  },
-  "scene 17": {
-    file: "scene 17.mp4",
-    next: "scene 18"
-  },
-  "scene 18": {
-    file: "scene 18.mp4",
+  "scene 14-18": {
+    file: "scene 14-18.mp4",
     choices: UNKNOWN_ATTACK_CHOICES,
     choiceResolver: "unknown-combat",
     combatResultScenes: {
@@ -565,67 +514,43 @@ const UNKNOWN_SCENES = {
   },
   "scene 19a draw": {
     file: "scene 19a draw.mp4",
-    next: "scene 20"
+    next: "scene 20-23"
   },
   "scene 19b kael wins": {
     file: "scene 19b kael wins.mp4",
-    next: "scene 20"
+    next: "scene 20-23"
   },
   "scene 19c zyra wins": {
     file: "scene 19c zyra wins.mp4",
-    next: "scene 20"
+    next: "scene 20-23"
   },
-  "scene 20": {
-    file: "scene 20.mp4",
-    next: "scene 21"
-  },
-  "scene 21": {
-    file: "scene 21.mp4",
-    choices: createChoices([
-      [1, "This arena isn't built for a fight. It's built to feed something.", "scene 22"],
-      [2, "Then panic is exactly what it wants.", "scene 22"],
-      [3, "If you're alive down there, watch closely.", "scene 23"]
-    ])
-  },
-  "scene 22": {
-    file: "scene 22.mp4",
-    next: "scene 24 draw"
-  },
-  "scene 23": {
-    file: "scene 23.mp4",
-    next: "scene 24 draw"
-  },
-  "scene 24 draw": {
-    file: "scene 24 draw.mp4",
+  "scene 20-23": {
+    file: "scene 20-23.mp4",
     choices: UNKNOWN_ATTACK_CHOICES,
     choiceResolver: "unknown-combat",
     combatResultScenes: {
-      draw: "scene 26",
+      draw: "scene 25a draw",
       kael: "scene 25b kael wins",
       zyra: "scene 25c zyra wins"
     }
   },
+  "scene 25a draw": {
+    file: "scene 25a draw.mp4",
+    next: "scene 26-28"
+  },
   "scene 25b kael wins": {
     file: "scene 25b kael wins.mp4",
-    next: "scene 26"
+    next: "scene 26-28"
   },
   "scene 25c zyra wins": {
     file: "scene 25c zyra wins.mp4",
-    next: "scene 26"
+    next: "scene 26-28"
   },
-  "scene 26": {
-    file: "scene 26.mp4",
-    next: "scene 27"
-  },
-  "scene 27": {
-    file: "scene 27.mp4",
-    next: "scene 28"
-  },
-  "scene 28": {
-    file: "scene 28.mp4",
+  "scene 26-28": {
+    file: "scene 26-28.mp4",
     choices: createChoices([
       [1, "Finish it. One of us leaves.", "scene 29a"],
-      [2, "Push the other into the grate.", "scene 29b"],
+      [2, "Use the drop. Feed the monster.", "scene 29b"],
       [3, "Forget the duel. Kill the emperor.", "scene 29c"]
     ])
   },
@@ -669,7 +594,11 @@ const UNKNOWN_SCENES = {
   },
   "scene 33": {
     file: "scene 33.mp4",
-    endingResolver: true
+    choices: createChoices([
+      [1, "Turn on each other and finish the duel.", "scene 34a"],
+      [2, "Drop the sacrifice and feed the monster.", "scene 34b"],
+      [3, "Break the ritual. Kill the emperor.", "scene 34c"]
+    ])
   },
   "scene 34a": {
     file: "scene 34a.mp4"
@@ -677,46 +606,28 @@ const UNKNOWN_SCENES = {
   "scene 34b": {
     file: "scene 34b.mp4"
   },
-  "scene 35c": {
-    file: "scene 35c.mp4"
+  "scene 34c": {
+    file: "scene 34c.mp4"
   }
 };
 
 const UNKNOWN_PROGRESS = createProgressMap([
   [1, "left player 1", "left player 2", "right player 1", "right player 2"],
-  [2, "scene 1"],
-  [3, "scene 2"],
-  [4, "scene 3"],
-  [5, "scene 4"],
-  [6, "scene 5"],
-  [7, "scene 6"],
-  [8, "scene 7"],
-  [9, "scene 8"],
-  [10, "scene 9"],
-  [11, "scene 10 first choices"],
-  [12, "scene 11a", "scene 11b", "scene 11c"],
-  [13, "scene 12"],
-  [14, "scene 13a draw", "scene 13a kael wins", "scene 13b zyra wins"],
-  [15, "scene 14"],
-  [16, "scene 15"],
-  [17, "scene 16"],
-  [18, "scene 17"],
-  [19, "scene 18"],
-  [20, "scene 19a draw", "scene 19b kael wins", "scene 19c zyra wins"],
-  [21, "scene 20"],
-  [22, "scene 21"],
-  [23, "scene 22", "scene 23"],
-  [24, "scene 24 draw"],
-  [25, "scene 25b kael wins", "scene 25c zyra wins"],
-  [26, "scene 26"],
-  [27, "scene 27"],
-  [28, "scene 28"],
-  [29, "scene 29a", "scene 29b", "scene 29c"],
-  [30, "scene 30"],
-  [31, "scene 31"],
-  [32, "scene 32a draw", "scene 32b kael wins", "scene 32c zyra wins"],
-  [33, "scene 33"],
-  [35, "scene 34a", "scene 34b", "scene 35c"]
+  [2, "scene 1-10"],
+  [3, "scene 11a", "scene 11b", "scene 11c"],
+  [4, "scene 12"],
+  [5, "scene 13a draw", "scene 13b kael wins", "scene 13c zyra wins"],
+  [6, "scene 14-18"],
+  [7, "scene 19a draw", "scene 19b kael wins", "scene 19c zyra wins"],
+  [8, "scene 20-23"],
+  [9, "scene 25a draw", "scene 25b kael wins", "scene 25c zyra wins"],
+  [10, "scene 26-28"],
+  [11, "scene 29a", "scene 29b", "scene 29c"],
+  [12, "scene 30"],
+  [13, "scene 31"],
+  [14, "scene 32a draw", "scene 32b kael wins", "scene 32c zyra wins"],
+  [15, "scene 33"],
+  [16, "scene 34a", "scene 34b", "scene 34c"]
 ]);
 
 const EPISODES = {
@@ -751,16 +662,16 @@ const EPISODES = {
   unknown: {
     id: "unknown",
     title: "Unknown is Calling",
-    seasonLabel: "Series 4 - Unknown is Calling",
-    menuLabel: "Series 4",
+    seasonLabel: "Series 3 - Unknown is Calling",
+    menuLabel: "Series 3",
     menuCopy: "Two-player alien arena ritual with locked Kael and Zyra assignments, branching dialogue, and combat resolution clips.",
     startScene: "left player 1",
     poster: "posters/unknown-is-calling.jpg",
-    totalBeats: 35,
+    totalBeats: 16,
     videoRoots: ["Unknown_is_calling", "video/Unknown_is_calling", "video", "."],
     scenes: UNKNOWN_SCENES,
     progress: UNKNOWN_PROGRESS,
-    finalScenes: new Set(["scene 34a", "scene 34b", "scene 35c"]),
+    finalScenes: new Set(["scene 34a", "scene 34b", "scene 34c"]),
     allowedPlayerCounts: [2]
   }
 };
@@ -816,10 +727,8 @@ const DEVICE_LABELS = {
   gamepad2: "Gamepad 2"
 };
 const GAMEPAD_OPTION_LABELS = { 1: "X", 2: "Y", 3: "B" };
-const PLAYER_KEYBOARD_LABELS = {
-  1: { 1: "1", 2: "2", 3: "3" },
-  2: { 1: "J", 2: "K", 3: "L" }
-};
+const KEYBOARD_OPTION_LABELS = { 1: "A", 2: "S", 3: "D" };
+const GAMEPAD_CONNECTION_GRACE_MS = 1800;
 
 const video = document.getElementById("scene-video");
 const appSeasonLabel = document.getElementById("app-season-label");
@@ -833,9 +742,13 @@ const progressFill = document.getElementById("progress-fill");
 const inputStatus = document.getElementById("input-status");
 const pauseButton = document.getElementById("pause-button");
 const splitBanner = document.getElementById("split-banner");
+const combatResolutionFlash = document.getElementById("combat-resolution-flash");
 const screenChoiceOverlay = document.getElementById("screen-choice-overlay");
 const loadingOverlay = document.getElementById("loading-overlay");
-const loadingText = document.getElementById("loading-text");
+const loadingTitle = document.getElementById("loading-title");
+const loadingDetail = document.getElementById("loading-detail");
+const loadingProgressFill = document.getElementById("loading-progress-fill");
+const loadingProgressCopy = document.getElementById("loading-progress-copy");
 const choiceList = document.getElementById("choice-list");
 const decisionFeed = document.getElementById("decision-feed");
 const focusFeed = document.getElementById("focus-feed");
@@ -876,7 +789,10 @@ const endOverlayLabel = document.getElementById("end-overlay-label");
 const endTitle = document.getElementById("end-title");
 const endCopy = document.getElementById("end-copy");
 const errorScreen = document.getElementById("error-screen");
+const errorTitle = document.getElementById("error-title");
 const errorMessage = document.getElementById("error-message");
+const menuFullscreenButton = document.getElementById("menu-fullscreen-button");
+const videoFullscreenButton = document.getElementById("video-fullscreen-button");
 const startButton = document.getElementById("start-button");
 const continueButton = document.getElementById("continue-button");
 const pauseRestartButton = document.getElementById("pause-restart-button");
@@ -890,6 +806,10 @@ function createEpisodeBranchState() {
     playerByFighter: { kael: null, zyra: null }
   };
 }
+
+const episodePreloadCache = new Map();
+const episodePreloadPromises = new Map();
+let combatResolutionTimer = null;
 
 const state = {
   selectedEpisodeId: "detective",
@@ -919,12 +839,17 @@ const state = {
   resolveRemainingMs: 0,
   resolveEndsAt: 0,
   started: false,
+  isPreparingEpisode: false,
   isPaused: false,
   pauseWasPlaying: false,
   resumePlaybackOnUnpause: false,
+  errorRecoveryAction: "scene",
   gamepadSnapshot: {},
   gamepadSignature: "",
-  lastInputMethod: "mouse"
+  gamepadConnectionSignature: "",
+  gamepadLastSeenAt: { gamepad1: 0, gamepad2: 0 },
+  lastInputMethod: "mouse",
+  isFullscreenActive: false
 };
 
 function isOverlayVisible(element) {
@@ -948,13 +873,88 @@ function setOverlayVisibility(element, visible) {
   }, 240);
 }
 
-function showLoading(message) {
-  loadingText.textContent = message;
+function updateLoadingOverlay(content = {}) {
+  const {
+    title = "Episode standing by...",
+    detail = "",
+    progress = null,
+    progressLabel = ""
+  } = typeof content === "string" ? { title: content } : content;
+
+  loadingTitle.textContent = title;
+  loadingDetail.textContent = detail;
+  loadingDetail.hidden = !detail;
+  loadingProgressCopy.textContent = progressLabel;
+  loadingProgressCopy.hidden = !progressLabel;
+  loadingProgressFill.classList.toggle("is-indeterminate", typeof progress !== "number");
+  loadingProgressFill.style.width = typeof progress === "number"
+    ? `${Math.max(0, Math.min(progress, 1)) * 100}%`
+    : "34%";
+}
+
+function showLoading(content) {
+  updateLoadingOverlay(content);
   loadingOverlay.classList.add("is-visible");
 }
 
 function hideLoading() {
   loadingOverlay.classList.remove("is-visible");
+}
+
+function isFullscreenSupported() {
+  return Boolean(document.fullscreenEnabled || document.documentElement.requestFullscreen);
+}
+
+function updateFullscreenUi() {
+  const supported = isFullscreenSupported();
+  const active = Boolean(document.fullscreenElement);
+
+  state.isFullscreenActive = active;
+  document.body.classList.toggle("is-fullscreen-active", active);
+
+  [menuFullscreenButton, videoFullscreenButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+
+    button.hidden = !supported;
+    button.disabled = !supported;
+    button.textContent = active ? "Exit Fullscreen" : "Enter Fullscreen";
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+async function toggleAppFullscreen() {
+  if (!isFullscreenSupported()) {
+    setDecisionMessage("Fullscreen is not supported in this browser.");
+    updateSceneHud();
+    return false;
+  }
+
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await document.documentElement.requestFullscreen();
+    }
+
+    return true;
+  } catch (error) {
+    setDecisionMessage("Fullscreen request was blocked.");
+    updateSceneHud();
+    return false;
+  }
+}
+
+function handleFullscreenChange() {
+  updateFullscreenUi();
+  updateSceneHud();
+  updateFocusFeed();
+}
+
+function isEditableTarget(target) {
+  return target instanceof HTMLElement
+    && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "OPTION"].includes(target.tagName));
 }
 
 function clearChoiceTimer() {
@@ -1029,6 +1029,54 @@ function getAssignedFighter(player) {
   return state.episodeBranchState.fighterByPlayer[player];
 }
 
+function isCombatChoiceScene(scene = getCurrentScene()) {
+  return Boolean(scene && scene.choiceResolver === "unknown-combat");
+}
+
+function getCombatOutcomeLabel(outcome) {
+  if (outcome === "kael") {
+    return "Kael Wins";
+  }
+
+  if (outcome === "zyra") {
+    return "Zyra Wins";
+  }
+
+  return "Draw";
+}
+
+function hideCombatResolutionFlash() {
+  if (combatResolutionTimer) {
+    window.clearTimeout(combatResolutionTimer);
+    combatResolutionTimer = null;
+  }
+
+  combatResolutionFlash.classList.remove("is-visible");
+  combatResolutionFlash.textContent = "";
+  delete combatResolutionFlash.dataset.outcome;
+  combatResolutionFlash.hidden = true;
+}
+
+function showCombatResolutionFlash(outcome) {
+  hideCombatResolutionFlash();
+  combatResolutionFlash.dataset.outcome = outcome;
+  combatResolutionFlash.innerHTML = `<div class="combat-resolution-copy">${getCombatOutcomeLabel(outcome)}</div>`;
+  combatResolutionFlash.hidden = false;
+  requestAnimationFrame(() => {
+    combatResolutionFlash.classList.add("is-visible");
+  });
+
+  combatResolutionTimer = window.setTimeout(() => {
+    combatResolutionFlash.classList.remove("is-visible");
+    window.setTimeout(() => {
+      if (!combatResolutionFlash.classList.contains("is-visible")) {
+        combatResolutionFlash.hidden = true;
+        combatResolutionFlash.textContent = "";
+      }
+    }, 220);
+  }, 900);
+}
+
 function getPlayerLabel(player) {
   const fighter = getAssignedFighter(player);
   return fighter ? `Player ${player} - ${formatFighterName(fighter)}` : `Player ${player}`;
@@ -1060,6 +1108,12 @@ function getAssignedDevice(player) {
   return state.playerSetup.assignments[player] || "keyboard";
 }
 
+function getCurrentTimestamp() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
 function isGamepadDevice(device) {
   return typeof device === "string" && device.startsWith("gamepad");
 }
@@ -1089,12 +1143,27 @@ function getGamepadByDevice(device) {
   return getConnectedGamepads()[slot - 1] || null;
 }
 
-function isDeviceConnected(device) {
+function getGamepadConnectionState(device, connectedPads = null) {
   if (device === "keyboard") {
     return true;
   }
 
-  return Boolean(getGamepadByDevice(device));
+  const slot = getGamepadSlot(device);
+  if (!slot) {
+    return false;
+  }
+
+  const gamepads = connectedPads || getConnectedGamepads();
+  if (gamepads[slot - 1]) {
+    return true;
+  }
+
+  const lastSeenAt = state.gamepadLastSeenAt[device] || 0;
+  return lastSeenAt > 0 && (getCurrentTimestamp() - lastSeenAt) <= GAMEPAD_CONNECTION_GRACE_MS;
+}
+
+function isDeviceConnected(device) {
+  return getGamepadConnectionState(device);
 }
 
 function getKeyboardPlayer() {
@@ -1109,22 +1178,18 @@ function getChoiceBadgeText(player, choiceKey) {
   const device = getAssignedDevice(player);
 
   if (device === "keyboard") {
-    return `P${player} KB ${PLAYER_KEYBOARD_LABELS[player][choiceKey]}`;
+    return `P${player} KB ${KEYBOARD_OPTION_LABELS[choiceKey]}`;
   }
 
   return `P${player} G${getGamepadSlot(device)} ${GAMEPAD_OPTION_LABELS[choiceKey]}`;
 }
 
-function getKeyboardInstruction(player) {
-  if (player === 1) {
-    return "Keyboard: 1 / 2 / 3 or A / D then W.";
-  }
-
-  return "Keyboard: J / K / L, Numpad 1 / 2 / 3, or arrows then Enter.";
+function getKeyboardInstruction() {
+  return "Keyboard: A = 1, S = 2, D = 3. Pressing a key locks instantly.";
 }
 
 function getGamepadInstruction(device) {
-  return `${getDeviceLabel(device)}: X = 1, Y = 2, B = 3, Left / Right changes focus, A confirms, Start pauses.`;
+  return `${getDeviceLabel(device)}: X = 1, Y = 2, B = 3 lock instantly, or move focus and press A. Start pauses.`;
 }
 
 function getPlayerInputDescription(player) {
@@ -1132,7 +1197,7 @@ function getPlayerInputDescription(player) {
   const connectionNote = isDeviceConnected(device) ? "" : ` ${getDeviceLabel(device)} is not connected.`;
 
   if (device === "keyboard") {
-    return `${getKeyboardInstruction(player)} Mouse clicks also vote for this player.${connectionNote}`;
+    return `${getKeyboardInstruction()} Mouse clicks also vote for this player.${connectionNote}`;
   }
 
   return `${getGamepadInstruction(device)}${connectionNote}`;
@@ -1304,7 +1369,7 @@ function applyMindDelta(delta) {
 }
 
 function recordEpisodeChoiceOutcome(sceneId, choiceKey) {
-  if (state.selectedEpisodeId === "unknown" && sceneId === "scene 28") {
+  if (state.selectedEpisodeId === "unknown" && sceneId === "scene 33") {
     state.episodeBranchState.finalChoiceKey = choiceKey;
     return;
   }
@@ -1373,7 +1438,7 @@ function resolveEpisodeEndingScene(sceneId) {
       return "scene 34b";
     }
 
-    return "scene 35c";
+    return "scene 34c";
   }
 
   if (state.selectedEpisodeId !== "club") {
@@ -1542,11 +1607,13 @@ function updateInputPrompts() {
     const device = getAssignedDevice(player);
 
     if (device === "keyboard") {
-      return `P${player} Keyboard: ${player === 1 ? "1 / 2 / 3 or A / D then W" : "J / K / L, numpad 1 / 2 / 3, or arrows then Enter"}`;
+      return `P${player} Keyboard: A = 1, S = 2, D = 3. Locks instantly.`;
     }
 
-    return `P${player} ${getDeviceLabel(device)}: X = 1, Y = 2, B = 3, A confirms, Start pauses`;
-  }).concat(getKeyboardPlayer() ? [`Mouse votes for P${getKeyboardPlayer()}`] : ["Mouse voting off"]).join(". ");
+    return `P${player} ${getDeviceLabel(device)}: X = 1, Y = 2, B = 3. Or move focus and press A. Start pauses.`;
+  }).concat(getKeyboardPlayer() ? [`Mouse votes for P${getKeyboardPlayer()}`] : ["Mouse voting off"])
+    .concat(isFullscreenSupported() ? ["F toggles fullscreen"] : [])
+    .join(". ");
 }
 
 function getChoiceParticipantLabel(player) {
@@ -1556,6 +1623,14 @@ function getChoiceParticipantLabel(player) {
 
 function buildChoiceHudCopy(scene) {
   const activePlayers = getSceneParticipants(scene);
+
+  if (isCombatChoiceScene(scene)) {
+    return activePlayers.map((player) => (
+      state.votes[player] != null
+        ? `${getChoiceParticipantLabel(player)} locked in`
+        : `${getChoiceParticipantLabel(player)} choosing in secret`
+    )).join(". ") + ".";
+  }
 
   const describePlayer = (player) => {
     const voteChoice = getChoiceByKey(scene, state.votes[player]);
@@ -1583,10 +1658,6 @@ function getAssignmentResolutionDescriptor(base) {
 }
 
 function getCombatResolutionDescriptor(scene, base) {
-  const kaelPlayer = state.episodeBranchState.playerByFighter.kael || 1;
-  const zyraPlayer = state.episodeBranchState.playerByFighter.zyra || 2;
-  const kaelChoice = getChoiceByKey(scene, state.votes[kaelPlayer]);
-  const zyraChoice = getChoiceByKey(scene, state.votes[zyraPlayer]);
   const outcomeHeadlines = {
     draw: "Combat Draw",
     kael: "Kael Wins The Exchange",
@@ -1596,7 +1667,7 @@ function getCombatResolutionDescriptor(scene, base) {
   return {
     ...base,
     headline: outcomeHeadlines[state.resolvedCombatOutcome] || "Combat Locked",
-    copy: `Kael locked "${getChoiceText(kaelChoice)}". Zyra locked "${getChoiceText(zyraChoice)}". Loading the ${state.resolvedCombatOutcome || "combat"} branch.`
+    copy: `${getCombatOutcomeLabel(state.resolvedCombatOutcome)}. Loading the combat result clip.`
   };
 }
 
@@ -1771,6 +1842,15 @@ function updateFocusFeed() {
     return;
   }
 
+  if (isCombatChoiceScene(scene)) {
+    focusFeed.textContent = activePlayers.map((player) => (
+      state.votes[player] != null
+        ? `${getChoiceParticipantLabel(player)} locked in`
+        : `${getChoiceParticipantLabel(player)} is choosing in secret`
+    )).join(". ") + ".";
+    return;
+  }
+
   const playerMessage = (player) => {
     const voteChoice = getChoiceByKey(scene, state.votes[player]);
 
@@ -1802,6 +1882,12 @@ function setVoteCopy(element, value) {
     return;
   }
 
+  if (isCombatChoiceScene()) {
+    element.textContent = "Locked";
+    element.classList.remove("is-pending");
+    return;
+  }
+
   const choice = getChoiceByKey(getCurrentScene(), value);
   element.textContent = choice ? getChoiceText(choice) : `Choice ${value}`;
   element.classList.remove("is-pending");
@@ -1818,16 +1904,240 @@ function resetVotes() {
   updateVoteReadout();
 }
 
+function getEpisodeSceneSources(file, episode = getCurrentEpisode()) {
+  return episode.videoRoots.map((root) => root === "." ? file : `${root}/${file}`);
+}
+
 function getSceneSources(file) {
-  return getCurrentEpisode().videoRoots.map((root) => root === "." ? file : `${root}/${file}`);
+  return getEpisodeSceneSources(file, getCurrentEpisode());
+}
+
+function getEpisodePreloadTargets(episode = getCurrentEpisode()) {
+  const seenFiles = new Set();
+
+  return Object.values(episode.scenes).reduce((targets, scene) => {
+    if (!scene || !scene.file || seenFiles.has(scene.file)) {
+      return targets;
+    }
+
+    seenFiles.add(scene.file);
+    targets.push({
+      file: scene.file,
+      fallbackFiles: scene.fallbackFiles || []
+    });
+    return targets;
+  }, []);
+}
+
+function getEpisodePreloadRecord(episodeId) {
+  return episodePreloadCache.get(episodeId) || null;
+}
+
+function ensureEpisodePreloadRecord(episode) {
+  if (!episodePreloadCache.has(episode.id)) {
+    episodePreloadCache.set(episode.id, {
+      ready: false,
+      sourcesByFile: {}
+    });
+  }
+
+  return episodePreloadCache.get(episode.id);
+}
+
+function getCachedSceneSource(file, episode = getCurrentEpisode()) {
+  const record = getEpisodePreloadRecord(episode.id);
+  const entry = record && record.sourcesByFile[file];
+  return entry ? entry.source : null;
+}
+
+function cacheEpisodeSceneSource(episode, file, source, options = {}) {
+  const { isObjectUrl = false } = options;
+  const record = ensureEpisodePreloadRecord(episode);
+  const existing = record.sourcesByFile[file];
+
+  if (existing && existing.isObjectUrl && existing.source !== source) {
+    URL.revokeObjectURL(existing.source);
+  }
+
+  record.sourcesByFile[file] = { source, isObjectUrl };
+}
+
+function releaseEpisodePreload(episodeId) {
+  const record = getEpisodePreloadRecord(episodeId);
+
+  if (!record) {
+    return;
+  }
+
+  Object.values(record.sourcesByFile).forEach((entry) => {
+    if (entry && entry.isObjectUrl) {
+      URL.revokeObjectURL(entry.source);
+    }
+  });
+
+  episodePreloadCache.delete(episodeId);
+}
+
+function releaseUnusedEpisodePreloads(activeEpisodeId) {
+  Array.from(episodePreloadCache.keys()).forEach((episodeId) => {
+    if (episodeId !== activeEpisodeId) {
+      releaseEpisodePreload(episodeId);
+    }
+  });
+}
+
+function isScenePreloaded(scene, episode = getCurrentEpisode()) {
+  return Boolean(scene && scene.file && getCachedSceneSource(scene.file, episode));
+}
+
+function getVideoLoadCandidates(sceneOrFile, episode = getCurrentEpisode()) {
+  const primaryFile = typeof sceneOrFile === "string" ? sceneOrFile : sceneOrFile.file;
+  const fallbackFiles = typeof sceneOrFile === "string" ? [] : (sceneOrFile.fallbackFiles || []);
+  const seenSources = new Set();
+  const candidates = [];
+
+  [primaryFile, ...fallbackFiles].forEach((file) => {
+    const cachedSource = getCachedSceneSource(file, episode);
+    if (cachedSource && !seenSources.has(cachedSource)) {
+      seenSources.add(cachedSource);
+      candidates.push({ file, source: cachedSource });
+    }
+
+    getEpisodeSceneSources(file, episode).forEach((source) => {
+      const normalizedSource = encodeURI(source);
+      if (!seenSources.has(normalizedSource)) {
+        seenSources.add(normalizedSource);
+        candidates.push({ file, source: normalizedSource });
+      }
+    });
+  });
+
+  return { primaryFile, candidates };
+}
+
+function warmVideoSource(source) {
+  return new Promise((resolve, reject) => {
+    const preloadVideo = document.createElement("video");
+    preloadVideo.preload = "auto";
+    preloadVideo.muted = true;
+    preloadVideo.playsInline = true;
+
+    const cleanup = () => {
+      preloadVideo.removeEventListener("loadeddata", handleLoaded);
+      preloadVideo.removeEventListener("error", handleError);
+      preloadVideo.pause();
+      preloadVideo.removeAttribute("src");
+      preloadVideo.load();
+    };
+
+    const handleLoaded = () => {
+      cleanup();
+      resolve({ source, isObjectUrl: false });
+    };
+
+    const handleError = () => {
+      cleanup();
+      reject(new Error(`Unable to load ${source}`));
+    };
+
+    preloadVideo.addEventListener("loadeddata", handleLoaded, { once: true });
+    preloadVideo.addEventListener("error", handleError, { once: true });
+    preloadVideo.src = source;
+    preloadVideo.load();
+  });
+}
+
+async function fetchVideoObjectUrl(source) {
+  const response = await fetch(source);
+  if (!response.ok) {
+    throw new Error(`Unable to fetch ${source}`);
+  }
+
+  const blob = await response.blob();
+  return {
+    source: URL.createObjectURL(blob),
+    isObjectUrl: true
+  };
+}
+
+async function preloadVideoAsset(sceneOrFile, episode = getCurrentEpisode()) {
+  const { primaryFile, candidates } = getVideoLoadCandidates(sceneOrFile, episode);
+  const cachedSource = getCachedSceneSource(primaryFile, episode);
+
+  if (cachedSource) {
+    return cachedSource;
+  }
+
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      const preloadedSource = window.location.protocol === "file:"
+        ? await warmVideoSource(candidate.source)
+        : await fetchVideoObjectUrl(candidate.source).catch(() => warmVideoSource(candidate.source));
+
+      cacheEpisodeSceneSource(episode, primaryFile, preloadedSource.source, { isObjectUrl: preloadedSource.isObjectUrl });
+      return preloadedSource.source;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const failure = new Error(`Unable to load ${primaryFile}`);
+  failure.file = primaryFile;
+  if (lastError) {
+    failure.cause = lastError;
+  }
+  throw failure;
+}
+
+async function ensureEpisodePreloaded(episode = getCurrentEpisode()) {
+  releaseUnusedEpisodePreloads(episode.id);
+
+  const existingRecord = getEpisodePreloadRecord(episode.id);
+  if (existingRecord && existingRecord.ready) {
+    return existingRecord;
+  }
+
+  if (episodePreloadPromises.has(episode.id)) {
+    return episodePreloadPromises.get(episode.id);
+  }
+
+  const targets = getEpisodePreloadTargets(episode);
+  const record = ensureEpisodePreloadRecord(episode);
+  const preloadPromise = (async () => {
+    for (let index = 0; index < targets.length; index += 1) {
+      const target = targets[index];
+      showLoading({
+        title: `Preloading ${episode.title}`,
+        detail: `Caching ${target.file}`,
+        progress: targets.length ? index / targets.length : 1,
+        progressLabel: `${index}/${targets.length} clips cached`
+      });
+      await preloadVideoAsset(target, episode);
+    }
+
+    record.ready = true;
+    showLoading({
+      title: `${episode.title} Ready`,
+      detail: "All episode clips are cached for smoother scene transitions.",
+      progress: 1,
+      progressLabel: `${targets.length}/${targets.length} clips cached`
+    });
+    return record;
+  })().finally(() => {
+    episodePreloadPromises.delete(episode.id);
+  });
+
+  episodePreloadPromises.set(episode.id, preloadPromise);
+  return preloadPromise;
 }
 
 function loadSceneVideo(sceneOrFile) {
   state.loadToken += 1;
   const loadToken = state.loadToken;
-  const primaryFile = typeof sceneOrFile === "string" ? sceneOrFile : sceneOrFile.file;
-  const fallbackFiles = typeof sceneOrFile === "string" ? [] : (sceneOrFile.fallbackFiles || []);
-  const candidates = [primaryFile, ...fallbackFiles].flatMap((file) => getSceneSources(file));
+  const episode = getCurrentEpisode();
+  const { primaryFile, candidates } = getVideoLoadCandidates(sceneOrFile, episode);
 
   return new Promise((resolve, reject) => {
     let candidateIndex = 0;
@@ -1842,7 +2152,8 @@ function loadSceneVideo(sceneOrFile) {
         return;
       }
 
-      const source = encodeURI(candidates[candidateIndex]);
+      const candidate = candidates[candidateIndex];
+      const source = candidate.source;
       candidateIndex += 1;
 
       const cleanup = () => {
@@ -1852,6 +2163,7 @@ function loadSceneVideo(sceneOrFile) {
 
       const handleLoaded = () => {
         cleanup();
+        cacheEpisodeSceneSource(episode, primaryFile, source, { isObjectUrl: source.startsWith("blob:") });
         resolve(source);
       };
 
@@ -1911,30 +2223,32 @@ function updateChoiceVisualState() {
   const participants = getSceneParticipants(scene);
   const playerOneParticipating = participants.includes(1);
   const playerTwoParticipating = participants.includes(2);
+  const hideCombatSelections = isCombatChoiceScene(scene);
   const cards = choiceList.querySelectorAll(".choice-card");
   const buttons = choiceList.querySelectorAll(".choice-vote");
   const screenCards = screenChoiceOverlay.querySelectorAll(".screen-choice-card");
 
   cards.forEach((card) => {
     const choiceKey = Number(card.dataset.choice);
-    const wasVoted = state.votes[1] === choiceKey || state.votes[2] === choiceKey;
+    const showChoiceState = !hideCombatSelections;
+    const wasVoted = showChoiceState && (state.votes[1] === choiceKey || state.votes[2] === choiceKey);
 
     card.classList.toggle("is-voted", wasVoted);
-    card.classList.toggle("is-selected", state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-random", state.randomResolution && state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-focused-p1", playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    card.classList.toggle("is-focused-p2", playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-selected", showChoiceState && state.selectedChoiceKey === choiceKey);
+    card.classList.toggle("is-random", showChoiceState && state.randomResolution && state.selectedChoiceKey === choiceKey);
+    card.classList.toggle("is-focused-p1", showChoiceState && playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p2", showChoiceState && playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
   });
 
   buttons.forEach((button) => {
     const player = Number(button.dataset.player);
     const choiceKey = Number(button.dataset.choice);
-    const isLocked = state.votes[player] === choiceKey;
+    const isLocked = !hideCombatSelections && state.votes[player] === choiceKey;
     const canMouseVote = canMouseVoteForPlayer(player);
 
     button.classList.toggle("is-locked", isLocked);
-    button.classList.toggle("is-focused-player-1", player === 1 && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    button.classList.toggle("is-focused-player-2", player === 2 && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    button.classList.toggle("is-focused-player-1", !hideCombatSelections && player === 1 && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    button.classList.toggle("is-focused-player-2", !hideCombatSelections && player === 2 && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
     button.classList.toggle("is-device-assigned", !canMouseVote);
     button.disabled = state.resolvingChoice || !canMouseVote;
     button.setAttribute("aria-pressed", isLocked ? "true" : "false");
@@ -1942,13 +2256,14 @@ function updateChoiceVisualState() {
 
   screenCards.forEach((card) => {
     const choiceKey = Number(card.dataset.choice);
-    const wasVoted = state.votes[1] === choiceKey || state.votes[2] === choiceKey;
+    const showChoiceState = !hideCombatSelections;
+    const wasVoted = showChoiceState && (state.votes[1] === choiceKey || state.votes[2] === choiceKey);
 
     card.classList.toggle("is-voted", wasVoted);
-    card.classList.toggle("is-selected", state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-random", state.randomResolution && state.selectedChoiceKey === choiceKey);
-    card.classList.toggle("is-focused-p1", playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
-    card.classList.toggle("is-focused-p2", playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-selected", showChoiceState && state.selectedChoiceKey === choiceKey);
+    card.classList.toggle("is-random", showChoiceState && state.randomResolution && state.selectedChoiceKey === choiceKey);
+    card.classList.toggle("is-focused-p1", showChoiceState && playerOneParticipating && scene && scene.choices && state.focusChoice[1] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
+    card.classList.toggle("is-focused-p2", showChoiceState && playerTwoParticipating && scene && scene.choices && state.focusChoice[2] === choiceKey && state.waitingForVotes && !state.resolvingChoice);
   });
 
   updateFocusFeed();
@@ -1967,16 +2282,22 @@ function renderChoices(scene) {
   renderScreenChoiceOverlay(scene);
 
   const activePlayers = getSceneParticipants(scene);
+  const isCombatScene = isCombatChoiceScene(scene);
 
   choiceList.innerHTML = scene.choices.map((choice, index) => `
-    <article class="choice-card" data-choice="${choice.key}" style="--card-index:${index};">
+    <article class="choice-card${isCombatScene ? " choice-card--combat" : ""}" data-choice="${choice.key}" style="--card-index:${index};">
       <span class="choice-number">${choice.key}</span>
       <p class="choice-text">${getChoiceText(choice)}</p>
-      <div class="choice-actions">
-        ${activePlayers.map((player) => `
-          <button class="choice-vote" type="button" data-player="${player}" data-choice="${choice.key}">${getChoiceButtonLabel(player)}</button>
-        `).join("")}
-      </div>
+      ${isCombatScene
+        ? `<div class="choice-control-indicators">
+          ${activePlayers.map((player) => `<span class="choice-control-indicator">${getChoiceBadgeText(player, choice.key)}</span>`).join("")}
+        </div>
+        <p class="choice-secret-hint">Indicator only. Selections stay hidden until both fighters lock in.</p>`
+        : `<div class="choice-actions">
+          ${activePlayers.map((player) => `
+            <button class="choice-vote" type="button" data-player="${player}" data-choice="${choice.key}">${getChoiceButtonLabel(player)}</button>
+          `).join("")}
+        </div>`}
     </article>
   `).join("");
 
@@ -2087,7 +2408,7 @@ function resumeGame() {
     if (scene && scene.choiceResolver === "unknown-character-select") {
       setDecisionMessage("Decision point resumed. Player 1 chooses the opening fighter.");
     } else if (scene && scene.choiceResolver === "unknown-combat") {
-      setDecisionMessage("Decision point resumed. Kael and Zyra can lock their attacks.");
+      setDecisionMessage("Decision point resumed. Combat choices stay hidden until both fighters lock in.");
     } else {
       setDecisionMessage(state.playerSetup.count === 1 ? "Decision point resumed. Choose one option." : "Decision point resumed. Active players can vote.");
     }
@@ -2167,6 +2488,9 @@ function registerVote(player, choiceKey, inputMethod) {
 
   if (hasAllRequiredVotes()) {
     resolveSceneChoice();
+  } else if (isCombatChoiceScene(scene)) {
+    const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => getPlayerLabel(waitingPlayer)).join(" and ");
+    setDecisionMessage(`${getPlayerLabel(player)} locked in. Waiting for ${waitingPlayers}.`);
   } else if (choice) {
     const waitingPlayers = getWaitingPlayers().map((waitingPlayer) => getPlayerLabel(waitingPlayer)).join(" and ");
     setDecisionMessage(`${getPlayerLabel(player)} locked "${getChoiceText(choice)}". Waiting for ${waitingPlayers}.`);
@@ -2224,14 +2548,15 @@ function resolveSceneChoice() {
         ? zyraChoiceKey
         : kaelChoiceKey;
     setSplitBanner("");
+    showCombatResolutionFlash(outcome);
     setDecisionMessage(
       outcome === "draw"
-        ? `Kael and Zyra matched with "${getChoiceText(getChoiceByKey(scene, kaelChoiceKey))}". Loading the draw branch.`
+        ? "Draw. Loading the combat result clip."
         : `${outcome === "kael" ? "Kael" : "Zyra"} wins the exchange. Loading the result clip.`
     );
     updateChoiceVisualState();
     updateSceneHud();
-    scheduleSceneTransition(scene.combatResultScenes ? scene.combatResultScenes[outcome] : null, 1050);
+    scheduleSceneTransition(scene.combatResultScenes ? scene.combatResultScenes[outcome] : null, 1250);
     return;
   }
 
@@ -2268,7 +2593,7 @@ function enterVoteState(scene) {
   if (scene.choiceResolver === "unknown-character-select") {
     setDecisionMessage("Player 1 chooses Kael or Zyra first. Player 2 receives the remaining fighter automatically.");
   } else if (scene.choiceResolver === "unknown-combat") {
-    setDecisionMessage("Kael and Zyra lock attacks. Combat resolves after both fighters commit.");
+    setDecisionMessage("Kael and Zyra lock attacks in secret. The winner is revealed after both fighters commit.");
   } else {
     setDecisionMessage(state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in.");
   }
@@ -2286,6 +2611,7 @@ function showCompletion() {
   state.resumePlaybackOnUnpause = false;
   video.pause();
   setSplitBanner("");
+  hideCombatResolutionFlash();
   hideChoices();
   hideLoading();
   setDecisionMessage(`${episode.title} complete.`);
@@ -2304,11 +2630,36 @@ function showPlaybackError(error) {
   state.isPaused = false;
   state.pauseWasPlaying = false;
   state.resumePlaybackOnUnpause = false;
+  state.errorRecoveryAction = "scene";
+  hideCombatResolutionFlash();
   showLoading("Playback halted");
+  errorTitle.textContent = isMissingClip ? "Video clip not found" : "Playback blocked";
+  retryButton.textContent = "Retry Scene";
   errorMessage.textContent = isMissingClip
     ? `Could not load ${getCurrentScene().file}. Keep the ${episode.title} clips in ${episode.videoRoots[0]}/ or move them into a matching video folder.`
     : "Playback was blocked by the browser. Press Retry Scene or use keyboard, mouse, or gamepad confirm to continue.";
   setDecisionMessage("Playback halted. Retry the current scene.");
+  setOverlayVisibility(pauseScreen, false);
+  setOverlayVisibility(errorScreen, true);
+  updateSceneHud();
+  window.requestAnimationFrame(updateSceneHud);
+}
+
+function showPreloadError(error) {
+  const episode = getCurrentEpisode();
+  const file = error && error.file ? error.file : "one of the episode clips";
+
+  video.pause();
+  state.isPaused = false;
+  state.pauseWasPlaying = false;
+  state.resumePlaybackOnUnpause = false;
+  state.errorRecoveryAction = "preload";
+  hideCombatResolutionFlash();
+  showLoading("Preload halted");
+  errorTitle.textContent = "Episode preload failed";
+  retryButton.textContent = "Retry Preload";
+  errorMessage.textContent = `Could not preload ${file}. Keep the ${episode.title} clips in ${episode.videoRoots[0]}/ or move them into a matching video folder, then retry the preload.`;
+  setDecisionMessage(`Preload halted on ${file}. Retry the episode preload.`);
   setOverlayVisibility(pauseScreen, false);
   setOverlayVisibility(errorScreen, true);
   updateSceneHud();
@@ -2326,17 +2677,38 @@ async function playCurrentScene() {
   state.resumePlaybackOnUnpause = false;
   state.pauseWasPlaying = false;
   resetVotes();
+  hideCombatResolutionFlash();
   hideChoices();
   setSplitBanner("");
   setOverlayVisibility(errorScreen, false);
-  showLoading(`Loading ${state.currentSceneId}...`);
-  setDecisionMessage(`Loading ${state.currentSceneId}...`);
+  const sceneWasPreloaded = isScenePreloaded(scene);
+
+  if (sceneWasPreloaded) {
+    hideLoading();
+    setDecisionMessage(`Opening ${state.currentSceneId}.`);
+  } else {
+    showLoading({
+      title: `Loading ${state.currentSceneId}...`,
+      detail: scene.file,
+      progressLabel: "Streaming clip into player"
+    });
+    setDecisionMessage(`Loading ${state.currentSceneId}...`);
+  }
+
   updateSceneHud();
   updateFocusFeed();
 
   try {
     await loadSceneVideo(scene);
-    hideLoading();
+    if (!sceneWasPreloaded) {
+      hideLoading();
+    }
+
+    if (scene.openChoicesOnLoad) {
+      video.pause();
+      enterVoteState(scene);
+      return;
+    }
 
     if (state.isPaused) {
       state.resumePlaybackOnUnpause = true;
@@ -2371,7 +2743,11 @@ function queueNextScene(nextSceneId) {
   playCurrentScene();
 }
 
-function restartGame() {
+async function restartGame() {
+  if (state.isPreparingEpisode) {
+    return;
+  }
+
   const episode = getCurrentEpisode();
   const validation = getPlayerSetupValidation();
 
@@ -2382,20 +2758,35 @@ function restartGame() {
     return;
   }
 
+  state.isPreparingEpisode = true;
   clearChoiceTimer();
   resetEpisodeMindState();
   resetEpisodeBranchState();
+  state.currentSceneId = null;
   state.isPaused = false;
   state.pauseWasPlaying = false;
   state.resumePlaybackOnUnpause = false;
+  hideCombatResolutionFlash();
   setOverlayVisibility(endScreen, false);
   setOverlayVisibility(pauseScreen, false);
   setOverlayVisibility(errorScreen, false);
   syncGameplayPlayerUi();
-  state.currentSceneId = episode.startScene;
-  setDecisionMessage(`Opening ${episode.title}.`);
+  setDecisionMessage(`Preloading ${episode.title}...`);
   updateSceneHud();
-  playCurrentScene();
+  updateFocusFeed();
+
+  try {
+    await ensureEpisodePreloaded(episode);
+    hideLoading();
+    state.currentSceneId = episode.startScene;
+    setDecisionMessage(`Opening ${episode.title}.`);
+    updateSceneHud();
+    await playCurrentScene();
+  } catch (error) {
+    showPreloadError(error);
+  } finally {
+    state.isPreparingEpisode = false;
+  }
 }
 
 function handleSceneEnded() {
@@ -2466,13 +2857,12 @@ function handleOverlayPrimaryAction() {
   }
 
   if (isOverlayVisible(endScreen)) {
-    restartGame();
+    void restartGame();
     return true;
   }
 
   if (isOverlayVisible(errorScreen)) {
-    setOverlayVisibility(errorScreen, false);
-    playCurrentScene();
+    handleRetryAction();
     return true;
   }
 
@@ -2480,7 +2870,13 @@ function handleOverlayPrimaryAction() {
 }
 
 function handleKeydown(event) {
-  if (["Escape", "KeyP"].includes(event.code) && (state.isPaused || canTogglePause())) {
+  if (event.code === "KeyF" && !event.repeat && !isEditableTarget(event.target)) {
+    event.preventDefault();
+    void toggleAppFullscreen();
+    return;
+  }
+
+  if ((event.code === "KeyP" || (event.code === "Escape" && !state.isFullscreenActive)) && (state.isPaused || canTogglePause())) {
     event.preventDefault();
     togglePause();
     return;
@@ -2501,9 +2897,7 @@ function handleKeydown(event) {
     return;
   }
 
-  const directKeyMap = keyboardPlayer === 1
-    ? { Digit1: 1, Digit2: 2, Digit3: 3 }
-    : { KeyJ: 1, KeyK: 2, KeyL: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 };
+  const directKeyMap = { KeyA: 1, KeyS: 2, KeyD: 3 };
   const directVote = directKeyMap[event.code];
 
   if (directVote != null) {
@@ -2511,34 +2905,13 @@ function handleKeydown(event) {
     registerVote(keyboardPlayer, directVote, "keyboard");
     return;
   }
-
-  const navigationMap = keyboardPlayer === 1
-    ? {
-        KeyA: () => moveFocus(1, -1, "keyboard"),
-        KeyD: () => moveFocus(1, 1, "keyboard"),
-        KeyW: () => confirmFocusedChoice(1, "keyboard")
-      }
-    : {
-        ArrowLeft: () => moveFocus(2, -1, "keyboard"),
-        ArrowRight: () => moveFocus(2, 1, "keyboard"),
-        ArrowUp: () => confirmFocusedChoice(2, "keyboard"),
-        Enter: () => confirmFocusedChoice(2, "keyboard")
-      };
-
-  const action = navigationMap[event.code];
-  if (!action) {
-    return;
-  }
-
-  event.preventDefault();
-  action();
 }
 
 function beginEpisode() {
   const validation = getPlayerSetupValidation();
 
   updatePlayerSetupUi();
-  if (!validation.valid || state.started) {
+  if (!validation.valid || state.started || state.isPreparingEpisode) {
     if (!validation.valid) {
       setDecisionMessage(validation.message);
     }
@@ -2549,8 +2922,19 @@ function beginEpisode() {
   state.started = true;
   state.isPaused = false;
   setOverlayVisibility(introScreen, false);
-  restartGame();
+  void restartGame();
   return true;
+}
+
+function handleRetryAction() {
+  setOverlayVisibility(errorScreen, false);
+
+  if (state.errorRecoveryAction === "preload") {
+    void restartGame();
+    return;
+  }
+
+  void playCurrentScene();
 }
 
 function getConnectedGamepads() {
@@ -2559,22 +2943,38 @@ function getConnectedGamepads() {
   }
 
   return Array.from(navigator.getGamepads())
-    .filter(Boolean)
+    .filter((gamepad) => Boolean(gamepad) && gamepad.connected !== false)
     .sort((a, b) => a.index - b.index);
+}
+
+function recordConnectedGamepads(connectedPads) {
+  const timestamp = getCurrentTimestamp();
+
+  connectedPads.forEach((gamepad, index) => {
+    const device = `gamepad${index + 1}`;
+    if (isGamepadDevice(device) && gamepad) {
+      state.gamepadLastSeenAt[device] = timestamp;
+    }
+  });
 }
 
 function updateGamepadAssignments() {
   const connectedPads = getConnectedGamepads();
+  recordConnectedGamepads(connectedPads);
   const signature = connectedPads.map((gamepad) => gamepad.index).join(",");
+  const connectionSignature = ["gamepad1", "gamepad2"]
+    .map((device) => `${device}:${getGamepadConnectionState(device, connectedPads) ? 1 : 0}`)
+    .join(",");
 
-  if (signature === state.gamepadSignature) {
+  if (signature === state.gamepadSignature && connectionSignature === state.gamepadConnectionSignature) {
     return;
   }
 
   state.gamepadSignature = signature;
+  state.gamepadConnectionSignature = connectionSignature;
 
   Object.keys(state.gamepadSnapshot).forEach((device) => {
-    if (isGamepadDevice(device) && !isDeviceConnected(device)) {
+    if (isGamepadDevice(device) && !getGamepadConnectionState(device, connectedPads)) {
       delete state.gamepadSnapshot[device];
     }
   });
@@ -2613,6 +3013,7 @@ function pollGamepads() {
   updateGamepadAssignments();
 
   const connectedPads = getConnectedGamepads();
+  recordConnectedGamepads(connectedPads);
   const connectedByDevice = {
     gamepad1: connectedPads[0] || null,
     gamepad2: connectedPads[1] || null
@@ -2709,18 +3110,28 @@ playerCountTwoButton.addEventListener("click", handlePlayerCountClick);
 playerOneDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
 playerTwoDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
 document.addEventListener("keydown", handleKeydown);
+document.addEventListener("fullscreenchange", handleFullscreenChange);
 window.addEventListener("gamepadconnected", updateGamepadAssignments);
 window.addEventListener("gamepaddisconnected", updateGamepadAssignments);
 
+menuFullscreenButton.addEventListener("click", () => {
+  void toggleAppFullscreen();
+});
+videoFullscreenButton.addEventListener("click", () => {
+  void toggleAppFullscreen();
+});
 startButton.addEventListener("click", beginEpisode);
 pauseButton.addEventListener("click", togglePause);
 continueButton.addEventListener("click", resumeGame);
-pauseRestartButton.addEventListener("click", restartGame);
-restartButton.addEventListener("click", restartGame);
-retryButton.addEventListener("click", () => {
-  setOverlayVisibility(errorScreen, false);
-  playCurrentScene();
+pauseRestartButton.addEventListener("click", () => {
+  void restartGame();
 });
+restartButton.addEventListener("click", () => {
+  void restartGame();
+});
+retryButton.addEventListener("click", handleRetryAction);
+
+updateFullscreenUi();
 
 function renderGameToText() {
   const scene = getCurrentScene();
@@ -2733,10 +3144,13 @@ function renderGameToText() {
     sceneId: state.currentSceneId,
     mode: document.body.dataset.sceneState || "idle",
     started: state.started,
+    preparingEpisode: state.isPreparingEpisode,
     paused: state.isPaused,
     waitingForVotes: state.waitingForVotes,
     resolvingChoice: state.resolvingChoice,
     pendingNextSceneId: state.pendingNextSceneId,
+    errorRecoveryAction: state.errorRecoveryAction,
+    loadingVisible: loadingOverlay.classList.contains("is-visible"),
     playerCount: state.playerSetup.count,
     players: getActivePlayers().map((player) => ({
       player,
@@ -2863,42 +3277,45 @@ function followAutotestScenePath(startSceneId, trace) {
 const UNKNOWN_AUTOTEST_SCENARIOS = {
   "unknown-kael-rebellion": {
     openingChoice: 1,
+    expectedIntroTrace: ["right player 2", "scene 1-10"],
     choices: {
-      "scene 10 first choices": { 1: 3, 2: 3 },
+      "scene 1-10": { 1: 3, 2: 3 },
       "scene 12": { kael: 1, zyra: 1 },
-      "scene 18": { kael: 1, zyra: 3 },
-      "scene 21": { 1: 3, 2: 3 },
-      "scene 24 draw": { kael: 2, zyra: 2 },
-      "scene 28": { 1: 3, 2: 3 },
-      "scene 31": { kael: 3, zyra: 2 }
+      "scene 14-18": { kael: 1, zyra: 3 },
+      "scene 20-23": { kael: 2, zyra: 2 },
+      "scene 26-28": { 1: 3, 2: 3 },
+      "scene 31": { kael: 3, zyra: 2 },
+      "scene 33": { 1: 3, 2: 3 }
     },
-    expectedFinalScene: "scene 35c",
+    expectedFinalScene: "scene 34c",
     expectedAssignments: { 1: "kael", 2: "zyra" }
   },
   "unknown-zyra-sacrifice": {
     openingChoice: 2,
+    expectedIntroTrace: ["right player 1", "left player 2", "scene 1-10"],
     choices: {
-      "scene 10 first choices": { 1: 2, 2: 2 },
+      "scene 1-10": { 1: 2, 2: 2 },
       "scene 12": { kael: 2, zyra: 3 },
-      "scene 18": { kael: 3, zyra: 3 },
-      "scene 21": { 1: 1, 2: 1 },
-      "scene 24 draw": { kael: 1, zyra: 2 },
-      "scene 28": { 1: 2, 2: 2 },
-      "scene 31": { kael: 1, zyra: 3 }
+      "scene 14-18": { kael: 3, zyra: 3 },
+      "scene 20-23": { kael: 1, zyra: 2 },
+      "scene 26-28": { 1: 2, 2: 2 },
+      "scene 31": { kael: 1, zyra: 2 },
+      "scene 33": { 1: 2, 2: 2 }
     },
     expectedFinalScene: "scene 34b",
     expectedAssignments: { 1: "zyra", 2: "kael" }
   },
   "unknown-kael-duel": {
     openingChoice: 1,
+    expectedIntroTrace: ["right player 2", "scene 1-10"],
     choices: {
-      "scene 10 first choices": { 1: 1, 2: 1 },
+      "scene 1-10": { 1: 1, 2: 1 },
       "scene 12": { kael: 2, zyra: 1 },
-      "scene 18": { kael: 3, zyra: 2 },
-      "scene 21": { 1: 2, 2: 2 },
-      "scene 24 draw": { kael: 1, zyra: 1 },
-      "scene 28": { 1: 1, 2: 1 },
-      "scene 31": { kael: 2, zyra: 2 }
+      "scene 14-18": { kael: 3, zyra: 1 },
+      "scene 20-23": { kael: 1, zyra: 1 },
+      "scene 26-28": { 1: 1, 2: 1 },
+      "scene 31": { kael: 2, zyra: 2 },
+      "scene 33": { 1: 1, 2: 1 }
     },
     expectedFinalScene: "scene 34a",
     expectedAssignments: { 1: "kael", 2: "zyra" }
@@ -2972,7 +3389,9 @@ function runUnknownAutotestScenario(scenarioId, definition) {
     assignments: { ...state.episodeBranchState.fighterByPlayer },
     expectedFinalScene: definition.expectedFinalScene,
     expectedAssignments: definition.expectedAssignments,
+    expectedIntroTrace: definition.expectedIntroTrace,
     passed: currentSceneId === definition.expectedFinalScene
+      && definition.expectedIntroTrace.every((sceneId, index) => trace[index] === sceneId)
       && state.episodeBranchState.fighterByPlayer[1] === definition.expectedAssignments[1]
       && state.episodeBranchState.fighterByPlayer[2] === definition.expectedAssignments[2]
   };

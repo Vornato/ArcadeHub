@@ -18,6 +18,7 @@
     <main class="stage-card">
       <section class="video-shell">
         <video id="scene-video" playsinline preload="auto"></video>
+        <button id="video-fullscreen-button" class="secondary-button fullscreen-toggle" type="button" aria-pressed="false">Enter Fullscreen</button>
 
         <div class="video-hud">
           <div class="hud-topline">
@@ -47,11 +48,17 @@
         </div>
 
         <div id="split-banner" class="split-banner" aria-live="polite"></div>
+        <div id="combat-resolution-flash" class="combat-resolution-flash" hidden aria-live="polite"></div>
         <div id="screen-choice-overlay" class="screen-choice-overlay" hidden></div>
 
         <div id="loading-overlay" class="loading-overlay is-visible" aria-live="polite">
           <div class="loading-copy">
-            <p id="loading-text">Episode standing by...</p>
+            <p id="loading-title" class="loading-title">Episode standing by...</p>
+            <p id="loading-detail" class="loading-detail" hidden></p>
+            <div class="loading-progress" aria-hidden="true">
+              <div id="loading-progress-fill" class="loading-progress-fill is-indeterminate"></div>
+            </div>
+            <p id="loading-progress-copy" class="loading-progress-copy" hidden></p>
           </div>
         </div>
       </section>
@@ -74,7 +81,7 @@
         <div class="input-grid">
           <article id="player-1-input-card" class="input-card player-one-card">
             <p id="player-1-input-label" class="vote-label">Player 1 Input</p>
-            <p id="player-1-input-copy" class="status-copy">Keyboard: <code>1 / 2 / 3</code> or <code>A / D</code> then <code>W</code>. Mouse also follows the keyboard player.</p>
+            <p id="player-1-input-copy" class="status-copy">Keyboard: <code>A</code>, <code>S</code>, and <code>D</code> lock options instantly. Mouse also follows the keyboard player.</p>
           </article>
 
           <article id="player-2-input-card" class="input-card player-two-card">
@@ -136,7 +143,7 @@
         <button class="episode-card" type="button" data-episode="unknown">
           <img class="episode-poster" src="posters/unknown-is-calling.jpg" alt="Unknown is Calling poster">
           <span class="episode-card-copy">
-            <span class="episode-card-label">Series 4</span>
+            <span class="episode-card-label">Series 3</span>
             <strong>Unknown is Calling</strong>
             <span>Alien arena ritual, forced Kael-versus-Zyra combat, living-world reveal, and rebellion endings.</span>
           </span>
@@ -181,7 +188,10 @@
           <p id="menu-setup-status" class="menu-setup-status">Solo mode ready. Player 1 uses Keyboard.</p>
         </div>
 
-        <button id="start-button" class="primary-button" type="button">Begin Selected Episode</button>
+        <div class="menu-button-stack">
+          <button id="menu-fullscreen-button" class="secondary-button" type="button" aria-pressed="false">Enter Fullscreen</button>
+          <button id="start-button" class="primary-button" type="button">Begin Selected Episode</button>
+        </div>
       </div>
     </div>
   </div>
@@ -211,7 +221,7 @@
   <div id="error-screen" class="screen-overlay" hidden aria-modal="true">
     <div class="screen-panel">
       <p class="overlay-label">Playback Error</p>
-      <h2>Video clip not found</h2>
+      <h2 id="error-title">Video clip not found</h2>
       <p id="error-message">Place the selected episode clips in their matching local folder or a matching <code>video</code> subfolder.</p>
       <button id="retry-button" class="primary-button" type="button">Retry Scene</button>
     </div>
