@@ -1,0 +1,85 @@
+{
+  "model": "gpt-image-1.5",
+  "size": "1536x1024",
+  "quality": "high",
+  "sourceFile": "data/bluff-caption.json",
+  "sourceFieldOrder": ["label", "title", "detail", "prompt"],
+  "pilotCount": 12,
+  "artDirection": {
+    "useCase": "stylized-concept",
+    "assetType": "party-game gameplay illustration card",
+    "style": "bold poster-style surreal illustration with a single absurd focal setup, readable silhouette, and polished party-game energy",
+    "composition": "wide cinematic frame, one dominant comedic subject, strong central focal point, clean background separation, readable from a TV across a room",
+    "lighting": "dramatic studio-meets-editorial lighting, rich contrast, playful color separation, polished but not photoreal",
+    "constraints": [
+      "No text in the image",
+      "No logos or trademarks",
+      "No watermark",
+      "Family-friendly tone",
+      "Single still scene with a clear focal subject",
+      "Consistent visual language across the full pilot set"
+    ]
+  },
+  "items": [
+    {
+      "id": "bluff-caption-1",
+      "out": "bluff-caption-1.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-1.png"
+    },
+    {
+      "id": "bluff-caption-2",
+      "out": "bluff-caption-2.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-2.png"
+    },
+    {
+      "id": "bluff-caption-3",
+      "out": "bluff-caption-3.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-3.png"
+    },
+    {
+      "id": "bluff-caption-4",
+      "out": "bluff-caption-4.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-4.png"
+    },
+    {
+      "id": "bluff-caption-5",
+      "out": "bluff-caption-5.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-5.png"
+    },
+    {
+      "id": "bluff-caption-6",
+      "out": "bluff-caption-6.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-6.png"
+    },
+    {
+      "id": "bluff-caption-7",
+      "out": "bluff-caption-7.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-7.png"
+    },
+    {
+      "id": "bluff-caption-8",
+      "out": "bluff-caption-8.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-8.png"
+    },
+    {
+      "id": "bluff-caption-9",
+      "out": "bluff-caption-9.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-9.png"
+    },
+    {
+      "id": "bluff-caption-10",
+      "out": "bluff-caption-10.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-10.png"
+    },
+    {
+      "id": "bluff-caption-11",
+      "out": "bluff-caption-11.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-11.png"
+    },
+    {
+      "id": "bluff-caption-12",
+      "out": "bluff-caption-12.png",
+      "imageUrl": "/assets/bluff-caption/pilot/bluff-caption-12.png"
+    }
+  ]
+}

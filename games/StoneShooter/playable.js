@@ -67,6 +67,8 @@ COLORS.forEach((color) => {
     img.src = `Colors/${color.name}.png`;
     IMAGES[color.name] = img;
 });
+const SHOOTER_IMAGE = new Image();
+SHOOTER_IMAGE.src = 'Assets/shooter.png';
 
 function createDefaultProgress() {
     return {
@@ -191,6 +193,16 @@ function countStonesInGrid(grid) {
     for (let c = 0; c < grid.length; c++) {
         for (let r = 0; r < grid[c].length; r++) {
             if (grid[c][r]) total++;
+        }
+    }
+    return total;
+}
+
+function countColoredStonesInGrid(grid) {
+    let total = 0;
+    for (let c = 0; c < grid.length; c++) {
+        for (let r = 0; r < grid[c].length; r++) {
+            if (grid[c][r] && !grid[c][r].isGarbage) total++;
         }
     }
     return total;
@@ -509,7 +521,10 @@ class InputManager {
                 right: pad.axes[0] > 0.5 || (pad.buttons[15] && pad.buttons[15].pressed),
                 up: pad.axes[1] < -0.5 || (pad.buttons[12] && pad.buttons[12].pressed),
                 down: pad.axes[1] > 0.5 || (pad.buttons[13] && pad.buttons[13].pressed),
-                action: pad.buttons[0] && pad.buttons[0].pressed,
+                action:
+                    (pad.buttons[0] && pad.buttons[0].pressed) ||
+                    (pad.buttons[2] && pad.buttons[2].pressed) ||
+                    (pad.buttons[7] && (pad.buttons[7].pressed || pad.buttons[7].value > 0.35)),
                 reset: pad.buttons[1] && pad.buttons[1].pressed,
                 pause: pad.buttons[9] && pad.buttons[9].pressed
             };
@@ -613,8 +628,10 @@ class SoundManager {
         setTimeout(() => this.playTone(1200, 'square', 0.2, 0.1), 100);
     }
 
-    playGarbage() {
-        this.playTone(150, 'square', 0.4, 0.1);
+    playGarbage(level = 1) {
+        const vol = 0.045 * Math.max(0.35, level);
+        this.playTone(138, 'triangle', 0.18, vol);
+        setTimeout(() => this.playTone(96, 'sine', 0.12, vol * 0.45), 28);
     }
 
     playWin() {
@@ -697,7 +714,7 @@ class Board {
         this.rows = blueprint.meta?.rows || (blueprint.grid[0] ? blueprint.grid[0].length : ROWS);
         this.boardWidth = getBoardWidth(this.cols);
         this.boardHeight = getBoardHeight(this.rows);
-        this.baseStoneCount = Math.max(1, countStonesInGrid(blueprint.grid));
+        this.baseStoneCount = Math.max(1, countColoredStonesInGrid(blueprint.grid));
         this.cursor = Math.floor(this.cols / 2);
         this.vCursor = this.cursor * (TILE_SIZE + TILE_GAP);
         this.chainColor = null;
@@ -720,7 +737,7 @@ class Board {
     }
 
     getRemainingStoneCount() {
-        return countStonesInGrid(this.grid);
+        return countColoredStonesInGrid(this.grid);
     }
 
     getBackdropMetrics() {
@@ -781,7 +798,7 @@ class Board {
             return;
         }
 
-        if (countStonesInGrid(this.grid) === 1 && !stone.isGarbage) {
+        if (countColoredStonesInGrid(this.grid) === 1 && !stone.isGarbage) {
             this.game.targetTimeScale = 0.15;
         }
 
@@ -821,7 +838,7 @@ class Board {
         this.grid[col][row] = null;
         this.createExplosion(col, row, '#C9D2E3', 10);
         this.shake = 12;
-        this.sound.playGarbage();
+        this.sound.playGarbage(0.8);
         this.game.stats.garbageBroken++;
 
         if (this.chainCount > 0) {
@@ -874,7 +891,7 @@ class Board {
             attack,
             canceled,
             outgoing,
-            remainingStones: countStonesInGrid(this.grid)
+            remainingStones: countColoredStonesInGrid(this.grid)
         });
 
         if (outgoing > 0) {
@@ -912,6 +929,12 @@ class Board {
     }
 
     dropGarbageRow() {
+        if (this.state !== 'playing' || this.game.roundEnding) {
+            this.pendingGarbage = 0;
+            this.garbageWarning = 0;
+            return;
+        }
+
         for (let c = 0; c < this.cols; c++) {
             if (this.grid[c][this.rows - 1] !== null) {
                 this.state = 'lose';
@@ -940,13 +963,13 @@ class Board {
         this.pendingGarbage = Math.max(0, this.pendingGarbage - 1);
         this.garbageWarning = this.pendingGarbage > 0 ? GARBAGE_WARNING_FRAMES : 0;
         this.shake = 8;
-        this.sound.playGarbage();
+        this.sound.playGarbage(0.65);
         this.game.stats.garbageDropped++;
         this.showMsg(this.pendingGarbage > 0 ? `JUNK x${this.pendingGarbage}` : 'JUNK LANDED');
     }
 
     checkWin() {
-        return countStonesInGrid(this.grid) === 0;
+        return countColoredStonesInGrid(this.grid) === 0;
     }
 
     showMsg(text) {
@@ -964,6 +987,8 @@ class Board {
     }
 
     shatterAll() {
+        this.pendingGarbage = 0;
+        this.garbageWarning = 0;
         for (let c = 0; c < this.cols; c++) {
             for (let r = 0; r < this.rows; r++) {
                 if (this.grid[c][r]) {
@@ -985,7 +1010,7 @@ class Board {
             if (this.comboTimer <= 0) this.combo = 0;
         }
 
-        if (this.pendingGarbage > 0) {
+        if (this.state === 'playing' && !this.game.roundEnding && this.pendingGarbage > 0) {
             this.garbageWarning -= speedScale;
             if (this.garbageWarning <= 0) this.dropGarbageRow();
         }
@@ -1278,6 +1303,7 @@ class Board {
     }
 
     drawShooter(ctx) {
+        const playerGlow = PLAYER_GLOW[this.playerIdx % PLAYER_GLOW.length];
         const playerColor = PLAYER_GLOW[this.playerIdx % PLAYER_GLOW.length].replace('0.7', '1');
         const bob = Math.sin(Date.now() / 170 + (this.playerIdx * 0.75)) * 3;
         const recoil = this.projectiles.length > 0 ? Math.abs(Math.sin(Date.now() / 65)) * 4.5 : 0;
@@ -1289,6 +1315,39 @@ class Board {
         ctx.save();
         ctx.translate(cx, baseY);
         ctx.globalAlpha = alpha;
+
+        if (SHOOTER_IMAGE.complete && SHOOTER_IMAGE.naturalWidth > 0) {
+            const aura = ctx.createRadialGradient(0, 0, 10, 0, 6, 46);
+            aura.addColorStop(0, playerGlow.replace('0.7', `${(0.18 + (pulse * 0.16)).toFixed(2)}`));
+            aura.addColorStop(0.45, 'rgba(110, 236, 255, 0.14)');
+            aura.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = aura;
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 40, 34, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.drawImage(SHOOTER_IMAGE, -46, -60 - (recoil * 0.18), 92, 92);
+
+            if (this.projectiles.length > 0) {
+                const muzzleY = -51 - (recoil * 0.2);
+                const muzzleGlow = ctx.createRadialGradient(0, muzzleY, 0, 0, muzzleY, 14);
+                muzzleGlow.addColorStop(0, 'rgba(255, 248, 210, 0.42)');
+                muzzleGlow.addColorStop(0.5, playerGlow.replace('0.7', `${(0.18 + (pulse * 0.18)).toFixed(2)}`));
+                muzzleGlow.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = muzzleGlow;
+                ctx.beginPath();
+                ctx.arc(0, muzzleY, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255, 245, 180, 0.94)';
+                ctx.beginPath();
+                ctx.arc(0, muzzleY - 1.5, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+            return;
+        }
 
         const bodyGrad = ctx.createLinearGradient(-24, -16, 24, 28);
         bodyGrad.addColorStop(0, 'rgba(10, 14, 24, 1)');
@@ -2678,7 +2737,7 @@ window.render_game_to_text = () => JSON.stringify({
         chainCount: board.chainCount,
         chainColor: board.chainColor,
         pendingGarbage: board.pendingGarbage,
-        remaining: countStonesInGrid(board.grid)
+        remaining: countColoredStonesInGrid(board.grid)
     }))
 });
 

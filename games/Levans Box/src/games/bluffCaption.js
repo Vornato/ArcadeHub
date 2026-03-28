@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const {
   applyDeltas,
   beginMatch,
@@ -10,7 +13,38 @@ const {
   shuffleOptions,
 } = require("./common");
 
+const ASSETS_ROOT = path.resolve(__dirname, "..", "..", "assets");
+const imagePresenceCache = new Map();
+
+function hasGeneratedImage(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.startsWith("/assets/")) {
+    return false;
+  }
+
+  const cached = imagePresenceCache.get(imageUrl);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const relativePath = imageUrl.slice("/assets/".length);
+  const resolvedPath = path.resolve(ASSETS_ROOT, relativePath);
+  const withinAssetsRoot = resolvedPath === ASSETS_ROOT || resolvedPath.startsWith(`${ASSETS_ROOT}${path.sep}`);
+  const exists = withinAssetsRoot && fs.existsSync(resolvedPath);
+  imagePresenceCache.set(imageUrl, exists);
+  return exists;
+}
+
 function makeMedia(item) {
+  if (hasGeneratedImage(item.imageUrl)) {
+    return {
+      kind: "image",
+      label: item.label,
+      title: item.title,
+      text: item.detail,
+      imageUrl: item.imageUrl,
+    };
+  }
+
   return {
     kind: "illustration",
     label: item.label,
