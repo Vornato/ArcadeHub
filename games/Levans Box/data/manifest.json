@@ -1,0 +1,90 @@
+[
+  {
+    "id": "bluff-caption",
+    "slot": 1,
+    "title": "ცრუ წარწერა",
+    "description": "უცნაურ ვიზუალზე დაწერე ყალბი ახსნა და იპოვე ნამდვილი.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/bluff caption.png",
+    "accent": "#ff9f68"
+  },
+  {
+    "id": "lie-detective",
+    "slot": 2,
+    "title": "ტყუილის დეტექტივი",
+    "description": "ერთს აქვს სიმართლე, დანარჩენები კი დამაჯერებელ ტყუილებს ქმნიან.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/lie detective.png",
+    "accent": "#80d8ff"
+  },
+  {
+    "id": "pitch-panic",
+    "slot": 3,
+    "title": "პანიკური პიჩი",
+    "description": "აბსურდული იდეა გაყიდე ისე, თითქოს ინვესტორი უკვე კართან დგას.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/pitch panic.png",
+    "accent": "#ffd166"
+  },
+  {
+    "id": "meme-court",
+    "slot": 4,
+    "title": "მემის სასამართლო",
+    "description": "დაიცავი ან დაადანაშაულე პერსონაჟი და მოიგე დარბაზი.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/meme court.png",
+    "accent": "#c0f55d"
+  },
+  {
+    "id": "secret-saboteur",
+    "slot": 5,
+    "title": "საიდუმლო საბოტაჟი",
+    "description": "უპასუხეთ კითხვებს და გამოავლინეთ, ვინ აფუჭებს თამაშს შიგნიდან.",
+    "minPlayers": 3,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/secret saboteur quiz.png",
+    "accent": "#f9844a"
+  },
+  {
+    "id": "bad-translator",
+    "slot": 6,
+    "title": "ცუდი მთარგმნელი",
+    "description": "გაფუჭებული ფრაზიდან გამოიცანი საწყისი აზრი და მოიპოვე სიცილიც.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/bad translator.png",
+    "accent": "#b8c0ff"
+  },
+  {
+    "id": "draw-and-deceive",
+    "slot": 7,
+    "title": "დახატე და მოატყუე",
+    "description": "ერთი ხატავს, სხვები ატყუებენ, ბოლოს კი ყველა ნამდვილს ეძებს.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 2,
+    "coverPath": "/covers/draw and deceive.png",
+    "accent": "#ff70a6"
+  },
+  {
+    "id": "survive-scenario",
+    "slot": 8,
+    "title": "გადარჩი სცენარს",
+    "description": "აბსურდულ სიტუაციაში მოიფიქრე საუკეთესო გადარჩენის გეგმა.",
+    "minPlayers": 2,
+    "supportsAudience": true,
+    "roundsDefault": 3,
+    "coverPath": "/covers/survive the scenario.png",
+    "accent": "#06d6a0"
+  }
+]

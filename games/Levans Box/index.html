@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ლევანს ბოქსი</title>
+  <link rel="stylesheet" href="public/app.css">
+  <script defer src="public/launcher.js"></script>
+</head>
+<body class="screen-index">
+  <video class="background-video" autoplay muted loop playsinline poster="Covers/bluff caption.png">
+    <source src="videos/game bg 1.mp4" type="video/mp4">
+  </video>
+  <div class="bg-overlay"></div>
+
+  <div class="app-shell menu-shell">
+    <header class="hero hero-index">
+      <div>
+        <div class="eyebrow">ქართული წვეულების პაკეტი • 2-8 მოთამაშე • აუდიტორია</div>
+        <h1>ლევანს ბოქსი</h1>
+        <p class="hero-copy">
+          ერთი დიდი ეკრანი, ბევრი ტელეფონი და რვა სხვადასხვა რეჟიმი. ჰოსტი მართავს მთელ თამაშს მთავარ ეკრანზე,
+          მოთამაშეები კი უერთდებიან თავიანთი მობილურებიდან.
+        </p>
+        <div class="hero-actions">
+          <button class="primary-btn" id="heroHostBtn" type="button">ჰოსტის გახსნა</button>
+          <button class="secondary-btn" type="button" data-panel-target="games">თამაშების ნახვა</button>
+          <button class="ghost-btn" type="button" data-panel-target="join">როგორ ერთვებიან</button>
+        </div>
+      </div>
+
+      <aside class="menu-hero-card">
+        <div class="menu-hero-badge">პაკეტი მზადაა</div>
+        <div class="room-code-display room-code-static">8 თამაში</div>
+        <p class="hero-copy">
+          ტელეფონიდან შეერთება ხდება ოთახის კოდით. მაქსიმუმ 8 მოთამაშე თამაშობს, დანარჩენები კი სურვილის შემთხვევაში
+          აუდიტორიად ერთვებიან და ხმას აძლევენ.
+        </p>
+        <div class="info-chip-row">
+          <span class="info-chip tone-accent">საერთო ეკრანი</span>
+          <span class="info-chip">მობილური კონტროლერები</span>
+          <span class="info-chip tone-good">სრულად ქართულად</span>
+        </div>
+      </aside>
+    </header>
+
+    <main class="menu-layout">
+      <aside class="panel menu-nav-panel">
+        <div class="section-heading">
+          <div>
+            <h2>მენიუ</h2>
+            <p class="section-subtitle">აირჩიე რა გინდა გააკეთო</p>
+          </div>
+        </div>
+
+        <div class="menu-nav-list">
+          <button class="menu-nav-btn active" type="button" data-panel-target="start">
+            <span class="menu-nav-kicker">სტარტი</span>
+            <strong>დაწყება</strong>
+            <small>ჰოსტის გაშვება, BAT გამშვები და სწრაფი ღილაკები</small>
+          </button>
+          <button class="menu-nav-btn" type="button" data-panel-target="games">
+            <span class="menu-nav-kicker">პაკეტი</span>
+            <strong>თამაშები</strong>
+            <small>რვავე რეჟიმი, ყდები და მოკლე ახსნა</small>
+          </button>
+          <button class="menu-nav-btn" type="button" data-panel-target="join">
+            <span class="menu-nav-kicker">ტელეფონები</span>
+            <strong>შეერთება</strong>
+            <small>ოთახის კოდი, LAN მისამართი და აუდიტორია</small>
+          </button>
+          <button class="menu-nav-btn" type="button" data-panel-target="info">
+            <span class="menu-nav-kicker">ინფო</span>
+            <strong>რეჟიმი</strong>
+            <small>რაუნდები, მოთამაშეები და თამაშის საერთო წესები</small>
+          </button>
+        </div>
+
+        <div class="subpanel compact-top">
+          <div class="info-chip-row">
+            <span class="info-chip tone-accent">2-8 მოთამაშე</span>
+            <span class="info-chip">აუდიტორია 9+</span>
+            <span class="info-chip">Wi-Fi / LAN</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="panel menu-stage">
+        <section class="menu-panel active" data-panel="start">
+          <div class="section-heading">
+            <div>
+              <h2>დაწყება</h2>
+              <p class="section-subtitle">მთავარი ღილაკი ცდილობს BAT ფაილის გახსნას, ელოდება სერვერს და შემდეგ ხსნის ჰოსტის ეკრანს.</p>
+            </div>
+            <span class="status-pill ready">ადგილობრივი გაშვება</span>
+          </div>
+
+          <article class="menu-focus-card">
+            <div>
+              <div class="stage-kicker">სწრაფი სტარტი</div>
+              <h3>ჰოსტის გახსნა</h3>
+              <p class="hero-copy">
+                თუ სერვერი ჯერ არ არის ჩართული, ღილაკი ეცდება გახსნას <code>Start Levans Box Server.bat</code>.
+                როგორც კი სერვერი ჩაირთვება, ეს ფანჯარა ავტომატურად გადავა ჰოსტის ეკრანზე.
+              </p>
+              <p class="menu-selected-game" id="selectedGameLabel">არჩეული თამაში: ცრუ წარწერა</p>
+            </div>
+
+            <div class="menu-action-row">
+              <button class="primary-btn" id="hostOpenBtn" type="button">ჰოსტის გახსნა</button>
+              <a class="secondary-btn" id="batLauncherLink" href="#">BAT ფაილის გახსნა</a>
+              <button class="ghost-btn" id="openPlayBtn" type="button">ტელეფონის გვერდი</button>
+            </div>
+          </article>
+
+          <article class="launcher-status" id="launcherStatus" data-tone="neutral">
+            <div class="launcher-status-title">სტატუსი</div>
+            <p id="launcherStatusText">დააჭირე „ჰოსტის გახსნა“-ს და აქ გამოჩნდება გაშვების მდგომარეობა.</p>
+          </article>
+
+          <div class="menu-quick-grid">
+            <article class="info-card quick-card">
+              <h3>თუ არაფერი გაიხსნა</h3>
+              <p>გაუშვი ეს ფაილი ხელით:</p>
+              <code class="menu-path">Games\Levans Box\Start Levans Box Server.bat</code>
+            </article>
+
+            <article class="info-card quick-card">
+              <h3>თუ სერვერი უკვე ჩართულია</h3>
+              <p>მაშინ „ჰოსტის გახსნა“ პირდაპირ გადაგიყვანს მთავარ ეკრანზე.</p>
+              <button class="ghost-btn full-width" id="openHostDirectBtn" type="button">ჰოსტის ეკრანის გახსნა</button>
+            </article>
+
+            <article class="info-card quick-card">
+              <h3>მოთამაშეების ტელეფონი</h3>
+              <p>ტელეფონიდან იხსნება მობილური კონტროლერი, სადაც შეჰყავთ ოთახის კოდი და მეტსახელი.</p>
+              <button class="ghost-btn full-width" id="openPlayDirectBtn" type="button">ტელეფონის ეკრანის გახსნა</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="menu-panel" data-panel="games">
+          <div class="section-heading">
+            <div>
+              <h2>თამაშები</h2>
+              <p class="section-subtitle">აირჩიე რომელი რეჟიმით გინდა წვეულების დაწყება.</p>
+            </div>
+          </div>
+
+          <div class="menu-game-grid">
+            <button class="menu-game-card is-selected" type="button" data-game-id="bluff-caption" data-game-title="ცრუ წარწერა">
+              <img class="menu-game-cover" src="Covers/bluff caption.png" alt="ცრუ წარწერა">
+              <div class="menu-game-copy">
+                <h3>ცრუ წარწერა</h3>
+                <p>უცნაური სურათი ან ამბავი, ერთი ნამდვილი ახსნა და მოთამაშეების მიერ დაწერილი ყალბი ვერსიები.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="lie-detective" data-game-title="ტყუილის დეტექტივი">
+              <img class="menu-game-cover" src="Covers/lie detective.png" alt="ტყუილის დეტექტივი">
+              <div class="menu-game-copy">
+                <h3>ტყუილის დეტექტივი</h3>
+                <p>ერთ მოთამაშეს აქვს ნამდვილი საიდუმლო, დანარჩენები კი ცდილობენ ისეთი ტყუილი მოიფიქრონ, რომ ხმები წაიღონ.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="pitch-panic" data-game-title="პანიკური პიჩი">
+              <img class="menu-game-cover" src="Covers/pitch panic.png" alt="პანიკური პიჩი">
+              <div class="menu-game-copy">
+                <h3>პანიკური პიჩი</h3>
+                <p>აბსურდული ბიზნეს იდეა, მოკლე ტექსტური პრეზენტაცია და შემდეგ მხიარული კენჭისყრა.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="meme-court" data-game-title="მემის სასამართლო">
+              <img class="menu-game-cover" src="Covers/meme court.png" alt="მემის სასამართლო">
+              <div class="menu-game-copy">
+                <h3>მემის სასამართლო</h3>
+                <p>დაცვა თუ ბრალდება, სასაცილო საქმე და მოკლე არგუმენტები, რომელთაც მთელი ჯგუფი აფასებს.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="secret-saboteur" data-game-title="საიდუმლო საბოტაჟი">
+              <img class="menu-game-cover" src="Covers/secret saboteur quiz.png" alt="საიდუმლო საბოტაჟი">
+              <div class="menu-game-copy">
+                <h3>საიდუმლო საბოტაჟი</h3>
+                <p>კითხვები ყველასთვის, მაგრამ ერთ ფარულ მოთამაშეს უნდა აურიოს ყველაფერი ისე, რომ არ გამოაშკარავდეს.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="bad-translator" data-game-title="ცუდი მთარგმნელი">
+              <img class="menu-game-cover" src="Covers/bad translator.png" alt="ცუდი მთარგმნელი">
+              <div class="menu-game-copy">
+                <h3>ცუდი მთარგმნელი</h3>
+                <p>დამახინჯებული ფრაზიდან უნდა გამოიცნო რა იყო ორიგინალი და ვინ დაწერა ყველაზე ახლო ან ყველაზე მხიარული ვარიანტი.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="draw-and-deceive" data-game-title="დახატე და მოატყუე">
+              <img class="menu-game-cover" src="Covers/draw and deceive.png" alt="დახატე და მოატყუე">
+              <div class="menu-game-copy">
+                <h3>დახატე და მოატყუე</h3>
+                <p>პატარა მობილური ნახატები, ყალბი სათაურები და ხმის მოტყუებით მოგროვებული ქულები.</p>
+              </div>
+            </button>
+            <button class="menu-game-card" type="button" data-game-id="survive-scenario" data-game-title="გადარჩი სცენარს">
+              <img class="menu-game-cover" src="Covers/survive the scenario.png" alt="გადარჩი სცენარს">
+              <div class="menu-game-copy">
+                <h3>გადარჩი სცენარს</h3>
+                <p>აბსურდულ სიტუაციაში ერთ-ორ წინადადებაში უნდა აღწერო შენი გეგმა და მერე ხმებით გაირკვეს ვინ მოიფიქრა საუკეთესო გამოსავალი.</p>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        <section class="menu-panel" data-panel="join">
+          <div class="section-heading">
+            <div>
+              <h2>როგორ ერთვებიან მოთამაშეები</h2>
+              <p class="section-subtitle">ჰოსტი მთავარ ეკრანზე ქმნის ოთახს, მობილურები კი უერთდებიან ოთახის კოდით.</p>
+            </div>
+          </div>
+
+          <div class="menu-info-grid">
+            <article class="info-card quick-card">
+              <h3>სტანდარტული შეერთება</h3>
+              <ol class="steps-list">
+                <li>ჰოსტი ხსნის მთავარ ეკრანს და ქმნის ოთახს.</li>
+                <li>ეკრანზე გამოჩნდება ოთახის კოდი, LAN მისამართი და QR კოდი.</li>
+                <li>მოთამაშეები ტელეფონებიდან ხსნიან <code>/play</code> გვერდს.</li>
+                <li>შეჰყავთ ოთახის კოდი და თავიანთი მეტსახელი.</li>
+              </ol>
+            </article>
+
+            <article class="info-card quick-card">
+              <h3>მოთამაშეები და აუდიტორია</h3>
+              <ol class="steps-list">
+                <li>თამაშში ერთდროულად თამაშობს 2-დან 8-მდე ადამიანი.</li>
+                <li>მეცხრე და შემდეგი შემოსულები აუდიტორიად ერთვებიან.</li>
+                <li>აუდიტორია პასუხებს არ წერს, მაგრამ ხმის მიცემა შეუძლია.</li>
+                <li>ლობის ეკრანზე ყველა შეერთებული ადამიანი ცოცხლად ჩანს.</li>
+              </ol>
+            </article>
+          </div>
+
+          <article class="menu-focus-card">
+            <div>
+              <div class="stage-kicker">სწრაფი მისამართები</div>
+              <h3>ჰოსტი და ტელეფონები</h3>
+              <p class="hero-copy">
+                სერვერის ჩართვის შემდეგ ჰოსტის ეკრანი იხსნება <code>http://127.0.0.1:3094/</code> მისამართზე.
+                ტელეფონებისთვის გამოიყენება <code>http://შენი-LAN-IP:3094/play</code>.
+              </p>
+            </div>
+            <div class="menu-action-row">
+              <button class="secondary-btn" id="joinPanelHostBtn" type="button">ჰოსტის გახსნა</button>
+              <button class="ghost-btn" id="joinPanelPlayBtn" type="button">ტელეფონის გვერდი</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="menu-panel" data-panel="info">
+          <div class="section-heading">
+            <div>
+              <h2>რეჟიმი და წესები</h2>
+              <p class="section-subtitle">პაკეტი ისეა დალაგებული, რომ საერთო ეკრანზეც მკაფიო იყოს და ტელეფონზეც მარტივად სამართავი.</p>
+            </div>
+          </div>
+
+          <div class="menu-info-grid">
+            <article class="info-card quick-card">
+              <h3>რას ხედავს ჰოსტი</h3>
+              <ol class="steps-list">
+                <li>ოთახის კოდს და შეერთების ინსტრუქციას.</li>
+                <li>არჩეულ თამაშს, რაუნდის თაიმერს და მოთამაშეთა სიას.</li>
+                <li>პასუხების გახსნას, ხმის მიცემას, შედეგებს და ქულებს.</li>
+                <li>შემდეგი ფაზის, პაუზის და მატჩის დასრულების კონტროლს.</li>
+              </ol>
+            </article>
+
+            <article class="info-card quick-card">
+              <h3>რას ხედავს ტელეფონი</h3>
+              <ol class="steps-list">
+                <li>პასუხის ჩასაწერ ველს ან ხმის მიცემის ღილაკებს.</li>
+                <li>ხატვის რეჟიმში პატარა ტილოს, გასუფთავებას და გაუქმებას.</li>
+                <li>მოლოდინის ეკრანს, როცა სხვა მოთამაშეების ჯერია.</li>
+                <li>საკუთარ ქულას და სტატუსს ყოველი რაუნდის შემდეგ.</li>
+              </ol>
+            </article>
+          </div>
+
+          <div class="menu-mini-grid">
+            <article class="info-card quick-card">
+              <h3>საერთო პარამეტრები</h3>
+              <p>ლობის ეკრანზე ჰოსტი ირჩევს რაუნდების რაოდენობას, ოჯახურ რეჟიმს, მოდერაციას და აუდიტორიას.</p>
+            </article>
+            <article class="info-card quick-card">
+              <h3>სტაბილური კავშირი</h3>
+              <p>სისტემა ინახავს სესიას, ამიტომ თუ ტელეფონი წამით მოწყდა, მოთამაშეს შეუძლია იმავე ოთახში დაბრუნება.</p>
+            </article>
+            <article class="info-card quick-card">
+              <h3>ყველაფერი ქართულად</h3>
+              <p>მენიუ, ღილაკები, ინსტრუქციები, კითხვები, შედეგები და ქულების ეკრანი მთლიანად ქართულად ჩანს.</p>
+            </article>
+            <article class="info-card quick-card">
+              <h3>LAN წვეულებისთვის</h3>
+              <p>ჰოსტის კომპიუტერი და მობილურები ერთსა და იმავე Wi-Fi ან LAN ქსელში უნდა იყვნენ.</p>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

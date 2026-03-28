@@ -1,0 +1,525 @@
+import {
+  emitAck,
+  escapeHtml,
+  formatTimer,
+  loadJson,
+  playCue,
+  renderCards,
+  renderMedia,
+  renderScoreboard,
+  saveJson,
+  setBackgroundVideo,
+} from "/static/common.js";
+
+const HOST_STORAGE_KEY = "levans_box_host_session_v2";
+const PREF_STORAGE_KEY = "levans_box_host_preferences_v2";
+
+const els = {
+  backgroundVideo: document.getElementById("backgroundVideo"),
+  createRoomButton: document.getElementById("createRoomButton"),
+  randomRoomButton: document.getElementById("randomRoomButton"),
+  freshRoomButton: document.getElementById("freshRoomButton"),
+  packList: document.getElementById("packList"),
+  menuMeta: document.getElementById("menuMeta"),
+  roundsSelect: document.getElementById("roundsSelect"),
+  familyFriendlyInput: document.getElementById("familyFriendlyInput"),
+  moderationInput: document.getElementById("moderationInput"),
+  audienceInput: document.getElementById("audienceInput"),
+  funnyVoteInput: document.getElementById("funnyVoteInput"),
+  phaseTitle: document.getElementById("phaseTitle"),
+  phaseSubtitle: document.getElementById("phaseSubtitle"),
+  timerChip: document.getElementById("timerChip"),
+  stageBody: document.getElementById("stageBody"),
+  scoreboardBody: document.getElementById("scoreboardBody"),
+  roomMeta: document.getElementById("roomMeta"),
+  roomCard: document.getElementById("roomCard"),
+  playerCount: document.getElementById("playerCount"),
+  playerGrid: document.getElementById("playerGrid"),
+  audienceCount: document.getElementById("audienceCount"),
+  audienceGrid: document.getElementById("audienceGrid"),
+  startButton: document.getElementById("startButton"),
+  advanceButton: document.getElementById("advanceButton"),
+  pauseButton: document.getElementById("pauseButton"),
+  endButton: document.getElementById("endButton"),
+  restartButton: document.getElementById("restartButton"),
+  controlHint: document.getElementById("controlHint"),
+};
+
+const socket = window.io();
+
+const state = {
+  bootstrap: null,
+  room: null,
+  session: loadJson(HOST_STORAGE_KEY),
+  preferences: loadJson(PREF_STORAGE_KEY) || {
+    gameId: "bluff-caption",
+    rounds: 3,
+    familyFriendly: true,
+    moderationEnabled: false,
+    audienceEnabled: true,
+    funnyVoteEnabled: true,
+  },
+  phaseId: "",
+  lowTimerAlerted: false,
+  previousScoreMap: {},
+};
+
+function getScoreMap(players = []) {
+  return Object.fromEntries(players.map((player) => [player.id, player.score]));
+}
+
+function triggerMotion(element, className = "panel-bounce") {
+  if (!element) return;
+  element.classList.remove(className);
+  void element.offsetWidth;
+  element.classList.add(className);
+}
+
+function syncPreferenceInputs() {
+  els.roundsSelect.value = String(state.room?.settings?.rounds || state.preferences.rounds || 3);
+  els.familyFriendlyInput.checked = state.room?.settings?.familyFriendly ?? state.preferences.familyFriendly;
+  els.moderationInput.checked = state.room?.settings?.moderationEnabled ?? state.preferences.moderationEnabled;
+  els.audienceInput.checked = state.room?.settings?.audienceEnabled ?? state.preferences.audienceEnabled;
+  els.funnyVoteInput.checked = state.room?.settings?.funnyVoteEnabled ?? state.preferences.funnyVoteEnabled;
+}
+
+function getSelectedGameId() {
+  return state.room?.selectedGameId || state.preferences.gameId || state.bootstrap?.games?.[0]?.id;
+}
+
+function getSelectedGameMeta() {
+  const games = state.room?.games || state.bootstrap?.games || [];
+  return games.find((game) => game.id === getSelectedGameId()) || games[0];
+}
+
+function updateVideo() {
+  const game = getSelectedGameMeta();
+  setBackgroundVideo(els.backgroundVideo, {
+    src: game?.videoPath || "/videos/game bg 1.mp4",
+    poster: game?.coverPath || "",
+  });
+}
+
+function renderPack() {
+  const games = state.room?.games || state.bootstrap?.games || [];
+  const selectedGameId = getSelectedGameId();
+  els.packList.innerHTML = games.map((game) => `
+    <button
+      class="slot-card pack-button ${game.id === selectedGameId ? "active" : ""}"
+      data-game-id="${escapeHtml(game.id)}"
+      style="--card-accent:${escapeHtml(game.accent || "#ffe66d")}"
+      ${state.room && !state.room.controls.canSelectGame ? "disabled" : ""}
+    >
+      <div class="slot-card-top">
+        <div class="slot-number">${String(game.slot).padStart(2, "0")}</div>
+        <span class="status-pill ${game.id === selectedGameId ? "ready" : "pending"}">${game.id === selectedGameId ? "არჩეულია" : `საჭიროა ${escapeHtml(String(game.minPlayers))}`}</span>
+      </div>
+      <img class="slot-cover" src="${escapeHtml(game.coverPath)}" alt="${escapeHtml(game.title)}">
+      <div class="pack-copy">
+        <h3>${escapeHtml(game.title)}</h3>
+        <p>${escapeHtml(game.description)}</p>
+      </div>
+    </button>
+  `).join("");
+
+  els.packList.querySelectorAll("[data-game-id]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.preferences.gameId = button.dataset.gameId;
+      saveJson(PREF_STORAGE_KEY, state.preferences);
+      if (state.room?.controls?.canSelectGame) {
+        await hostAction("select-game", { gameId: button.dataset.gameId });
+      } else {
+        render();
+      }
+    });
+  });
+}
+
+function renderRoomCard() {
+  if (!state.room) {
+    els.roomMeta.textContent = "კოდი ჯერ არ არის შექმნილი";
+    els.roomCard.className = "info-card empty-state";
+    els.roomCard.innerHTML = `
+      <div class="room-empty-callout">
+        <h3>შექმენი ოთახი და აჩვენე კოდი დიდ ეკრანზე</h3>
+        <p>ოთახის შექმნის შემდეგ აქ გამოჩნდება დიდი კოდი, QR და მოკლე ინსტრუქცია ტელეფონებისთვის.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const selectedGame = state.room.games.find((game) => game.id === state.room.selectedGameId);
+  els.roomMeta.textContent = `${state.room.players.length} მოთამაშე | ${state.room.audienceCount} აუდიტორია`;
+  els.roomCard.className = "info-card room-card-live";
+  els.roomCard.innerHTML = `
+    <div class="room-hero" style="--card-accent:${escapeHtml(selectedGame?.accent || "#ffe66d")}">
+      <div class="room-hero-main">
+        <div class="room-kicker">ტელეფონით შემოსასვლელი ოთახი</div>
+        <div class="room-code-display">${escapeHtml(state.room.roomCode)}</div>
+        <p class="room-hero-copy">ტელეფონზე გახსენით <strong>${escapeHtml(state.room.joinUrl)}</strong> და შეიყვანეთ ეს კოდი.</p>
+        <div class="info-chip-row">
+          <span class="info-chip tone-good">2-8 მოთამაშე</span>
+          <span class="info-chip tone-accent">${state.room.settings.audienceEnabled ? "აუდიტორია ჩართულია" : "აუდიტორია გამორთულია"}</span>
+          <span class="info-chip">${escapeHtml(selectedGame?.title || "")}</span>
+        </div>
+      </div>
+      <div class="room-hero-side">
+        <div class="qr-card">
+          <img class="qr-image" src="${escapeHtml(state.room.qrDataUrl)}" alt="QR კოდი">
+        </div>
+      </div>
+    </div>
+    <div class="room-card-layout">
+      <img class="room-cover" src="${escapeHtml(selectedGame?.coverPath || "")}" alt="${escapeHtml(selectedGame?.title || "")}">
+      <div class="room-card-copy">
+        <div class="info-row">
+          <span class="info-label">არჩეული თამაში</span>
+          <strong>${escapeHtml(selectedGame?.title || "")}</strong>
+        </div>
+        <div class="info-row">
+          <span class="info-label">რაუნდები</span>
+          <strong>${escapeHtml(String(state.room.settings.rounds))}</strong>
+        </div>
+        <div class="info-row">
+          <span class="info-label">მობილურის მისამართი</span>
+          <code>${escapeHtml(state.room.joinUrl)}</code>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderParticipants() {
+  const players = state.room?.players || [];
+  const canKick = Boolean(state.room?.controls?.canKick);
+
+  els.playerCount.textContent = `${players.length} / 8`;
+  els.playerGrid.innerHTML = players.length ? players.map((player) => `
+    <article class="player-card ${player.connected ? "is-online" : "is-offline"}" style="--card-accent:${escapeHtml(player.color)}">
+      <div class="player-card-header">
+        <div class="player-identity">
+          <span class="player-avatar-badge">${escapeHtml(player.avatar)}</span>
+          <div>
+            <h3>${escapeHtml(player.name)}</h3>
+            <p class="muted-text">${escapeHtml(player.status)}</p>
+          </div>
+        </div>
+        <div class="player-side">
+          <span class="player-status-pill ${player.connected ? "online" : "offline"}">${player.connected ? "აქაა" : "გათიშულია"}</span>
+          <span class="score-badge">${escapeHtml(String(player.score))}</span>
+        </div>
+      </div>
+      ${canKick ? `<button class="ghost-btn full-width kick-button" data-kick-id="${escapeHtml(player.id)}">გაგდება</button>` : ""}
+    </article>
+  `).join("") : `
+    <div class="empty-stage">
+      <h3>მოთამაშეები ჯერ არ შემოსულან</h3>
+      <p>ტელეფონზე გახსენით მისამართი და შეიყვანეთ კოდი, რომ ლობი გაცოცხლდეს.</p>
+    </div>
+  `;
+
+  const audience = state.room?.audience || [];
+  els.audienceCount.textContent = String(state.room?.audienceCount || 0);
+  els.audienceGrid.innerHTML = audience.length ? audience.map((participant) => `
+    <article class="player-card audience-card ${participant.connected ? "is-online" : "is-offline"}">
+      <div class="player-card-header">
+        <div class="player-identity">
+          <span class="player-avatar-badge">👀</span>
+          <div>
+            <h3>${escapeHtml(participant.name)}</h3>
+            <p class="muted-text">${participant.connected ? "ელოდება ხმის მიცემას" : "დროებით გათიშულია"}</p>
+          </div>
+        </div>
+        <span class="player-status-pill ${participant.connected ? "online" : "offline"}">${participant.connected ? "ონლაინ" : "ოფლაინ"}</span>
+      </div>
+      ${canKick ? `<button class="ghost-btn full-width kick-button" data-kick-id="${escapeHtml(participant.id)}">გაგდება</button>` : ""}
+    </article>
+  `).join("") : `<p class="muted-text">მერვე მოთამაშის შემდეგ შემომსვლელები აქ გამოჩნდებიან და ხმის მიცემაში ჩაერთვებიან.</p>`;
+
+  document.querySelectorAll(".kick-button").forEach((button) => {
+    button.addEventListener("click", () => hostAction("kick-participant", { participantId: button.dataset.kickId }));
+  });
+}
+
+function renderStage() {
+  const stage = state.room?.stage || {
+    title: "აირჩიე თამაში",
+    subtitle: "ჯერ მონიშნე თამაში და შექმენი ოთახი.",
+    note: "ოთახის შექმნის შემდეგ აქ გამოჩნდება მთავარი prompt, პასუხები, reveal-ები და ქულები.",
+    media: null,
+    cards: [],
+  };
+
+  const phaseId = state.room?.phaseId || "";
+  const tone = phaseId.includes("vote")
+    ? "vote"
+    : phaseId.includes("reveal") || phaseId === "final"
+      ? "reveal"
+      : phaseId.includes("write") || phaseId.includes("draw") || phaseId.includes("question")
+        ? "write"
+        : "lobby";
+
+  const chips = [];
+  if (state.room?.gameTitle) chips.push({ label: state.room.gameTitle, tone: "accent" });
+  if (state.room?.players?.length) chips.push({ label: `${state.room.players.length} მოთამაშე`, tone: "good" });
+  if ((state.room?.audienceCount || 0) > 0) chips.push({ label: `${state.room.audienceCount} აუდიტორია` });
+  if (state.room?.timer) chips.push({ label: `ტაიმერი ${formatTimer(state.room.timer)}`, tone: "warning" });
+
+  els.phaseTitle.textContent = stage.title || "ლევანს ბოქსი";
+  els.phaseSubtitle.textContent = stage.subtitle || "";
+  els.stageBody.innerHTML = `
+    <section class="stage-focus stage-tone-${tone}">
+      <div class="stage-focus-copy">
+        <div class="stage-kicker">${escapeHtml(stage.subtitle || state.room?.gameTitle || "წვეულების ეტაპი")}</div>
+        <p class="stage-focus-note">${escapeHtml(stage.note || "მზად ვართ შემდეგი ქაოსისთვის.")}</p>
+        <div class="info-chip-row">
+          ${chips.map((chip) => `<span class="info-chip ${chip.tone ? `tone-${chip.tone}` : ""}">${escapeHtml(chip.label)}</span>`).join("")}
+        </div>
+      </div>
+    </section>
+    ${renderMedia(stage.media)}
+    ${(stage.cards || []).length ? `
+      <section class="answers-showcase">
+        <div class="section-heading">
+          <h3>${phaseId.includes("reveal") ? "გახსნილი შედეგები" : phaseId.includes("vote") ? "არჩევანის ვარიანტები" : "ეკრანზე მიმდინარე ეტაპი"}</h3>
+          <span class="mini-label">${escapeHtml(String(stage.cards.length))} ბარათი</span>
+        </div>
+        ${renderCards(stage.cards || [])}
+      </section>
+    ` : ""}
+  `;
+}
+
+function renderScoreboardPanel() {
+  const scoreboard = state.room?.scoreboard || [];
+  const leader = scoreboard[0];
+  els.scoreboardBody.innerHTML = `
+    ${leader ? `
+      <div class="scoreboard-leader">
+        <span class="mini-label">წინ მიდის</span>
+        <strong>${escapeHtml(leader.avatar || "")} ${escapeHtml(leader.name)}</strong>
+        <span class="score-badge">${escapeHtml(String(leader.score))}</span>
+      </div>
+    ` : ""}
+    ${renderScoreboard(scoreboard, { previousScores: state.previousScoreMap })}
+  `;
+}
+
+function renderControls() {
+  const controls = state.room?.controls;
+  els.startButton.disabled = !controls?.canStart;
+  els.advanceButton.disabled = !controls?.canAdvance;
+  els.pauseButton.disabled = !controls?.canPause;
+  els.endButton.disabled = !controls?.canEnd;
+  els.restartButton.disabled = !controls?.canRestart;
+  els.pauseButton.textContent = controls?.pauseLabel || "პაუზა";
+  els.controlHint.textContent = controls?.reason || "აირჩიე თამაში ან შექმენი ოთახი.";
+}
+
+function renderTimer() {
+  if (!state.room?.timer) {
+    els.timerChip.textContent = "00:00";
+    els.timerChip.classList.remove("danger");
+    return;
+  }
+
+  const text = formatTimer(state.room.timer);
+  els.timerChip.textContent = text;
+  const remainingMs = state.room.timer.paused
+    ? state.room.timer.remainingMs
+    : Math.max(0, state.room.timer.endsAt - Date.now());
+  const isLow = remainingMs <= 5000;
+  els.timerChip.classList.toggle("danger", isLow);
+
+  if (isLow && !state.lowTimerAlerted) {
+    state.lowTimerAlerted = true;
+    playCue("alert");
+    triggerMotion(els.timerChip, "timer-flash");
+  }
+
+  if (remainingMs > 5000) {
+    state.lowTimerAlerted = false;
+  }
+}
+
+function formatStatusLabel(status) {
+  if (status === "lobby") return "ლობი";
+  if (status === "running") return "თამაში მიმდინარეობს";
+  if (status === "final") return "ფინალი";
+  return "მზადაა";
+}
+
+function render() {
+  syncPreferenceInputs();
+  renderPack();
+  renderRoomCard();
+  renderParticipants();
+  renderStage();
+  renderScoreboardPanel();
+  renderControls();
+  renderTimer();
+  updateVideo();
+  els.menuMeta.textContent = state.room
+    ? `${formatStatusLabel(state.room.status)} | ${state.room.players.length} მოთამაშე`
+    : "8 რეჟიმი";
+}
+
+async function createRoom(randomGame = false) {
+  const settings = collectSettings();
+  const payload = {
+    gameId: randomGame && state.bootstrap?.games?.length
+      ? state.bootstrap.games[Math.floor(Math.random() * state.bootstrap.games.length)].id
+      : getSelectedGameId(),
+    rounds: settings.rounds,
+    familyFriendly: settings.familyFriendly,
+    moderationEnabled: settings.moderationEnabled,
+    audienceEnabled: settings.audienceEnabled,
+    funnyVoteEnabled: settings.funnyVoteEnabled,
+  };
+
+  const response = await emitAck(socket, "host:create-room", payload);
+  state.session = {
+    roomCode: response.roomCode,
+    sessionId: response.hostSessionId,
+  };
+  saveJson(HOST_STORAGE_KEY, state.session);
+}
+
+async function hostAction(type, extra = {}) {
+  if (!state.session) return;
+  await emitAck(socket, "host:action", {
+    roomCode: state.session.roomCode,
+    sessionId: state.session.sessionId,
+    type,
+    ...extra,
+  });
+}
+
+async function resumeHost() {
+  if (!state.session?.roomCode || !state.session?.sessionId) return false;
+  try {
+    await emitAck(socket, "host:resume-room", state.session);
+    return true;
+  } catch {
+    state.session = null;
+    saveJson(HOST_STORAGE_KEY, null);
+    return false;
+  }
+}
+
+function collectSettings() {
+  return {
+    rounds: Number(els.roundsSelect.value || 3),
+    familyFriendly: els.familyFriendlyInput.checked,
+    moderationEnabled: els.moderationInput.checked,
+    audienceEnabled: els.audienceInput.checked,
+    funnyVoteEnabled: els.funnyVoteInput.checked,
+  };
+}
+
+function savePreferences() {
+  state.preferences = {
+    ...state.preferences,
+    ...collectSettings(),
+    gameId: getSelectedGameId(),
+  };
+  saveJson(PREF_STORAGE_KEY, state.preferences);
+}
+
+function bindSettings() {
+  [
+    els.roundsSelect,
+    els.familyFriendlyInput,
+    els.moderationInput,
+    els.audienceInput,
+    els.funnyVoteInput,
+  ].forEach((element) => {
+    element.addEventListener("change", async () => {
+      savePreferences();
+      if (state.room?.status === "lobby") {
+        await hostAction("update-settings", { settings: collectSettings() });
+      } else {
+        render();
+      }
+    });
+  });
+}
+
+socket.on("bootstrap", (payload) => {
+  state.bootstrap = payload;
+  render();
+});
+
+socket.on("host:state", (roomState) => {
+  const previousPhaseId = state.phaseId;
+  const previousRoom = state.room;
+  state.previousScoreMap = getScoreMap(previousRoom?.scoreboard || []);
+  state.phaseId = roomState.phaseId;
+  state.room = roomState;
+  syncPreferenceInputs();
+  render();
+
+  const phaseChanged = previousPhaseId && previousPhaseId !== roomState.phaseId;
+  const scoreChanged = (roomState.scoreboard || []).some((player) => player.score !== (state.previousScoreMap[player.id] || 0));
+
+  if (phaseChanged) {
+    triggerMotion(els.stageBody);
+    playCue(roomState.phaseId.includes("vote") ? "vote" : roomState.phaseId.includes("reveal") ? "reveal" : "soft");
+  }
+
+  if (scoreChanged) {
+    triggerMotion(els.scoreboardBody, "scoreboard-pop");
+    playCue("score");
+  }
+});
+
+socket.on("disconnect", () => {
+  els.controlHint.textContent = "კავშირი დროებით გაწყდა. ავტომატური დაბრუნება მიმდინარეობს...";
+});
+
+socket.on("connect", async () => {
+  const resumed = await resumeHost();
+  if (!resumed) render();
+});
+
+els.createRoomButton.addEventListener("click", async () => {
+  savePreferences();
+  await createRoom(false);
+});
+
+els.randomRoomButton.addEventListener("click", async () => {
+  savePreferences();
+  if (state.room?.controls?.canSelectGame) {
+    await hostAction("random-game");
+    return;
+  }
+  await createRoom(true);
+});
+
+els.freshRoomButton.addEventListener("click", async () => {
+  savePreferences();
+  state.session = null;
+  saveJson(HOST_STORAGE_KEY, null);
+  state.room = null;
+  await createRoom(false);
+});
+
+els.startButton.addEventListener("click", () => hostAction("start-match"));
+els.advanceButton.addEventListener("click", () => hostAction("next-phase"));
+els.pauseButton.addEventListener("click", () => hostAction("pause-timer"));
+els.endButton.addEventListener("click", () => hostAction("end-match"));
+els.restartButton.addEventListener("click", () => hostAction("restart-lobby"));
+
+window.addEventListener("keydown", (event) => {
+  if (event.target?.matches("input, textarea, select")) return;
+  if (event.code === "Space" && !els.advanceButton.disabled) {
+    event.preventDefault();
+    els.advanceButton.click();
+  }
+  if (event.key.toLowerCase() === "p" && !els.pauseButton.disabled) els.pauseButton.click();
+  if (event.key.toLowerCase() === "r" && !els.restartButton.disabled) els.restartButton.click();
+});
+
+setInterval(renderTimer, 250);
+bindSettings();
+render();

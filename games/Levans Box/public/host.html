@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ლევანს ბოქსი | ჰოსტი</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="screen-host">
+  <video id="backgroundVideo" class="background-video" autoplay muted loop playsinline preload="auto"></video>
+  <div class="bg-overlay"></div>
+
+  <div class="app-shell">
+    <header class="hero hero-host">
+      <div>
+        <div class="eyebrow">საერთო ეკრანი</div>
+        <h1>ლევანს ბოქსი</h1>
+        <p class="hero-copy">ქართული ლოკალური წვეულების პაკეტი ერთ ჰოსტ ეკრანზე, ტელეფონებით შესაერთებელი მოთამაშეებით და აუდიტორიით. აირჩიე თამაში, შექმენი კოდი და ჩართე ოთახი.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="createRoomButton" class="primary-btn">ოთახის შექმნა</button>
+        <button id="randomRoomButton" class="secondary-btn">შემთხვევითი თამაში</button>
+        <button id="freshRoomButton" class="ghost-btn">ახალი კოდი</button>
+      </div>
+    </header>
+
+    <main class="layout-host-2">
+      <section class="panel sidebar-panel">
+        <div class="section-heading">
+          <h2>თამაშების პაკეტი</h2>
+          <span id="menuMeta" class="mini-label">8 რეჟიმი</span>
+        </div>
+        <div id="packList" class="stack-list"></div>
+
+        <div class="subpanel">
+          <div class="section-heading">
+            <h3>ოთახის პარამეტრები</h3>
+          </div>
+          <div class="settings-grid">
+            <label>
+              <span>რაუნდები</span>
+              <select id="roundsSelect">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+            </label>
+            <label class="toggle-row">
+              <input id="familyFriendlyInput" type="checkbox" checked>
+              <span>ოჯახური რეჟიმი</span>
+            </label>
+            <label class="toggle-row">
+              <input id="moderationInput" type="checkbox">
+              <span>პასუხების ფილტრი</span>
+            </label>
+            <label class="toggle-row">
+              <input id="audienceInput" type="checkbox" checked>
+              <span>აუდიტორია 8-ის შემდეგ</span>
+            </label>
+            <label class="toggle-row">
+              <input id="funnyVoteInput" type="checkbox" checked>
+              <span>ბონუს სასაცილო ხმა</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section id="stagePanel" class="panel stage-panel">
+        <div class="section-heading">
+          <div>
+            <h2 id="phaseTitle">აირჩიე თამაში</h2>
+            <p id="phaseSubtitle" class="section-subtitle">თამაშის აღწერა და ლობი აქ გამოჩნდება.</p>
+          </div>
+          <div class="timer-chip" id="timerChip">00:00</div>
+        </div>
+        <div id="stageBody" class="stage-body"></div>
+        <div id="tvHud" class="tv-hud hidden" aria-hidden="true">
+          <div id="tvPlayersHud" class="tv-stack tv-stack-left"></div>
+          <div id="tvJoinHud" class="tv-stack tv-stack-right"></div>
+          <div id="tvControlsHud" class="tv-stack tv-stack-bottom"></div>
+        </div>
+        <div class="subpanel scoreboard-panel">
+          <div class="section-heading">
+            <h3>საერთო ქულები</h3>
+          </div>
+          <div id="scoreboardBody"></div>
+        </div>
+      </section>
+
+      <section class="panel room-panel">
+        <div class="section-heading">
+          <h2>ოთახი</h2>
+          <span id="roomMeta" class="mini-label">კოდი ჯერ არაა შექმნილი</span>
+        </div>
+        <div id="roomCard" class="info-card empty-state">დააჭირე „ოთახის შექმნა“ ღილაკს, რომ კოდი, QR და ტელეფონის მისამართი გამოჩნდეს.</div>
+
+        <div class="subpanel">
+          <div class="section-heading">
+            <h3>მოთამაშეები</h3>
+            <span id="playerCount" class="mini-label">0 / 8</span>
+          </div>
+          <div id="playerGrid" class="player-grid"></div>
+          <div class="section-heading compact-top">
+            <h3>აუდიტორია</h3>
+            <span id="audienceCount" class="mini-label">0</span>
+          </div>
+          <div id="audienceGrid" class="stack-list compact-list"></div>
+        </div>
+
+        <div class="action-row">
+          <button id="startButton" class="primary-btn" disabled>დაწყება</button>
+          <button id="advanceButton" class="secondary-btn" disabled>შემდეგი ეტაპი</button>
+          <button id="pauseButton" class="ghost-btn" disabled>პაუზა</button>
+          <button id="endButton" class="ghost-btn" disabled>მატჩის დასრულება</button>
+          <button id="restartButton" class="ghost-btn" disabled>ლობიში დაბრუნება</button>
+        </div>
+        <p id="controlHint" class="muted-text">ოთახის შექმნის შემდეგ აქ გამოჩნდება თამაშის კონტროლი.</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/static/host.js"></script>
+</body>
+</html>

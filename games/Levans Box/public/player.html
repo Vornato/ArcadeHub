@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ლევანს ბოქსი | ტელეფონი</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="screen-player">
+  <video id="backgroundVideo" class="background-video" autoplay muted loop playsinline preload="auto"></video>
+  <div class="bg-overlay"></div>
+
+  <div class="controller-shell">
+    <section id="playerTopCover" class="player-top-cover"></section>
+
+    <header class="hero compact hero-player">
+      <div>
+        <div class="eyebrow">ტელეფონის პულტი</div>
+        <h1>ლევანს ბოქსი</h1>
+        <p class="hero-copy">შედი ოთახში კოდით, დაწერე, მიეცი ხმა ან დახატე. ყველა ტექსტი და პასუხი ქართულად მუშაობს.</p>
+      </div>
+      <div class="timer-chip" id="timerChip">00:00</div>
+    </header>
+
+    <main class="layout-player">
+      <section id="joinPanel" class="panel">
+        <div class="section-heading">
+          <h2>ოთახში შესვლა</h2>
+        </div>
+        <form id="joinForm" class="form-stack">
+          <label>
+            <span>ოთახის კოდი</span>
+            <input id="roomCodeInput" type="text" inputmode="latin" autocomplete="off" maxlength="6" placeholder="მაგ: A7KQ2">
+          </label>
+          <label>
+            <span>მეტსახელი</span>
+            <input id="playerNameInput" type="text" maxlength="24" placeholder="შენი სახელი ან მეტსახელი">
+          </label>
+          <button type="submit" class="primary-btn full-width">შესვლა</button>
+        </form>
+        <p id="joinMessage" class="muted-text">ჰოსტის ეკრანზე მითითებული კოდი ჩაწერე და შეუერთდი ოთახს.</p>
+      </section>
+
+      <section id="controllerPanel" class="panel hidden">
+        <div class="section-heading">
+          <div>
+            <h2 id="controllerPhase">მოლოდინი</h2>
+            <p id="controllerRoomMeta" class="section-subtitle"></p>
+          </div>
+          <div class="identity-badge" id="playerIdentity"></div>
+        </div>
+        <div id="controllerBody"></div>
+        <footer class="controller-footer">
+          <span id="myScoreBadge" class="score-badge">0</span>
+          <button id="leaveButton" class="ghost-btn">გასვლა</button>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/static/player.js"></script>
+</body>
+</html>

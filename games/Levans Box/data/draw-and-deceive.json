@@ -1,0 +1,1002 @@
+[
+  {
+    "id": "draw-and-deceive-1",
+    "prompt": "დახატე პატარა კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-2",
+    "prompt": "დახატე დაკარგული კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-3",
+    "prompt": "დახატე მტვრიანი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-4",
+    "prompt": "დახატე სველი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-5",
+    "prompt": "დახატე მბზინავი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-6",
+    "prompt": "დახატე დაჭმუჭნილი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-7",
+    "prompt": "დახატე ძველი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-8",
+    "prompt": "დახატე მშვიდი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-9",
+    "prompt": "დახატე დაბზარული კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-10",
+    "prompt": "დახატე მსუბუქი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-11",
+    "prompt": "დახატე მრგვალი კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-12",
+    "prompt": "დახატე მარტოსული კოვზი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-13",
+    "prompt": "დახატე პატარა ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-14",
+    "prompt": "დახატე დაკარგული ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-15",
+    "prompt": "დახატე მტვრიანი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-16",
+    "prompt": "დახატე სველი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-17",
+    "prompt": "დახატე მბზინავი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-18",
+    "prompt": "დახატე დაჭმუჭნილი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-19",
+    "prompt": "დახატე ძველი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-20",
+    "prompt": "დახატე მშვიდი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-21",
+    "prompt": "დახატე დაბზარული ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-22",
+    "prompt": "დახატე მსუბუქი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-23",
+    "prompt": "დახატე მრგვალი ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-24",
+    "prompt": "დახატე მარტოსული ჩანგალი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-25",
+    "prompt": "დახატე პატარა ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-26",
+    "prompt": "დახატე დაკარგული ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-27",
+    "prompt": "დახატე მტვრიანი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-28",
+    "prompt": "დახატე სველი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-29",
+    "prompt": "დახატე მბზინავი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-30",
+    "prompt": "დახატე დაჭმუჭნილი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-31",
+    "prompt": "დახატე ძველი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-32",
+    "prompt": "დახატე მშვიდი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-33",
+    "prompt": "დახატე დაბზარული ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-34",
+    "prompt": "დახატე მსუბუქი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-35",
+    "prompt": "დახატე მრგვალი ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-36",
+    "prompt": "დახატე მარტოსული ჭიქა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-37",
+    "prompt": "დახატე პატარა ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-38",
+    "prompt": "დახატე დაკარგული ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-39",
+    "prompt": "დახატე მტვრიანი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-40",
+    "prompt": "დახატე სველი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-41",
+    "prompt": "დახატე მბზინავი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-42",
+    "prompt": "დახატე დაჭმუჭნილი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-43",
+    "prompt": "დახატე ძველი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-44",
+    "prompt": "დახატე მშვიდი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-45",
+    "prompt": "დახატე დაბზარული ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-46",
+    "prompt": "დახატე მსუბუქი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-47",
+    "prompt": "დახატე მრგვალი ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-48",
+    "prompt": "დახატე მარტოსული ჩაიდანი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-49",
+    "prompt": "დახატე პატარა ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-50",
+    "prompt": "დახატე დაკარგული ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-51",
+    "prompt": "დახატე მტვრიანი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-52",
+    "prompt": "დახატე სველი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-53",
+    "prompt": "დახატე მბზინავი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-54",
+    "prompt": "დახატე დაჭმუჭნილი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-55",
+    "prompt": "დახატე ძველი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-56",
+    "prompt": "დახატე მშვიდი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-57",
+    "prompt": "დახატე დაბზარული ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-58",
+    "prompt": "დახატე მსუბუქი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-59",
+    "prompt": "დახატე მრგვალი ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-60",
+    "prompt": "დახატე მარტოსული ქოლგა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-61",
+    "prompt": "დახატე პატარა სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-62",
+    "prompt": "დახატე დაკარგული სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-63",
+    "prompt": "დახატე მტვრიანი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-64",
+    "prompt": "დახატე სველი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-65",
+    "prompt": "დახატე მბზინავი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-66",
+    "prompt": "დახატე დაჭმუჭნილი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-67",
+    "prompt": "დახატე ძველი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-68",
+    "prompt": "დახატე მშვიდი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-69",
+    "prompt": "დახატე დაბზარული სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-70",
+    "prompt": "დახატე მსუბუქი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-71",
+    "prompt": "დახატე მრგვალი სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-72",
+    "prompt": "დახატე მარტოსული სათვალე.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-73",
+    "prompt": "დახატე პატარა ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-74",
+    "prompt": "დახატე დაკარგული ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-75",
+    "prompt": "დახატე მტვრიანი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-76",
+    "prompt": "დახატე სველი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-77",
+    "prompt": "დახატე მბზინავი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-78",
+    "prompt": "დახატე დაჭმუჭნილი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-79",
+    "prompt": "დახატე ძველი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-80",
+    "prompt": "დახატე მშვიდი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-81",
+    "prompt": "დახატე დაბზარული ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-82",
+    "prompt": "დახატე მსუბუქი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-83",
+    "prompt": "დახატე მრგვალი ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-84",
+    "prompt": "დახატე მარტოსული ფანქარი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-85",
+    "prompt": "დახატე პატარა კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-86",
+    "prompt": "დახატე დაკარგული კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-87",
+    "prompt": "დახატე მტვრიანი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-88",
+    "prompt": "დახატე სველი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-89",
+    "prompt": "დახატე მბზინავი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-90",
+    "prompt": "დახატე დაჭმუჭნილი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-91",
+    "prompt": "დახატე ძველი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-92",
+    "prompt": "დახატე მშვიდი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-93",
+    "prompt": "დახატე დაბზარული კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-94",
+    "prompt": "დახატე მსუბუქი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-95",
+    "prompt": "დახატე მრგვალი კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-96",
+    "prompt": "დახატე მარტოსული კალამი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-97",
+    "prompt": "დახატე პატარა რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-98",
+    "prompt": "დახატე დაკარგული რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-99",
+    "prompt": "დახატე მტვრიანი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-100",
+    "prompt": "დახატე სველი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-101",
+    "prompt": "დახატე მბზინავი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-102",
+    "prompt": "დახატე დაჭმუჭნილი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-103",
+    "prompt": "დახატე ძველი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-104",
+    "prompt": "დახატე მშვიდი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-105",
+    "prompt": "დახატე დაბზარული რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-106",
+    "prompt": "დახატე მსუბუქი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-107",
+    "prompt": "დახატე მრგვალი რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-108",
+    "prompt": "დახატე მარტოსული რვეული.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-109",
+    "prompt": "დახატე პატარა ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-110",
+    "prompt": "დახატე დაკარგული ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-111",
+    "prompt": "დახატე მტვრიანი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-112",
+    "prompt": "დახატე სველი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-113",
+    "prompt": "დახატე მბზინავი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-114",
+    "prompt": "დახატე დაჭმუჭნილი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-115",
+    "prompt": "დახატე ძველი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-116",
+    "prompt": "დახატე მშვიდი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-117",
+    "prompt": "დახატე დაბზარული ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-118",
+    "prompt": "დახატე მსუბუქი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-119",
+    "prompt": "დახატე მრგვალი ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-120",
+    "prompt": "დახატე მარტოსული ბლოკნოტი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-121",
+    "prompt": "დახატე პატარა საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-122",
+    "prompt": "დახატე დაკარგული საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-123",
+    "prompt": "დახატე მტვრიანი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-124",
+    "prompt": "დახატე სველი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-125",
+    "prompt": "დახატე მბზინავი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-126",
+    "prompt": "დახატე დაჭმუჭნილი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-127",
+    "prompt": "დახატე ძველი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-128",
+    "prompt": "დახატე მშვიდი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-129",
+    "prompt": "დახატე დაბზარული საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-130",
+    "prompt": "დახატე მსუბუქი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-131",
+    "prompt": "დახატე მრგვალი საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-132",
+    "prompt": "დახატე მარტოსული საპონი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-133",
+    "prompt": "დახატე პატარა კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-134",
+    "prompt": "დახატე დაკარგული კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-135",
+    "prompt": "დახატე მტვრიანი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-136",
+    "prompt": "დახატე სველი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-137",
+    "prompt": "დახატე მბზინავი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-138",
+    "prompt": "დახატე დაჭმუჭნილი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-139",
+    "prompt": "დახატე ძველი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-140",
+    "prompt": "დახატე მშვიდი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-141",
+    "prompt": "დახატე დაბზარული კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-142",
+    "prompt": "დახატე მსუბუქი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-143",
+    "prompt": "დახატე მრგვალი კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-144",
+    "prompt": "დახატე მარტოსული კბილის ჯაგრისი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-145",
+    "prompt": "დახატე პატარა სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-146",
+    "prompt": "დახატე დაკარგული სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-147",
+    "prompt": "დახატე მტვრიანი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-148",
+    "prompt": "დახატე სველი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-149",
+    "prompt": "დახატე მბზინავი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-150",
+    "prompt": "დახატე დაჭმუჭნილი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-151",
+    "prompt": "დახატე ძველი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-152",
+    "prompt": "დახატე მშვიდი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-153",
+    "prompt": "დახატე დაბზარული სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-154",
+    "prompt": "დახატე მსუბუქი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-155",
+    "prompt": "დახატე მრგვალი სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-156",
+    "prompt": "დახატე მარტოსული სავარცხელი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-157",
+    "prompt": "დახატე პატარა ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-158",
+    "prompt": "დახატე დაკარგული ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-159",
+    "prompt": "დახატე მტვრიანი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-160",
+    "prompt": "დახატე სველი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-161",
+    "prompt": "დახატე მბზინავი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-162",
+    "prompt": "დახატე დაჭმუჭნილი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-163",
+    "prompt": "დახატე ძველი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-164",
+    "prompt": "დახატე მშვიდი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-165",
+    "prompt": "დახატე დაბზარული ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-166",
+    "prompt": "დახატე მსუბუქი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-167",
+    "prompt": "დახატე მრგვალი ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-168",
+    "prompt": "დახატე მარტოსული ყურსასმენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-169",
+    "prompt": "დახატე პატარა ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-170",
+    "prompt": "დახატე დაკარგული ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-171",
+    "prompt": "დახატე მტვრიანი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-172",
+    "prompt": "დახატე სველი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-173",
+    "prompt": "დახატე მბზინავი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-174",
+    "prompt": "დახატე დაჭმუჭნილი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-175",
+    "prompt": "დახატე ძველი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-176",
+    "prompt": "დახატე მშვიდი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-177",
+    "prompt": "დახატე დაბზარული ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-178",
+    "prompt": "დახატე მსუბუქი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-179",
+    "prompt": "დახატე მრგვალი ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-180",
+    "prompt": "დახატე მარტოსული ტელეფონის დამტენი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-181",
+    "prompt": "დახატე პრიალა პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-182",
+    "prompt": "დახატე ელეგანტური პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-183",
+    "prompt": "დახატე ფერადი პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-184",
+    "prompt": "დახატე მბზინავი პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-185",
+    "prompt": "დახატე კოხტა პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-186",
+    "prompt": "დახატე მსუბუქი პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-187",
+    "prompt": "დახატე პატარა პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-188",
+    "prompt": "დახატე დაკარგული პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-189",
+    "prompt": "დახატე სუფთა პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-190",
+    "prompt": "დახატე წყნარი პომადა.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-191",
+    "prompt": "დახატე პრიალა სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-192",
+    "prompt": "დახატე ელეგანტური სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-193",
+    "prompt": "დახატე ფერადი სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-194",
+    "prompt": "დახატე მბზინავი სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-195",
+    "prompt": "დახატე კოხტა სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-196",
+    "prompt": "დახატე მსუბუქი სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-197",
+    "prompt": "დახატე პატარა სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-198",
+    "prompt": "დახატე დაკარგული სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-199",
+    "prompt": "დახატე სუფთა სუნამოს ბოთლი.",
+    "familySafe": true
+  },
+  {
+    "id": "draw-and-deceive-200",
+    "prompt": "დახატე წყნარი სუნამოს ბოთლი.",
+    "familySafe": true
+  }
+]

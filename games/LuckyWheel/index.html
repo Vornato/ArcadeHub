@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>იღბლის ბორბალი</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="page-glow page-glow-left"></div>
+  <div class="page-glow page-glow-right"></div>
+
+  <main class="app-shell">
+    <section id="setupScreen" class="screen screen-active">
+      <header class="hero-card">
+        <p class="eyebrow">ქართული წვეულების ბორბალი</p>
+        <h1>იღბლის ბორბალი</h1>
+        <p class="hero-copy">
+          ჩაწერე მოთამაშეების სახელები, მერე დაატრიალე დიდი ბორბალი და ნახე რომელი ნივთი ამოუვა თითოეულს.
+        </p>
+      </header>
+
+      <section class="panel setup-panel">
+        <div class="section-head">
+          <div>
+            <h2>მოთამაშეების დამატება</h2>
+            <p>შეიყვანე სახელები სათითაოდ. როცა ყველა დაემატება, დაიწყე თამაში.</p>
+          </div>
+          <span id="setupCount" class="count-pill">0 მოთამაშე</span>
+        </div>
+
+        <form id="playerForm" class="player-form">
+          <label class="field-block">
+            <span>მოთამაშის სახელი</span>
+            <input id="playerNameInput" type="text" maxlength="22" placeholder="მაგალითი: ნინი" autocomplete="off">
+          </label>
+          <button id="addPlayerButton" class="secondary-btn" type="submit">დამატება</button>
+        </form>
+
+        <div class="setup-actions">
+          <button id="startGameButton" class="primary-btn" type="button" disabled>თამაშის დაწყება</button>
+          <button id="clearPlayersButton" class="ghost-btn" type="button">სიის გასუფთავება</button>
+        </div>
+
+        <div id="setupMessage" class="inline-message" aria-live="polite"></div>
+
+        <div id="playersPreview" class="players-preview empty-state">
+          ჯერ მოთამაშეები არ არიან დამატებული.
+        </div>
+      </section>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <header class="panel topbar">
+        <div>
+          <p class="eyebrow">ბორბალი მზად არის</p>
+          <h2>დაატრიალე და ნახე რა ამოვა</h2>
+        </div>
+        <div class="topbar-actions">
+          <button id="backToSetupButton" class="ghost-btn" type="button">სახელების შეცვლა</button>
+        </div>
+      </header>
+
+      <section class="wheel-layout">
+        <div class="wheel-stage panel">
+          <div class="wheel-wrap">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <canvas id="wheelCanvas" width="900" height="900" aria-label="საბრუნავი ბორბალი"></canvas>
+            <button id="spinButton" class="spin-button" type="button">დაატრიალე</button>
+          </div>
+
+          <div class="result-card">
+            <p class="result-kicker">ამოვიდა</p>
+            <h3 id="resultHeadline" class="result-word">დაატრიალე ბორბალი</h3>
+          </div>
+
+          <div id="resultReveal" class="result-reveal" aria-hidden="true">
+            <p class="result-reveal-kicker">ამოვიდა</p>
+            <strong id="resultRevealText">დაატრიალე ბორბალი</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel players-panel">
+        <div class="section-head">
+          <div>
+            <h3>მოთამაშეები</h3>
+            <p>ქვემოთ წერია ყველა დამატებული მოთამაშე.</p>
+          </div>
+        </div>
+        <div id="playersList" class="players-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./main.js"></script>
+</body>
+</html>

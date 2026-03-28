@@ -1,0 +1,19 @@
+{
+  "name": "levans-box",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ქართული წვეულების პაკეტი ერთ ჰოსტ ეკრანზე და ტელეფონებით შესაერთებელი მოთამაშეებით.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js",
+    "generate:data": "node scripts/generate-data.js",
+    "smoke": "node scripts/smoke-test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  }
+}

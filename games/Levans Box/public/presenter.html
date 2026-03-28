@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ლევანს ბოქსი | ეკრანი</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="screen-presenter">
+  <video id="backgroundVideo" class="background-video" autoplay muted loop playsinline preload="auto"></video>
+  <div class="bg-overlay"></div>
+
+  <div class="presenter-shell">
+    <main id="presenterRoot" class="presenter-root"></main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/static/presenter.js"></script>
+</body>
+</html>

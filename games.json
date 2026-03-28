@@ -1,56 +1,74 @@
 [
-    {
-        "id": "top-knights",
-        "title": "Top Knights",
-        "folder": "TopKnights",
-        "thumbnail": "games/TopKnights/art/top-knights-banner.png",
-        "description": "Top-down strategy empire builder. Command armies, manage resources, and defeat rival nations in campaign or split-screen.",
-        "tags": ["strategy", "rts", "multiplayer"],
-        "featured": true
-    },
-    {
-        "id": "neon-snake",
-        "title": "Neon Snake",
-        "folder": "neon-snake",
-        "thumbnail": "https://placehold.co/400x250/1a1a20/ff0055?text=Neon+Snake",
-        "description": "A cyberpunk twist on the classic snake game.",
-        "tags": ["arcade", "retro"],
-        "featured": false
-    },
-    {
-        "id": "stone-shooter",
-        "title": "Stone Shooter",
-        "folder": "StoneShooter",
-        "thumbnail": "https://placehold.co/400x250/1a1a20/00e5ff?text=Stone+Shooter",
-        "description": "Match colored stones in this puzzle arcade game. Features solo puzzles and local versus mode.",
-        "tags": ["puzzle", "strategy", "versus"],
-        "featured": false
-    },
-    {
-        "id": "tower-balancity",
-        "title": "Tower Balancity",
-        "folder": "towerbalancity",
-        "thumbnail": "Covers/towerbalancity.png",
-        "description": "Build the highest and most stable tower in this physics-based puzzle game!",
-        "tags": ["puzzle", "physics", "arcade"],
-        "featured": false
-    },
-    {
-        "id": "twisted-blur",
-        "title": "TwistedBlur",
-        "folder": "TwistedBlur",
-        "thumbnail": "Covers/Twistedblur.png",
-        "description": "Local multiplayer vehicle-combat racing with split-screen battles, pickups, boosts, and AI rivals.",
-        "tags": ["racing", "combat", "multiplayer"],
-        "featured": false
-    },
-    {
-        "id": "artificial-skin",
-        "title": "Artificial Skin",
-        "folder": "Artificial_Skin",
-        "thumbnail": "Covers/artificial_skin.png",
-        "description": "A two-player branching detective episode told through pre-rendered video, with shared choices and split-vote outcomes.",
-        "tags": ["narrative", "fmv", "co-op"],
-        "featured": false
-    }
+  {
+    "id": "top-knights",
+    "title": "Top Knights",
+    "folder": "TopKnights",
+    "thumbnail": "games/TopKnights/art/top-knights-banner.png",
+    "description": "Top-down strategy empire builder. Command armies, manage resources, and defeat rival nations in campaign or split-screen.",
+    "tags": ["strategy", "rts", "multiplayer"],
+    "featured": true
+  },
+  {
+    "id": "neon-snake",
+    "title": "Neon Snake",
+    "folder": "neon-snake",
+    "thumbnail": "https://placehold.co/400x250/1a1a20/ff0055?text=Neon+Snake",
+    "description": "A cyberpunk twist on the classic snake game.",
+    "tags": ["arcade", "retro"],
+    "featured": false
+  },
+  {
+    "id": "stone-shooter",
+    "title": "Stone Shooter",
+    "folder": "StoneShooter",
+    "thumbnail": "https://placehold.co/400x250/1a1a20/00e5ff?text=Stone+Shooter",
+    "description": "Match colored stones in this puzzle arcade game. Features solo puzzles and local versus mode.",
+    "tags": ["puzzle", "strategy", "versus"],
+    "featured": false
+  },
+  {
+    "id": "tower-balancity",
+    "title": "Tower Balancity",
+    "folder": "towerbalancity",
+    "thumbnail": "Covers/towerbalancity.png",
+    "description": "Build the highest and most stable tower in this physics-based puzzle game.",
+    "tags": ["puzzle", "physics", "arcade"],
+    "featured": false
+  },
+  {
+    "id": "twisted-blur",
+    "title": "TwistedBlur",
+    "folder": "TwistedBlur",
+    "thumbnail": "Covers/Twistedblur.png",
+    "description": "Local multiplayer vehicle-combat racing with split-screen battles, pickups, boosts, and AI rivals.",
+    "tags": ["racing", "combat", "multiplayer"],
+    "featured": false
+  },
+  {
+    "id": "artificial-skin",
+    "title": "Artificial Skin",
+    "folder": "Artificial_Skin",
+    "thumbnail": "Covers/artificial_skin.png",
+    "description": "A two-player branching detective episode told through pre-rendered video, with shared choices and split-vote outcomes.",
+    "tags": ["narrative", "fmv", "co-op"],
+    "featured": false
+  },
+  {
+    "id": "levans-box",
+    "title": "Levans Box",
+    "folder": "Levans Box",
+    "thumbnail": "games/Levans Box/assets/levans-box-cover.svg",
+    "description": "Georgian party pack with a shared host screen, mobile players, and eight different local party games.",
+    "tags": ["party", "trivia", "multiplayer"],
+    "featured": true
+  },
+  {
+    "id": "lucky-wheel",
+    "title": "Lucky Wheel",
+    "folder": "LuckyWheel",
+    "thumbnail": "games/LuckyWheel/assets/lucky-wheel-cover.svg",
+    "description": "Simple Georgian party wheel. Add player names, spin the big wheel, and see which of 50 fun items appears next.",
+    "tags": ["party", "wheel", "local"],
+    "featured": false
+  }
 ]

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Levans Box cover</title>
+  <desc id="desc">Stylized cover art for Levans Box party pack.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231942"/>
+      <stop offset="45%" stop-color="#0f4c5c"/>
+      <stop offset="100%" stop-color="#e36414"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff7e6"/>
+      <stop offset="100%" stop-color="#ffe0b2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="170" cy="140" r="110" fill="#ffca3a" opacity="0.22"/>
+  <circle cx="1020" cy="560" r="150" fill="#f4a261" opacity="0.18"/>
+  <circle cx="980" cy="150" r="90" fill="#84a59d" opacity="0.16"/>
+
+  <g transform="translate(180 120)">
+    <rect x="0" y="0" width="840" height="480" rx="32" fill="#0d1b2a" opacity="0.64"/>
+    <rect x="26" y="24" width="788" height="432" rx="28" fill="none" stroke="#fff4d6" stroke-width="4" opacity="0.9"/>
+
+    <g transform="translate(72 76)">
+      <text x="0" y="0" fill="#ffd166" font-size="30" font-family="Trebuchet MS, Lucida Sans, sans-serif" letter-spacing="8">ქართული პაკეტი</text>
+      <text x="0" y="112" fill="#fff7e6" font-size="116" font-weight="700" font-family="Trebuchet MS, Lucida Sans, sans-serif">LEVANS</text>
+      <text x="0" y="226" fill="#fff7e6" font-size="116" font-weight="700" font-family="Trebuchet MS, Lucida Sans, sans-serif">BOX</text>
+      <text x="0" y="304" fill="#ffe5c2" font-size="34" font-family="Georgia, Times New Roman, serif">რვა თამაში. ერთი ეკრანი. ყველა ტელეფონიდან.</text>
+    </g>
+
+    <g transform="translate(560 112)">
+      <rect x="0" y="0" width="180" height="230" rx="26" fill="url(#card)"/>
+      <rect x="18" y="18" width="144" height="194" rx="18" fill="#fffaf0"/>
+      <circle cx="90" cy="72" r="28" fill="#e36414"/>
+      <path d="M58 142h64M58 166h84M58 190h52" stroke="#0f4c5c" stroke-width="12" stroke-linecap="round"/>
+      <text x="90" y="258" text-anchor="middle" fill="#fff7e6" font-size="28" font-family="Trebuchet MS, Lucida Sans, sans-serif">8 რეჟიმი</text>
+    </g>
+  </g>
+</svg>
