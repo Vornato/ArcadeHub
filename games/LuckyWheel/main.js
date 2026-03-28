@@ -96,6 +96,276 @@ const state = {
   revealTimeoutId: 0
 };
 
+const audioState = {
+  context: null,
+  masterGain: null,
+  noiseBuffer: null,
+  spinOscillator: null,
+  spinFilter: null,
+  spinGain: null,
+  lastPointerIndex: -1,
+  lastTickTime: 0
+};
+
+function ensureAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  if (!audioState.context) {
+    audioState.context = new AudioContextClass();
+    audioState.masterGain = audioState.context.createGain();
+    audioState.masterGain.gain.value = 0.22;
+    audioState.masterGain.connect(audioState.context.destination);
+  }
+
+  if (audioState.context.state === "suspended") {
+    audioState.context.resume().catch(() => {});
+  }
+
+  return audioState.context;
+}
+
+function getNoiseBuffer(context) {
+  if (audioState.noiseBuffer && audioState.noiseBuffer.sampleRate === context.sampleRate) {
+    return audioState.noiseBuffer;
+  }
+
+  const length = Math.floor(context.sampleRate * 0.25);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const channel = buffer.getChannelData(0);
+
+  for (let index = 0; index < length; index += 1) {
+    channel[index] = (Math.random() * 2 - 1) * (1 - index / length);
+  }
+
+  audioState.noiseBuffer = buffer;
+  return buffer;
+}
+
+function playSpinTick(intensity = 0.5) {
+  const context = ensureAudioContext();
+  if (!context || !audioState.masterGain) {
+    return;
+  }
+
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(820 + intensity * 620 + Math.random() * 80, now);
+  oscillator.frequency.exponentialRampToValueAtTime(480 + intensity * 150, now + 0.045);
+
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(1300 + intensity * 600, now);
+  filter.Q.value = 1.5;
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.015 + intensity * 0.04, now + 0.003);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+  oscillator.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioState.masterGain);
+
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+  };
+
+  oscillator.start(now);
+  oscillator.stop(now + 0.055);
+}
+
+function startSpinAudio(rotation = state.rotation) {
+  const context = ensureAudioContext();
+  if (!context || !audioState.masterGain) {
+    return;
+  }
+
+  stopSpinAudio(0.04);
+
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+
+  oscillator.type = "sawtooth";
+  oscillator.frequency.setValueAtTime(210, now);
+
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(1180, now);
+  filter.Q.value = 0.4;
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.032, now + 0.08);
+
+  oscillator.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioState.masterGain);
+  oscillator.start(now);
+
+  audioState.spinOscillator = oscillator;
+  audioState.spinFilter = filter;
+  audioState.spinGain = gain;
+  audioState.lastPointerIndex = getItemIndexAtPointer(rotation);
+  audioState.lastTickTime = 0;
+}
+
+function updateSpinAudio(progress, nowMs, rotation = state.rotation) {
+  const context = audioState.context;
+  const oscillator = audioState.spinOscillator;
+  const filter = audioState.spinFilter;
+  const gain = audioState.spinGain;
+
+  if (!context || !oscillator || !filter || !gain) {
+    return;
+  }
+
+  const audioNow = context.currentTime;
+  const speed = Math.max(0.18, 1 - progress);
+
+  oscillator.frequency.cancelScheduledValues(audioNow);
+  oscillator.frequency.setTargetAtTime(92 + speed * 138, audioNow, 0.03);
+
+  filter.frequency.cancelScheduledValues(audioNow);
+  filter.frequency.setTargetAtTime(260 + speed * 980, audioNow, 0.04);
+
+  gain.gain.cancelScheduledValues(audioNow);
+  gain.gain.setTargetAtTime(0.012 + speed * 0.028, audioNow, 0.05);
+
+  const pointerIndex = getItemIndexAtPointer(rotation);
+  const minInterval = 38 + progress * 42;
+  if (pointerIndex !== audioState.lastPointerIndex) {
+    if (nowMs - audioState.lastTickTime >= minInterval) {
+      playSpinTick(speed);
+      audioState.lastTickTime = nowMs;
+    }
+    audioState.lastPointerIndex = pointerIndex;
+  }
+}
+
+function stopSpinAudio(releaseSeconds = 0.12) {
+  const context = audioState.context;
+  const oscillator = audioState.spinOscillator;
+  const filter = audioState.spinFilter;
+  const gain = audioState.spinGain;
+
+  audioState.spinOscillator = null;
+  audioState.spinFilter = null;
+  audioState.spinGain = null;
+  audioState.lastPointerIndex = -1;
+  audioState.lastTickTime = 0;
+
+  if (!context || !oscillator || !gain) {
+    return;
+  }
+
+  const now = context.currentTime;
+  const stopAt = now + Math.max(0.01, releaseSeconds);
+  const currentGain = Math.max(gain.gain.value || 0.02, 0.0001);
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(currentGain, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    if (filter) {
+      filter.disconnect();
+    }
+    gain.disconnect();
+  };
+
+  try {
+    oscillator.stop(stopAt + 0.01);
+  } catch (error) {
+    // Ignore duplicate stop calls when a spin ends during cleanup.
+  }
+}
+
+function playPopSound() {
+  const context = ensureAudioContext();
+  if (!context || !audioState.masterGain) {
+    return;
+  }
+
+  const now = context.currentTime;
+  const tone = context.createOscillator();
+  const toneGain = context.createGain();
+  const sparkle = context.createOscillator();
+  const sparkleGain = context.createGain();
+  const noise = context.createBufferSource();
+  const noiseFilter = context.createBiquadFilter();
+  const noiseGain = context.createGain();
+
+  tone.type = "triangle";
+  tone.frequency.setValueAtTime(170, now);
+  tone.frequency.exponentialRampToValueAtTime(420, now + 0.06);
+  tone.frequency.exponentialRampToValueAtTime(250, now + 0.22);
+  toneGain.gain.setValueAtTime(0.0001, now);
+  toneGain.gain.exponentialRampToValueAtTime(0.1, now + 0.02);
+  toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+  sparkle.type = "sine";
+  sparkle.frequency.setValueAtTime(620, now);
+  sparkle.frequency.exponentialRampToValueAtTime(980, now + 0.12);
+  sparkleGain.gain.setValueAtTime(0.0001, now);
+  sparkleGain.gain.exponentialRampToValueAtTime(0.04, now + 0.015);
+  sparkleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+  noise.buffer = getNoiseBuffer(context);
+  noiseFilter.type = "bandpass";
+  noiseFilter.frequency.setValueAtTime(880, now);
+  noiseFilter.Q.value = 0.8;
+  noiseGain.gain.setValueAtTime(0.0001, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.12, now + 0.006);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+
+  tone.connect(toneGain);
+  toneGain.connect(audioState.masterGain);
+  sparkle.connect(sparkleGain);
+  sparkleGain.connect(audioState.masterGain);
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(audioState.masterGain);
+
+  tone.onended = () => {
+    tone.disconnect();
+    toneGain.disconnect();
+  };
+  sparkle.onended = () => {
+    sparkle.disconnect();
+    sparkleGain.disconnect();
+  };
+  noise.onended = () => {
+    noise.disconnect();
+    noiseFilter.disconnect();
+    noiseGain.disconnect();
+  };
+
+  tone.start(now);
+  sparkle.start(now);
+  noise.start(now);
+
+  tone.stop(now + 0.25);
+  sparkle.stop(now + 0.2);
+  noise.stop(now + 0.12);
+}
+
+function abortSpin() {
+  if (state.animationFrameId) {
+    cancelAnimationFrame(state.animationFrameId);
+    state.animationFrameId = 0;
+  }
+
+  state.spinning = false;
+  stopSpinAudio(0.04);
+}
+
 function sanitizeName(value) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, 22);
 }
@@ -112,7 +382,7 @@ function switchScreen(target) {
 
 function renderSetupPlayers() {
   elements.setupCount.textContent = `${state.players.length} მოთამაშე`;
-  elements.startGameButton.disabled = state.players.length === 0;
+  elements.startGameButton.disabled = false;
 
   if (!state.players.length) {
     elements.playersPreview.className = "players-preview empty-state";
@@ -170,11 +440,11 @@ function showResultReveal(label) {
 }
 
 function renderResult() {
-  elements.spinButton.disabled = state.spinning || state.players.length === 0;
+  elements.spinButton.disabled = state.spinning;
   elements.spinButton.textContent = state.spinning ? "ტრიალებს..." : "დაატრიალე";
 
   if (!state.lastResult) {
-    elements.resultHeadline.textContent = state.players.length ? "დაატრიალე ბორბალი" : "დაამატე მოთამაშეები";
+    elements.resultHeadline.textContent = "დაატრიალე ბორბალი";
     return;
   }
 
@@ -261,29 +531,37 @@ function getItemIndexAtPointer(rotation = state.rotation) {
 }
 
 function finishSpin(playerIndex, itemIndex) {
+  state.animationFrameId = 0;
   state.spinning = false;
+  stopSpinAudio();
+  const hasPlayers = state.players.length > 0;
   state.lastResult = {
     playerIndex,
-    playerName: state.players[playerIndex],
+    playerName: hasPlayers ? state.players[playerIndex] : null,
     itemIndex,
     itemLabel: items[itemIndex].label
   };
-  state.activePlayerIndex = (playerIndex + 1) % state.players.length;
+  state.activePlayerIndex = hasPlayers ? (playerIndex + 1) % state.players.length : 0;
   renderPlayersList();
   renderResult();
+  playPopSound();
   showResultReveal(state.lastResult.itemLabel);
   drawWheel();
 }
 
 function spinWheel() {
-  if (state.spinning || !state.players.length) {
+  if (state.spinning) {
     return;
   }
 
-  cancelAnimationFrame(state.animationFrameId);
+  if (state.animationFrameId) {
+    cancelAnimationFrame(state.animationFrameId);
+    state.animationFrameId = 0;
+  }
+  stopSpinAudio(0.04);
   hideResultReveal();
 
-  const playerIndex = state.activePlayerIndex;
+  const playerIndex = state.players.length ? state.activePlayerIndex : -1;
   const itemIndex = Math.floor(Math.random() * items.length);
   const full = Math.PI * 2;
   const targetNormalized = getRotationForItemIndex(itemIndex);
@@ -297,11 +575,13 @@ function spinWheel() {
 
   state.spinning = true;
   renderResult();
+  startSpinAudio(startRotation);
 
   function animate(now) {
     const progress = Math.min(1, (now - startTime) / duration);
     const eased = easeOutCubic(progress);
     state.rotation = startRotation + delta * eased;
+    updateSpinAudio(progress, now, state.rotation);
     drawWheel();
 
     if (progress < 1) {
@@ -319,11 +599,7 @@ function spinWheel() {
 }
 
 function startGame() {
-  if (!state.players.length) {
-    setSetupMessage("ჯერ მინიმუმ ერთი მოთამაშე დაამატე.");
-    return;
-  }
-
+  abortSpin();
   state.activePlayerIndex = 0;
   state.lastResult = null;
   state.rotation = 0;
@@ -354,6 +630,7 @@ function addPlayerFromInput() {
 }
 
 function clearPlayers() {
+  abortSpin();
   state.players = [];
   state.activePlayerIndex = 0;
   state.lastResult = null;
@@ -379,6 +656,7 @@ elements.playerForm.addEventListener("submit", (event) => {
 elements.clearPlayersButton.addEventListener("click", clearPlayers);
 elements.startGameButton.addEventListener("click", startGame);
 elements.backToSetupButton.addEventListener("click", () => {
+  abortSpin();
   hideResultReveal();
   switchScreen("setup");
   renderSetupPlayers();

@@ -19,6 +19,15 @@
       <section class="video-shell">
         <video id="scene-video" playsinline preload="auto"></video>
         <button id="video-fullscreen-button" class="secondary-button fullscreen-toggle" type="button" aria-pressed="false">Enter Fullscreen</button>
+        <div id="skip-hold-indicator" class="skip-hold-indicator" hidden>
+          <div class="skip-hold-copy">
+            <span id="skip-hold-label" class="skip-hold-label">Skip Scene</span>
+            <span id="skip-hold-meta" class="skip-hold-meta">Hold Space</span>
+          </div>
+          <div class="skip-hold-track" aria-hidden="true">
+            <div id="skip-hold-fill" class="skip-hold-fill"></div>
+          </div>
+        </div>
 
         <div class="video-hud">
           <div class="hud-topline">

@@ -729,6 +729,9 @@ const DEVICE_LABELS = {
 const GAMEPAD_OPTION_LABELS = { 1: "X", 2: "Y", 3: "B" };
 const KEYBOARD_OPTION_LABELS = { 1: "A", 2: "S", 3: "D" };
 const GAMEPAD_CONNECTION_GRACE_MS = 1800;
+const SCENE_SKIP_HOLD_MS = 1400;
+const SCENE_SKIP_GAMEPAD_BUTTON_INDEX = 5;
+const SKIP_KEY_CODES = new Set(["Space"]);
 
 const video = document.getElementById("scene-video");
 const appSeasonLabel = document.getElementById("app-season-label");
@@ -793,6 +796,10 @@ const errorTitle = document.getElementById("error-title");
 const errorMessage = document.getElementById("error-message");
 const menuFullscreenButton = document.getElementById("menu-fullscreen-button");
 const videoFullscreenButton = document.getElementById("video-fullscreen-button");
+const skipHoldIndicator = document.getElementById("skip-hold-indicator");
+const skipHoldLabel = document.getElementById("skip-hold-label");
+const skipHoldMeta = document.getElementById("skip-hold-meta");
+const skipHoldFill = document.getElementById("skip-hold-fill");
 const startButton = document.getElementById("start-button");
 const continueButton = document.getElementById("continue-button");
 const pauseRestartButton = document.getElementById("pause-restart-button");
@@ -849,7 +856,17 @@ const state = {
   gamepadConnectionSignature: "",
   gamepadLastSeenAt: { gamepad1: 0, gamepad2: 0 },
   lastInputMethod: "mouse",
-  isFullscreenActive: false
+  isFullscreenActive: false,
+  skipHold: {
+    keyboardPressed: false,
+    keyboardStartedAt: 0,
+    keyboardLatched: false,
+    gamepadPressed: { gamepad1: false, gamepad2: false },
+    gamepadStartedAt: { gamepad1: 0, gamepad2: 0 },
+    gamepadLatched: { gamepad1: false, gamepad2: false },
+    progress: 0,
+    source: null
+  }
 };
 
 function isOverlayVisible(element) {
@@ -966,6 +983,34 @@ function clearChoiceTimer() {
   state.pendingNextSceneId = null;
   state.resolveRemainingMs = 0;
   state.resolveEndsAt = 0;
+}
+
+function clearSkipHoldState(options = {}) {
+  const { latchPressed = false, clearAll = false } = options;
+
+  state.skipHold.progress = 0;
+  state.skipHold.source = null;
+  state.skipHold.keyboardStartedAt = 0;
+
+  if (clearAll) {
+    state.skipHold.keyboardPressed = false;
+    state.skipHold.keyboardLatched = false;
+  } else if (latchPressed && state.skipHold.keyboardPressed) {
+    state.skipHold.keyboardLatched = true;
+  }
+
+  Object.keys(state.skipHold.gamepadStartedAt).forEach((device) => {
+    state.skipHold.gamepadStartedAt[device] = 0;
+
+    if (clearAll) {
+      state.skipHold.gamepadPressed[device] = false;
+      state.skipHold.gamepadLatched[device] = false;
+    } else if (latchPressed && state.skipHold.gamepadPressed[device]) {
+      state.skipHold.gamepadLatched[device] = true;
+    }
+  });
+
+  updateSkipIndicator();
 }
 
 function resetEpisodeMindState() {
