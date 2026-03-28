@@ -23,6 +23,13 @@ const SCORE_ATTACK_DURATION_MS = 120000;
 const ENDURANCE_BASE_PRESSURE_MS = 18000;
 const VERSUS_TARGET_SCORE = 5;
 const SOLO_TARGET_LEVELS = 5;
+const FINAL_SHOT_TIME_SCALE = 0.09;
+const PHOTO_FINISH_TIME_SCALE = 0.07;
+const FINAL_SHOT_ZOOM = 0.16;
+const FINAL_SHOT_WINDOW_MS = 260;
+const BIRD_SPAWN_MIN_FRAMES = 420;
+const BIRD_SPAWN_MAX_FRAMES = 840;
+const BIRD_MAX_ACTIVE = 1;
 const PLAYER_GLOW = [
     'rgba(255, 65, 54, 0.7)',
     'rgba(0, 116, 217, 0.7)',
@@ -210,6 +217,10 @@ function countColoredStonesInGrid(grid) {
 
 function clamp01(value) {
     return Math.max(0, Math.min(1, value));
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
 }
 
 function lerp(start, end, amount) {
@@ -700,6 +711,11 @@ class Board {
         this.baseBlueprint = null;
         this.baseStoneCount = 0;
         this.seed = null;
+        this.cameraZoom = 0;
+        this.lastFinalShotFocus = { x: this.boardWidth / 2, y: this.boardHeight * 0.34 };
+        this.birdRng = createRng('birds');
+        this.birds = [];
+        this.birdSpawnTimer = BIRD_SPAWN_MIN_FRAMES;
     }
 
     loadBlueprint(blueprint) {
@@ -730,10 +746,185 @@ class Board {
         this.msg = '';
         this.msgTimer = 0;
         this.msgScale = 1.0;
+        this.cameraZoom = 0;
+        this.lastFinalShotFocus = { x: this.boardWidth / 2, y: this.boardHeight * 0.34 };
+        this.birdRng = createRng(`${this.seed}:birds`);
+        this.birds = [];
+        this.birdSpawnTimer = this.usesBirdTraffic() ? rngInt(this.birdRng, BIRD_SPAWN_MIN_FRAMES, BIRD_SPAWN_MAX_FRAMES) : Number.POSITIVE_INFINITY;
     }
 
     restoreBaseBlueprint() {
         if (this.baseBlueprint) this.loadBlueprint(this.baseBlueprint);
+    }
+
+    getActiveFinalShotProjectile() {
+        return this.projectiles.find((projectile) => projectile.isFinalShot) || null;
+    }
+
+    usesBirdTraffic() {
+        return this.game.mode !== 'tutorial';
+    }
+
+    scheduleNextBird() {
+        if (!this.usesBirdTraffic()) {
+            this.birdSpawnTimer = Number.POSITIVE_INFINITY;
+            return;
+        }
+        this.birdSpawnTimer = rngInt(this.birdRng, BIRD_SPAWN_MIN_FRAMES, BIRD_SPAWN_MAX_FRAMES);
+    }
+
+    spawnBird() {
+        if (!this.usesBirdTraffic()) return;
+
+        const direction = this.birdRng() < 0.5 ? 1 : -1;
+        const minLane = 1;
+        const maxLane = Math.max(minLane + 1, this.rows - 3);
+        const lane = rngInt(this.birdRng, minLane, maxLane);
+        const baseY = clamp(
+            lane * (TILE_SIZE + TILE_GAP) + (TILE_SIZE * 0.4) + (this.birdRng() * 10) - 5,
+            60,
+            this.boardHeight - 86
+        );
+        const radiusX = 16 + (this.birdRng() * 4);
+        const radiusY = 10 + (this.birdRng() * 3);
+        const speed = (1.45 + (this.birdRng() * 1.05)) * direction;
+
+        this.birds.push({
+            x: direction > 0 ? -32 : this.boardWidth + 32,
+            y: baseY,
+            baseY,
+            vx: speed,
+            vy: 0,
+            radiusX,
+            radiusY,
+            flap: this.birdRng() * Math.PI * 2,
+            bobPhase: this.birdRng() * Math.PI * 2,
+            bobAmp: 4 + (this.birdRng() * 4),
+            rotation: 0,
+            spin: 0,
+            alpha: 1,
+            startled: false
+        });
+    }
+
+    burstBirdFeathers(bird, color) {
+        for (let i = 0; i < 10; i++) {
+            const feather = new Particle(
+                bird.x + ((this.birdRng() - 0.5) * 14),
+                bird.y + ((this.birdRng() - 0.5) * 10),
+                i % 2 === 0 ? '#F8FCFF' : color
+            );
+            feather.vx = (this.birdRng() - 0.5) * 5.5 + (bird.vx * 0.45);
+            feather.vy = -2.2 + (this.birdRng() * 4.4);
+            feather.life = 0.72;
+            feather.size = 5 + (this.birdRng() * 4);
+            this.particles.push(feather);
+        }
+    }
+
+    startleBird(bird, projectile) {
+        if (bird.startled) return;
+
+        bird.startled = true;
+        bird.vx = (bird.vx >= 0 ? 1 : -1) * (Math.abs(bird.vx) + 1.9);
+        bird.vy = -1.8 - (this.birdRng() * 1.1);
+        bird.spin = (bird.vx >= 0 ? 0.05 : -0.05) * (1 + (this.birdRng() * 0.7));
+        this.burstBirdFeathers(bird, projectile.stone.hex);
+        this.shake = Math.max(this.shake, 8);
+        this.showMsg(projectile.isFinalShot ? 'BIRD BLOCKED' : 'BIRD!');
+        this.sound.playTone(560, 'triangle', 0.08, 0.035);
+    }
+
+    hitBirdWithProjectile(projectile, previousY) {
+        for (const bird of this.birds) {
+            if (bird.startled) continue;
+            if (Math.abs(projectile.x - bird.x) > (bird.radiusX + 8)) continue;
+
+            const minY = Math.min(previousY, projectile.y) - (bird.radiusY + 6);
+            const maxY = Math.max(previousY, projectile.y) + (bird.radiusY + 6);
+            if (bird.y < minY || bird.y > maxY) continue;
+
+            this.startleBird(bird, projectile);
+            return true;
+        }
+        return false;
+    }
+
+    updateBirds(speedScale) {
+        if (this.usesBirdTraffic() && this.state === 'playing' && !this.game.roundEnding) {
+            this.birdSpawnTimer -= speedScale;
+            if (this.birdSpawnTimer <= 0) {
+                if (this.birds.filter((bird) => !bird.startled).length < BIRD_MAX_ACTIVE) {
+                    this.spawnBird();
+                }
+                this.scheduleNextBird();
+            }
+        }
+
+        for (let i = this.birds.length - 1; i >= 0; i--) {
+            const bird = this.birds[i];
+            bird.flap += (bird.startled ? 0.6 : 0.34) * speedScale;
+
+            if (bird.startled) {
+                bird.vy += 0.12 * speedScale;
+                bird.x += bird.vx * speedScale;
+                bird.y += bird.vy * speedScale;
+                bird.rotation += bird.spin * speedScale;
+                bird.alpha -= 0.012 * speedScale;
+            } else {
+                bird.x += bird.vx * speedScale;
+                bird.y = bird.baseY + (Math.sin((bird.flap * 0.45) + bird.bobPhase) * bird.bobAmp);
+            }
+
+            const offRight = bird.x > this.boardWidth + 44;
+            const offLeft = bird.x < -44;
+            const offBottom = bird.y > this.boardHeight + 44;
+            if (bird.alpha <= 0 || offRight || offLeft || offBottom) {
+                this.birds.splice(i, 1);
+            }
+        }
+    }
+
+    drawBirds(ctx) {
+        this.birds.forEach((bird) => {
+            const wingLift = Math.sin(bird.flap) * (bird.startled ? 10 : 7);
+            const bodyTilt = clamp(bird.rotation, -0.65, 0.65);
+
+            ctx.save();
+            ctx.globalAlpha = bird.alpha;
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(bodyTilt);
+
+            ctx.strokeStyle = bird.startled ? 'rgba(255, 226, 176, 0.92)' : 'rgba(216, 236, 255, 0.94)';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-2, -2);
+            ctx.quadraticCurveTo(-10, -10 - wingLift, -18, 2);
+            ctx.moveTo(2, -2);
+            ctx.quadraticCurveTo(10, -10 - wingLift, 18, 2);
+            ctx.stroke();
+
+            ctx.fillStyle = bird.startled ? 'rgba(255, 186, 112, 0.96)' : 'rgba(40, 53, 80, 0.96)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 7.5, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(245, 252, 255, 0.92)';
+            ctx.beginPath();
+            ctx.ellipse(0, -1.5, 3.8, 2.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFCB6B';
+            ctx.beginPath();
+            ctx.moveTo(7, 0);
+            ctx.lineTo(12, -1.5);
+            ctx.lineTo(12, 1.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        });
     }
 
     getRemainingStoneCount() {
@@ -798,9 +989,7 @@ class Board {
             return;
         }
 
-        if (countColoredStonesInGrid(this.grid) === 1 && !stone.isGarbage) {
-            this.game.targetTimeScale = 0.15;
-        }
+        const isFinalShot = countColoredStonesInGrid(this.grid) === 1 && !stone.isGarbage;
 
         this.projectiles.push({
             x: this.cursor * (TILE_SIZE + TILE_GAP) + TILE_SIZE / 2,
@@ -808,16 +997,27 @@ class Board {
             targetY: target.r * (TILE_SIZE + TILE_GAP) + TILE_SIZE / 2,
             stone,
             r: target.r,
-            c: this.cursor
+            c: this.cursor,
+            isFinalShot,
+            firedAt: window.performance ? window.performance.now() : Date.now()
         });
+
+        if (isFinalShot) {
+            this.lastFinalShotFocus = {
+                x: this.cursor * (TILE_SIZE + TILE_GAP) + TILE_SIZE / 2,
+                y: clamp(target.r * (TILE_SIZE + TILE_GAP) + TILE_SIZE / 2, 56, this.boardHeight - 18)
+            };
+            this.game.syncFinalShotCinematics();
+            const immediateScale = this.game.isPhotoFinishActive() ? PHOTO_FINISH_TIME_SCALE : FINAL_SHOT_TIME_SCALE;
+            this.game.timeScale = Math.min(this.game.timeScale, immediateScale);
+            this.game.targetTimeScale = Math.min(this.game.targetTimeScale, immediateScale);
+        }
 
         this.sound.playTone(400, 'square', 0.1, 0.05);
     }
 
     resolveHit(projectile) {
-        if (this.game.targetTimeScale < 1.0) {
-            this.game.targetTimeScale = 1.0;
-        }
+        if (this.state !== 'playing') return;
 
         const { r, c, stone } = projectile;
         if (this.grid[c][r] !== stone) return;
@@ -989,6 +1189,11 @@ class Board {
     shatterAll() {
         this.pendingGarbage = 0;
         this.garbageWarning = 0;
+        this.projectiles = [];
+        this.birds = [];
+        this.birdSpawnTimer = this.usesBirdTraffic() ? rngInt(this.birdRng, BIRD_SPAWN_MIN_FRAMES, BIRD_SPAWN_MAX_FRAMES) : Number.POSITIVE_INFINITY;
+        this.cameraZoom = 0;
+        this.lastFinalShotFocus = { x: this.boardWidth / 2, y: this.boardHeight * 0.34 };
         for (let c = 0; c < this.cols; c++) {
             for (let r = 0; r < this.rows; r++) {
                 if (this.grid[c][r]) {
@@ -1009,6 +1214,19 @@ class Board {
             this.comboTimer -= speedScale;
             if (this.comboTimer <= 0) this.combo = 0;
         }
+
+        const activeFinalShot = this.getActiveFinalShotProjectile();
+        if (activeFinalShot) {
+            this.lastFinalShotFocus = {
+                x: activeFinalShot.x,
+                y: clamp(activeFinalShot.y, 56, this.boardHeight - 18)
+            };
+        }
+        const zoomTarget = activeFinalShot ?
+            (FINAL_SHOT_ZOOM + (this.game.isPhotoFinishActive() ? 0.035 : 0)) :
+            0;
+        this.cameraZoom += (zoomTarget - this.cameraZoom) * (activeFinalShot ? 0.18 : 0.12);
+        if (this.cameraZoom < 0.002) this.cameraZoom = 0;
 
         if (this.state === 'playing' && !this.game.roundEnding && this.pendingGarbage > 0) {
             this.garbageWarning -= speedScale;
@@ -1046,9 +1264,14 @@ class Board {
             if (this.particles[i].life <= 0) this.particles.splice(i, 1);
         }
 
+        this.updateBirds(speedScale);
+
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const projectile = this.projectiles[i];
-            projectile.y -= 40 * speedScale;
+            const distanceBeforeHit = projectile.y - projectile.targetY;
+            const travel = 40 * speedScale;
+            const previousY = projectile.y;
+            projectile.y -= travel;
 
             const trail = new Particle(
                 projectile.x + ((Math.random() - 0.5) * 10),
@@ -1056,12 +1279,23 @@ class Board {
                 projectile.stone.hex
             );
             trail.vx *= 0.1;
-            trail.vy = Math.random() * 2;
-            trail.life = 0.6;
+            trail.vy = Math.random() * (projectile.isFinalShot ? 1.2 : 2);
+            trail.life = projectile.isFinalShot ? 0.78 : 0.6;
+            if (projectile.isFinalShot) trail.size *= 1.4;
             this.particles.push(trail);
 
+            if (this.hitBirdWithProjectile(projectile, previousY)) {
+                this.projectiles.splice(i, 1);
+                continue;
+            }
+
             if (projectile.y <= projectile.targetY) {
-                this.resolveHit(projectile);
+                projectile.y = projectile.targetY;
+                this.game.queueProjectileImpact(
+                    this,
+                    projectile,
+                    travel > 0 ? clamp01(distanceBeforeHit / travel) : 0
+                );
                 this.projectiles.splice(i, 1);
             }
         }
@@ -1582,6 +1816,20 @@ class Board {
             ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
         }
 
+        const activeFinalShot = this.getActiveFinalShotProjectile();
+        const cinematicFocus = activeFinalShot ?
+            {
+                x: activeFinalShot.x,
+                y: clamp(activeFinalShot.y, 56, this.boardHeight - 18)
+            } :
+            this.lastFinalShotFocus;
+        if (this.cameraZoom > 0.001 && cinematicFocus) {
+            const zoom = 1 + this.cameraZoom;
+            ctx.translate(cinematicFocus.x, cinematicFocus.y);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-cinematicFocus.x, -cinematicFocus.y);
+        }
+
         const playerColor = PLAYER_GLOW[this.playerIdx % PLAYER_GLOW.length];
         const banner = this.isVersus ? `P${this.playerIdx + 1}` :
             (this.game.mode === 'tutorial' ? 'TUTORIAL' :
@@ -1651,18 +1899,42 @@ class Board {
             }
         }
 
+        this.drawBirds(ctx);
+
         this.drawShooter(ctx);
 
         this.projectiles.forEach((projectile) => {
-            ctx.shadowBlur = 15;
+            const isFinalShot = !!projectile.isFinalShot;
+            const coreRadius = isFinalShot ? 10 : 8;
+            const streakLength = isFinalShot ? 54 : 40;
+            const streakWidth = isFinalShot ? 5 : 4;
+
+            if (isFinalShot) {
+                ctx.save();
+                ctx.globalAlpha = 0.24;
+                ctx.fillStyle = projectile.stone.hex;
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.shadowBlur = isFinalShot ? 24 : 15;
             ctx.shadowColor = projectile.stone.hex;
             ctx.fillStyle = '#FFF';
             ctx.beginPath();
-            ctx.arc(projectile.x, projectile.y, 8, 0, Math.PI * 2);
+            ctx.arc(projectile.x, projectile.y, coreRadius, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = 'rgba(255,255,255,0.8)';
-            ctx.fillRect(projectile.x - 2, projectile.y - 20, 4, 40);
-            ctx.fillRect(projectile.x - 20, projectile.y - 2, 40, 4);
+            ctx.fillRect(projectile.x - (streakWidth / 2), projectile.y - (streakLength / 2), streakWidth, streakLength);
+            ctx.fillRect(projectile.x - (streakLength / 2), projectile.y - (streakWidth / 2), streakLength, streakWidth);
+            if (isFinalShot) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, 15, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             ctx.shadowBlur = 0;
         });
 
@@ -1698,6 +1970,22 @@ class Board {
                 ctx.font = 'bold 13px Arial';
                 ctx.fillText('PRESS RESET TO REJOIN', this.boardWidth / 2, this.boardHeight / 2 + 18);
             }
+        }
+
+        if (this.cameraZoom > 0.001 && cinematicFocus) {
+            const vignette = ctx.createRadialGradient(
+                cinematicFocus.x,
+                cinematicFocus.y,
+                24,
+                cinematicFocus.x,
+                cinematicFocus.y,
+                Math.max(this.boardWidth, this.boardHeight) * 0.9
+            );
+            vignette.addColorStop(0, 'rgba(255,255,255,0)');
+            vignette.addColorStop(0.62, 'rgba(8, 12, 24, 0)');
+            vignette.addColorStop(1, `rgba(5, 8, 16, ${0.16 + (this.cameraZoom * 0.7)})`);
+            ctx.fillStyle = vignette;
+            ctx.fillRect(-24, -24, this.boardWidth + 48, this.boardHeight + 48);
         }
 
         ctx.restore();
@@ -1741,6 +2029,10 @@ class Game {
         this.endurancePressureMs = ENDURANCE_BASE_PRESSURE_MS;
         this.endurancePressureClock = ENDURANCE_BASE_PRESSURE_MS;
         this.tutorialState = null;
+        this.pendingProjectileImpacts = [];
+        this.projectileImpactSeq = 0;
+        this.activeFinalShotCount = 0;
+        this.activePhotoFinish = false;
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -1788,6 +2080,10 @@ class Game {
         this.endurancePressureMs = ENDURANCE_BASE_PRESSURE_MS;
         this.endurancePressureClock = this.endurancePressureMs;
         this.tutorialState = this.mode === 'tutorial' ? this.createTutorialState() : null;
+        this.pendingProjectileImpacts = [];
+        this.projectileImpactSeq = 0;
+        this.activeFinalShotCount = 0;
+        this.activePhotoFinish = false;
         this.lastStartConfig = {
             mode: this.mode,
             variant: this.variant,
@@ -1813,6 +2109,11 @@ class Game {
         }
         this.roundEnding = false;
         this.roundWinnerIdx = null;
+        this.pendingProjectileImpacts = [];
+        this.activeFinalShotCount = 0;
+        this.activePhotoFinish = false;
+        this.timeScale = 1.0;
+        this.targetTimeScale = 1.0;
         this.updateHud();
     }
 
@@ -1977,6 +2278,56 @@ class Game {
         if (!enemies.length) return;
         enemies[0].queueGarbage(amount);
         this.stats.garbageSent += amount;
+    }
+
+    queueProjectileImpact(board, projectile, impactFraction) {
+        this.pendingProjectileImpacts.push({
+            board,
+            projectile,
+            impactFraction,
+            order: this.projectileImpactSeq++
+        });
+    }
+
+    processProjectileImpacts() {
+        if (!this.pendingProjectileImpacts.length) return;
+
+        const impacts = this.pendingProjectileImpacts
+            .slice()
+            .sort((a, b) =>
+                a.impactFraction - b.impactFraction ||
+                (a.projectile.firedAt || 0) - (b.projectile.firedAt || 0) ||
+                a.order - b.order
+            );
+
+        this.pendingProjectileImpacts = [];
+        for (const impact of impacts) {
+            if (this.mode === 'versus' && this.boards.some((board) => board.state === 'win')) break;
+            impact.board.resolveHit(impact.projectile);
+        }
+    }
+
+    getActiveFinalShots() {
+        return this.boards
+            .filter((board) => board.state === 'playing')
+            .map((board) => ({ board, projectile: board.getActiveFinalShotProjectile() }))
+            .filter((entry) => entry.projectile);
+    }
+
+    isPhotoFinishActive(activeShots = null) {
+        const shots = activeShots || this.getActiveFinalShots();
+        if (shots.length < 2) return false;
+        const firedTimes = shots.map((entry) => entry.projectile.firedAt || 0);
+        return (Math.max(...firedTimes) - Math.min(...firedTimes)) <= FINAL_SHOT_WINDOW_MS;
+    }
+
+    syncFinalShotCinematics() {
+        const activeShots = this.getActiveFinalShots();
+        this.activeFinalShotCount = activeShots.length;
+        this.activePhotoFinish = this.isPhotoFinishActive(activeShots);
+        this.targetTimeScale = activeShots.length > 0 ?
+            (this.activePhotoFinish ? PHOTO_FINISH_TIME_SCALE : FINAL_SHOT_TIME_SCALE) :
+            1.0;
     }
 
     getVersusScoreLine() {
@@ -2266,6 +2617,8 @@ class Game {
             board.handleInput(this.input);
             board.update();
         });
+        this.processProjectileImpacts();
+        this.syncFinalShotCinematics();
 
         if (this.mode === 'tutorial') {
             const board = this.boards[0];
@@ -2564,6 +2917,41 @@ class Game {
         this.ctx.fillText(prompt, this.canvas.width / 2, y + 50);
     }
 
+    drawFinalShotOverlay() {
+        const activeShots = this.getActiveFinalShots();
+        if (!activeShots.length) return;
+
+        const photoFinish = this.isPhotoFinishActive(activeShots);
+        const label = photoFinish ? 'PHOTO FINISH' : 'FINAL SHOT';
+        const subtitle = photoFinish ?
+            'Whoever lands first takes it.' :
+            (this.mode === 'versus'
+                ? `P${activeShots[0].board.playerIdx + 1} is firing the last color`
+                : 'Last color in flight');
+
+        this.ctx.save();
+        const edgeFade = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        edgeFade.addColorStop(0, `rgba(4, 6, 12, ${photoFinish ? 0.22 : 0.14})`);
+        edgeFade.addColorStop(0.24, 'rgba(4, 6, 12, 0)');
+        edgeFade.addColorStop(0.78, 'rgba(4, 6, 12, 0)');
+        edgeFade.addColorStop(1, `rgba(4, 6, 12, ${photoFinish ? 0.28 : 0.16})`);
+        this.ctx.fillStyle = edgeFade;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'top';
+        this.ctx.shadowBlur = 18;
+        this.ctx.shadowColor = photoFinish ? '#FFC857' : '#7EE6FF';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 32px Segoe UI';
+        this.ctx.fillText(label, this.cx, 22);
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = 'rgba(220, 232, 255, 0.95)';
+        this.ctx.font = '600 14px Segoe UI';
+        this.ctx.fillText(subtitle, this.cx, 58);
+        this.ctx.restore();
+    }
+
     draw() {
         const time = Date.now();
         if (this.mode === 'menu') {
@@ -2618,6 +3006,8 @@ class Game {
             });
             this.ctx.restore();
         }
+
+        this.drawFinalShotOverlay();
 
         if (this.flash > 0) {
             this.ctx.fillStyle = `rgba(255,255,255,${this.flash})`;
