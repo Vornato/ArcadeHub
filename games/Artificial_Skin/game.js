@@ -974,6 +974,10 @@ function isEditableTarget(target) {
     && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "OPTION"].includes(target.tagName));
 }
 
+function isShortcutPassthroughTarget(target) {
+  return target instanceof HTMLElement && Boolean(target.closest("button, a, summary, [role='button']"));
+}
+
 function clearChoiceTimer() {
   if (state.resolveTimer) {
     window.clearTimeout(state.resolveTimer);
@@ -1044,6 +1048,73 @@ function getCurrentScene() {
 
 function isFinalScene(sceneId) {
   return getCurrentEpisode().finalScenes.has(sceneId);
+}
+
+function getActiveSkipGamepadDevices() {
+  return Array.from(new Set(
+    getActivePlayers()
+      .map((player) => getAssignedDevice(player))
+      .filter((device) => isGamepadDevice(device))
+  ));
+}
+
+function isSceneSkippingAvailable(scene = getCurrentScene()) {
+  return Boolean(
+    state.started
+    && !state.isPreparingEpisode
+    && scene
+    && state.currentSceneId
+    && !state.isPaused
+    && !state.waitingForVotes
+    && !state.resolvingChoice
+    && !isOverlayVisible(introScreen)
+    && !isOverlayVisible(endScreen)
+    && !isOverlayVisible(errorScreen)
+    && !loadingOverlay.classList.contains("is-visible")
+  );
+}
+
+function getSkipHoldTitle(scene = getCurrentScene()) {
+  if (!scene) {
+    return "Skip Scene";
+  }
+
+  if (scene.choices) {
+    return "Skip To Choice";
+  }
+
+  if (isFinalScene(state.currentSceneId) || (!scene.next && !scene.endingResolver)) {
+    return "Skip Ending";
+  }
+
+  return "Skip Scene";
+}
+
+function updateSkipIndicator() {
+  if (!skipHoldIndicator || !skipHoldLabel || !skipHoldMeta || !skipHoldFill) {
+    return;
+  }
+
+  const scene = getCurrentScene();
+  const available = isSceneSkippingAvailable(scene);
+  if (!available) {
+    skipHoldIndicator.hidden = true;
+    skipHoldIndicator.classList.remove("is-armed");
+    skipHoldFill.style.width = "0%";
+    return;
+  }
+
+  const hasConnectedSkipGamepad = getActiveSkipGamepadDevices().some((device) => getGamepadConnectionState(device));
+  const idleHint = hasConnectedSkipGamepad ? "Hold Space or RB" : "Hold Space";
+  const remainingSeconds = Math.max(0, SCENE_SKIP_HOLD_MS * (1 - state.skipHold.progress)) / 1000;
+
+  skipHoldIndicator.hidden = false;
+  skipHoldIndicator.classList.toggle("is-armed", state.skipHold.progress > 0);
+  skipHoldLabel.textContent = getSkipHoldTitle(scene);
+  skipHoldMeta.textContent = state.skipHold.progress > 0
+    ? `Release to cancel | ${remainingSeconds.toFixed(1)}s`
+    : idleHint;
+  skipHoldFill.style.width = `${Math.max(0, Math.min(state.skipHold.progress, 1)) * 100}%`;
 }
 
 function getBeatNumber(sceneId) {
@@ -1157,6 +1228,36 @@ function getCurrentTimestamp() {
   return typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
     : Date.now();
+}
+
+function beginKeyboardSkipHold(timestamp = getCurrentTimestamp()) {
+  state.skipHold.keyboardPressed = true;
+
+  if (!isSceneSkippingAvailable()) {
+    state.skipHold.keyboardStartedAt = 0;
+    state.skipHold.keyboardLatched = true;
+    updateSkipIndicator();
+    return;
+  }
+
+  if (!state.skipHold.keyboardLatched && !state.skipHold.keyboardStartedAt) {
+    state.skipHold.keyboardStartedAt = timestamp;
+  }
+
+  updateSkipIndicator();
+}
+
+function releaseKeyboardSkipHold() {
+  state.skipHold.keyboardPressed = false;
+  state.skipHold.keyboardStartedAt = 0;
+  state.skipHold.keyboardLatched = false;
+
+  if (state.skipHold.source === "keyboard") {
+    state.skipHold.progress = 0;
+    state.skipHold.source = null;
+  }
+
+  updateSkipIndicator();
 }
 
 function isGamepadDevice(device) {
@@ -1637,6 +1738,32 @@ function refreshBodyState() {
   document.body.dataset.sceneState = mode;
 }
 
+function setGamepadSkipPressed(device, pressed, timestamp = getCurrentTimestamp()) {
+  state.skipHold.gamepadPressed[device] = pressed;
+
+  if (!pressed) {
+    state.skipHold.gamepadStartedAt[device] = 0;
+    state.skipHold.gamepadLatched[device] = false;
+
+    if (state.skipHold.source === device) {
+      state.skipHold.progress = 0;
+      state.skipHold.source = null;
+    }
+
+    return;
+  }
+
+  if (!isSceneSkippingAvailable()) {
+    state.skipHold.gamepadStartedAt[device] = 0;
+    state.skipHold.gamepadLatched[device] = true;
+    return;
+  }
+
+  if (!state.skipHold.gamepadLatched[device] && !state.skipHold.gamepadStartedAt[device]) {
+    state.skipHold.gamepadStartedAt[device] = timestamp;
+  }
+}
+
 function updateInputPrompts() {
   const validation = getPlayerSetupValidation();
   const activePlayers = getActivePlayers();
@@ -1860,6 +1987,7 @@ function updateSceneHud() {
   updateEpisodeChrome();
   updateInputPrompts();
   refreshBodyState();
+  updateSkipIndicator();
   updateTextDump();
 }
 
@@ -2407,6 +2535,7 @@ function pauseGame() {
     return;
   }
 
+  clearSkipHoldState({ latchPressed: true });
   state.isPaused = true;
   state.pauseWasPlaying = !video.paused && !video.ended;
 
@@ -2631,24 +2760,37 @@ function resolveSceneChoice() {
   scheduleSceneTransition(selectedChoice ? selectedChoice.next : null, splitDecision ? 1500 : 950);
 }
 
-function enterVoteState(scene) {
+function getVoteStateMessage(scene, options = {}) {
+  const { skipped = false } = options;
+  const prefix = skipped ? "Scene skipped. " : "";
+
+  if (scene.choiceResolver === "unknown-character-select") {
+    return `${prefix}Player 1 chooses Kael or Zyra first. Player 2 receives the remaining fighter automatically.`;
+  }
+
+  if (scene.choiceResolver === "unknown-combat") {
+    return `${prefix}Kael and Zyra lock attacks in secret. The winner is revealed after both fighters commit.`;
+  }
+
+  return `${prefix}${state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in."}`;
+}
+
+function enterVoteState(scene, options = {}) {
+  const { skipped = false } = options;
   state.waitingForVotes = true;
+  clearSkipHoldState({ latchPressed: true });
   setDefaultFocus(scene);
   renderChoices(scene);
-  if (scene.choiceResolver === "unknown-character-select") {
-    setDecisionMessage("Player 1 chooses Kael or Zyra first. Player 2 receives the remaining fighter automatically.");
-  } else if (scene.choiceResolver === "unknown-combat") {
-    setDecisionMessage("Kael and Zyra lock attacks in secret. The winner is revealed after both fighters commit.");
-  } else {
-    setDecisionMessage(state.playerSetup.count === 1 ? "Choose one option to continue." : "Votes will resolve after both active players lock in.");
-  }
+  setDecisionMessage(getVoteStateMessage(scene, { skipped }));
   updateSceneHud();
+  updateFocusFeed();
 }
 
 function showCompletion() {
   const episode = getCurrentEpisode();
 
   clearChoiceTimer();
+  clearSkipHoldState({ latchPressed: true });
   state.waitingForVotes = false;
   state.resolvingChoice = false;
   state.isPaused = false;
@@ -2672,6 +2814,7 @@ function showPlaybackError(error) {
   const episode = getCurrentEpisode();
 
   video.pause();
+  clearSkipHoldState({ latchPressed: true });
   state.isPaused = false;
   state.pauseWasPlaying = false;
   state.resumePlaybackOnUnpause = false;
@@ -2695,6 +2838,7 @@ function showPreloadError(error) {
   const file = error && error.file ? error.file : "one of the episode clips";
 
   video.pause();
+  clearSkipHoldState({ latchPressed: true });
   state.isPaused = false;
   state.pauseWasPlaying = false;
   state.resumePlaybackOnUnpause = false;
@@ -2719,6 +2863,7 @@ async function playCurrentScene() {
   }
 
   clearChoiceTimer();
+  clearSkipHoldState({ latchPressed: true });
   state.resumePlaybackOnUnpause = false;
   state.pauseWasPlaying = false;
   resetVotes();
@@ -2805,6 +2950,7 @@ async function restartGame() {
 
   state.isPreparingEpisode = true;
   clearChoiceTimer();
+  clearSkipHoldState({ clearAll: true });
   resetEpisodeMindState();
   resetEpisodeBranchState();
   state.currentSceneId = null;
@@ -2834,35 +2980,95 @@ async function restartGame() {
   }
 }
 
-function handleSceneEnded() {
+function advanceCurrentScene(options = {}) {
+  const { skipped = false } = options;
   const scene = getCurrentScene();
 
   if (!scene || state.isPaused) {
-    return;
+    return false;
   }
 
   if (scene.choices) {
     video.pause();
-    enterVoteState(scene);
-    return;
+    enterVoteState(scene, { skipped });
+    return true;
   }
 
   if (scene.endingResolver) {
     const endingSceneId = resolveEpisodeEndingScene(state.currentSceneId);
-    setDecisionMessage("Resolving the ending route.");
+    setDecisionMessage(skipped ? "Scene skipped. Resolving the ending route." : "Resolving the ending route.");
     updateSceneHud();
-    scheduleSceneTransition(endingSceneId, 700);
-    return;
+    if (skipped && endingSceneId) {
+      queueNextScene(endingSceneId);
+    } else {
+      scheduleSceneTransition(endingSceneId, 700);
+    }
+
+    return true;
   }
 
   if (scene.next) {
-    setDecisionMessage("Advancing to the next clip.");
+    setDecisionMessage(skipped ? "Scene skipped. Advancing to the next clip." : "Advancing to the next clip.");
     updateSceneHud();
     queueNextScene(scene.next);
-    return;
+    return true;
   }
 
   showCompletion();
+  return true;
+}
+
+function skipCurrentScene() {
+  if (!isSceneSkippingAvailable()) {
+    return false;
+  }
+
+  clearSkipHoldState({ latchPressed: true });
+  video.pause();
+  state.pauseWasPlaying = false;
+  state.resumePlaybackOnUnpause = false;
+  return advanceCurrentScene({ skipped: true });
+}
+
+function updateSceneSkipHold(timestamp = getCurrentTimestamp()) {
+  if (!isSceneSkippingAvailable()) {
+    state.skipHold.progress = 0;
+    state.skipHold.source = null;
+    updateSkipIndicator();
+    return;
+  }
+
+  const activeSources = [];
+  if (state.skipHold.keyboardPressed && !state.skipHold.keyboardLatched && state.skipHold.keyboardStartedAt) {
+    activeSources.push(["keyboard", state.skipHold.keyboardStartedAt]);
+  }
+
+  getActiveSkipGamepadDevices().forEach((device) => {
+    if (state.skipHold.gamepadPressed[device] && !state.skipHold.gamepadLatched[device] && state.skipHold.gamepadStartedAt[device]) {
+      activeSources.push([device, state.skipHold.gamepadStartedAt[device]]);
+    }
+  });
+
+  if (!activeSources.length) {
+    state.skipHold.progress = 0;
+    state.skipHold.source = null;
+    updateSkipIndicator();
+    return;
+  }
+
+  activeSources.sort((a, b) => a[1] - b[1]);
+  const [source, startedAt] = activeSources[0];
+  state.skipHold.source = source;
+  state.skipHold.progress = Math.max(0, Math.min(1, (timestamp - startedAt) / SCENE_SKIP_HOLD_MS));
+  updateSkipIndicator();
+
+  if (state.skipHold.progress >= 1) {
+    skipCurrentScene();
+  }
+}
+
+function handleSceneEnded() {
+  advanceCurrentScene();
 }
 
 function handleChoiceClick(event) {
@@ -2933,6 +3139,16 @@ function handleKeydown(event) {
     return;
   }
 
+  if (SKIP_KEY_CODES.has(event.code) && !isEditableTarget(event.target) && !isShortcutPassthroughTarget(event.target)) {
+    event.preventDefault();
+
+    if (!event.repeat) {
+      beginKeyboardSkipHold();
+    }
+
+    return;
+  }
+
   if (!state.waitingForVotes || state.resolvingChoice || state.isPaused) {
     return;
   }
@@ -2950,6 +3166,17 @@ function handleKeydown(event) {
     registerVote(keyboardPlayer, directVote, "keyboard");
     return;
   }
+}
+
+function handleKeyup(event) {
+  if (SKIP_KEY_CODES.has(event.code)) {
+    releaseKeyboardSkipHold();
+  }
+}
+
+function handleWindowBlur() {
+  clearSkipHoldState({ latchPressed: true });
+  releaseKeyboardSkipHold();
 }
 
 function beginEpisode() {
@@ -3058,11 +3285,19 @@ function pollGamepads() {
   updateGamepadAssignments();
 
   const connectedPads = getConnectedGamepads();
+  const timestamp = getCurrentTimestamp();
   recordConnectedGamepads(connectedPads);
   const connectedByDevice = {
     gamepad1: connectedPads[0] || null,
     gamepad2: connectedPads[1] || null
   };
+  const activeSkipDevices = new Set(getActiveSkipGamepadDevices());
+
+  ["gamepad1", "gamepad2"].forEach((device) => {
+    if (!activeSkipDevices.has(device)) {
+      setGamepadSkipPressed(device, false, timestamp);
+    }
+  });
 
   getActivePlayers().forEach((player) => {
     const assignedDevice = getAssignedDevice(player);
@@ -3072,6 +3307,7 @@ function pollGamepads() {
 
     const gamepad = connectedByDevice[assignedDevice];
     if (!gamepad) {
+      setGamepadSkipPressed(assignedDevice, false, timestamp);
       return;
     }
 
@@ -3081,7 +3317,8 @@ function pollGamepads() {
       optionOne: false,
       optionTwo: false,
       optionThree: false,
-      pause: false
+      pause: false,
+      skip: false
     };
     const horizontal = getHorizontalIntent(gamepad);
     const confirm = Boolean(gamepad.buttons[0] && gamepad.buttons[0].pressed);
@@ -3089,6 +3326,9 @@ function pollGamepads() {
     const optionTwo = Boolean(gamepad.buttons[3] && gamepad.buttons[3].pressed);
     const optionThree = Boolean(gamepad.buttons[1] && gamepad.buttons[1].pressed);
     const pause = Boolean(gamepad.buttons[9] && gamepad.buttons[9].pressed);
+    const skip = Boolean(gamepad.buttons[SCENE_SKIP_GAMEPAD_BUTTON_INDEX] && gamepad.buttons[SCENE_SKIP_GAMEPAD_BUTTON_INDEX].pressed);
+
+    setGamepadSkipPressed(assignedDevice, skip, timestamp);
 
     if (pause && !snapshot.pause) {
       if (state.isPaused || canTogglePause()) {
@@ -3109,6 +3349,7 @@ function pollGamepads() {
       snapshot.optionTwo = optionTwo;
       snapshot.optionThree = optionThree;
       snapshot.pause = pause;
+      snapshot.skip = skip;
       state.gamepadSnapshot[assignedDevice] = snapshot;
       return;
     }
@@ -3139,9 +3380,11 @@ function pollGamepads() {
     snapshot.optionTwo = optionTwo;
     snapshot.optionThree = optionThree;
     snapshot.pause = pause;
+    snapshot.skip = skip;
     state.gamepadSnapshot[assignedDevice] = snapshot;
   });
 
+  updateSceneSkipHold(timestamp);
   window.requestAnimationFrame(pollGamepads);
 }
 
@@ -3155,7 +3398,9 @@ playerCountTwoButton.addEventListener("click", handlePlayerCountClick);
 playerOneDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
 playerTwoDeviceSelect.addEventListener("change", handlePlayerDeviceChange);
 document.addEventListener("keydown", handleKeydown);
+document.addEventListener("keyup", handleKeyup);
 document.addEventListener("fullscreenchange", handleFullscreenChange);
+window.addEventListener("blur", handleWindowBlur);
 window.addEventListener("gamepadconnected", updateGamepadAssignments);
 window.addEventListener("gamepaddisconnected", updateGamepadAssignments);
 
@@ -3211,6 +3456,8 @@ function renderGameToText() {
     finalChoiceKey: state.episodeBranchState.finalChoiceKey,
     resolutionMode: state.resolutionMode,
     resolvedCombatOutcome: state.resolvedCombatOutcome,
+    skipHoldProgress: Number(state.skipHold.progress.toFixed(3)),
+    skipHoldSource: state.skipHold.source,
     videoTime: Number.isFinite(video.currentTime) ? Number(video.currentTime.toFixed(3)) : 0
   });
 }
