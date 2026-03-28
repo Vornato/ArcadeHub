@@ -245,6 +245,21 @@ function normalizeAngle(angle) {
   return ((angle % full) + full) % full;
 }
 
+function getSegmentAngle() {
+  return (Math.PI * 2) / items.length;
+}
+
+function getRotationForItemIndex(itemIndex) {
+  const segmentAngle = getSegmentAngle();
+  return normalizeAngle(-(itemIndex * segmentAngle + segmentAngle / 2));
+}
+
+function getItemIndexAtPointer(rotation = state.rotation) {
+  const segmentAngle = getSegmentAngle();
+  const pointerAngle = normalizeAngle(-rotation);
+  return Math.floor((pointerAngle + 0.000001) / segmentAngle) % items.length;
+}
+
 function finishSpin(playerIndex, itemIndex) {
   state.spinning = false;
   state.lastResult = {
@@ -271,8 +286,7 @@ function spinWheel() {
   const playerIndex = state.activePlayerIndex;
   const itemIndex = Math.floor(Math.random() * items.length);
   const full = Math.PI * 2;
-  const segmentAngle = full / items.length;
-  const targetNormalized = normalizeAngle(full - (itemIndex * segmentAngle + segmentAngle / 2));
+  const targetNormalized = getRotationForItemIndex(itemIndex);
   const currentNormalized = normalizeAngle(state.rotation);
   const extraLoops = full * (7 + Math.random() * 2.5);
   const delta = extraLoops + normalizeAngle(targetNormalized - currentNormalized);
@@ -296,7 +310,9 @@ function spinWheel() {
     }
 
     state.rotation = endRotation;
-    finishSpin(playerIndex, itemIndex);
+    const stoppedIndex = getItemIndexAtPointer(state.rotation);
+    state.rotation = getRotationForItemIndex(stoppedIndex);
+    finishSpin(playerIndex, stoppedIndex);
   }
 
   state.animationFrameId = requestAnimationFrame(animate);
